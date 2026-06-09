@@ -363,6 +363,8 @@ class ShareTargetActivity : AppCompatActivity() {
     }
 
     private fun updateShareFooter() {
+        if (isDestroyed || isFinishing) return
+
         val hasRecipients = selectedUsers.isNotEmpty()
         binding.shareBottomBar.visibility = if (hasRecipients) View.VISIBLE else View.GONE
         binding.btnShareSend.visibility = if (hasRecipients) View.VISIBLE else View.GONE
