@@ -1,0 +1,164 @@
+0001: package com.glyph.glyph_v3.ui.widgets
+0002: 
+0003: import android.animation.Animator
+0004: import android.animation.AnimatorSet
+0005: import android.animation.ObjectAnimator
+0006: import android.content.Context
+0007: import android.graphics.Insets
+0008: import android.os.Build
+0009: import android.util.AttributeSet
+0010: import android.util.Log
+0011: import android.view.MotionEvent
+0012: import android.view.View
+0013: import android.view.View.MeasureSpec
+0014: import android.view.ViewGroup
+0015: import android.view.WindowInsets
+0016: import android.widget.ImageView
+0017: import androidx.interpolator.view.animation.FastOutSlowInInterpolator
+0018: import com.google.android.material.bottomnavigation.BottomNavigationView
+0019: 
+0020: class GlyphBottomNavigationView @JvmOverloads constructor(
+0021:     context: Context,
+0022:     attrs: AttributeSet? = null,
+0023:     defStyleAttr: Int = 0,
+0024:     ): BottomNavigationView(context, attrs, defStyleAttr) {
+0025:         
+0026:     private var isThreeButtonMode = false
+0027:     private var currentAnimatingIcon: ImageView? = null
+0028:     private var currentAnimatorSet: AnimatorSet? = null
+0029: 
+0030:     // Standard Gesture Height
+0031:     private val CONTENT_HEIGHT_GESTURE_DP = 64f
+0032:     
+0033:     // 3-Button Mode: Compact height that removes extra whitespace.
+0034:     private val CONTENT_HEIGHT_THREE_BUTTON_DP = 40f
+0035: 
+0036:     companion object {
+0037:         private const val TAG = "GlyphBottomNav"
+0038:     }
+0039: 
+0040:     init {
+0041:         elevation = 0f
+0042:         translationZ = 0f
+0043:         minimumHeight = 0
+0044:         clipToPadding = false
+0045:         clipChildren = false
+0046:     }
+0047: 
+0048:     fun rebindColors() {
+0049:         itemIconTintList = null
+0050:         itemTextColor = null
+0051:         itemIconTintList = context.getColorStateList(com.glyph.glyph_v3.R.color.selector_bottom_nav_icon)
+0052:         itemTextColor = context.getColorStateList(com.glyph.glyph_v3.R.color.selector_bottom_nav)
+0053:     }
+0054: 
+0055:     override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+0056:         // Keep this bar flat by zeroing any extra top/bottom padding.
+0057:         super.setPadding(left, 0, right, 0)
+0058:     }
+0059: 
+0060:     override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
+0061:         val density = resources.displayMetrics.density
+0062:         val bottomInset = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+0063:             insets.getInsets(WindowInsets.Type.systemBars()).bottom
+0064:         } else {
+0065:             @Suppress("DEPRECATION")
+0066:             insets.systemWindowInsetBottom
+0067:         }
+0068: 
+0069:         isThreeButtonMode = (bottomInset / density) > 30
+0070: 
+0071:         Log.d(TAG, "onApplyWindowInsets: inset=$bottomInset, isThreeButtonMode=$isThreeButtonMode")
+0072: 
+0073:         val params = layoutParams as? ViewGroup.MarginLayoutParams
+0074:         if (params != null && params.bottomMargin != bottomInset) {
+0075:             params.bottomMargin = bottomInset
+0076:             layoutParams = params
+0077:         }
+0078: 
+0079:         super.setPadding(paddingLeft, 0, paddingRight, 0)
+0080: 
+0081:         @Suppress("DEPRECATION")
+0082:         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+0083:             WindowInsets.Builder(insets).setInsets(WindowInsets.Type.systemBars(), Insets.NONE).build()
+0084:         } else {
+0085:             insets.consumeSystemWindowInsets()
+0086:         }
+0087:     }
+0088: 
+0089:     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+0090:         val density = resources.displayMetrics.density
+0091:         val contentHeightDp = if (isThreeButtonMode) CONTENT_HEIGHT_THREE_BUTTON_DP else CONTENT_HEIGHT_GESTURE_DP
+0092:         val contentHeightPx = (contentHeightDp * density).toInt()
+0093:         val heightSpec = MeasureSpec.makeMeasureSpec(contentHeightPx, MeasureSpec.EXACTLY)
+0094: 
+0095:         super.onMeasure(widthMeasureSpec, heightSpec)
+0096:         setMeasuredDimension(measuredWidth, contentHeightPx)
+0097: 
+0098:         Log.d(TAG, "onMeasure: contentHeightPx=$contentHeightPx (mode=${if (isThreeButtonMode) "3-btn" else "gesture"})")
+0099:     }
+0100: 
+0101:     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+0102:         super.onLayout(changed, left, top, right, bottom)
+0103:         
+0104:         disableClipping(this)
+0105:     }
+0106:     
+0107:     private fun disableClipping(view: View) {
+0108:         if (view is ViewGroup) {
+0109:             view.clipChildren = false
+0110:             view.clipToPadding = false
+0111:             for (i in 0 until view.childCount) {
+0112:                 disableClipping(view.getChildAt(i))
+0113:             }
+0114:         }
+0115:     }
+0116: 
+0117:     private fun findFirstImageView(root: View): ImageView? {
+0118:         val stack = ArrayDeque<View>()
+0119:         stack.add(root)
+0120:         while (stack.isNotEmpty()) {
+0121:             val v = stack.removeLast()
+0122:             if (v is ImageView) return v
+0123:             if (v is ViewGroup) {
+0124:                 for (i in 0 until v.childCount) stack.add(v.getChildAt(i))
+0125:             }
+0126:         }
+0127:         return null
+0128:     }
+0129: 
+0130:     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+0131:         if (ev.action == MotionEvent.ACTION_DOWN) {
+0132:             val x = ev.x
+0133:             val y = ev.y
+0134:             val menuView = getChildAt(0) as? ViewGroup
+0135:             if (menuView != null) {
+0136:                 for (i in 0 until menuView.childCount) {
+0137:                     val itemView = menuView.getChildAt(i)
+0138:                     if (x >= itemView.left && x <= itemView.right && y >= itemView.top + menuView.translationY && y <= itemView.bottom + menuView.translationY) {
+0139:                         val icon = findFirstImageView(itemView)
+0140:                         if (icon != null) {
+0141:                             animateIconTap(icon)
+0142:                         }
+0143:                         break
+0144:                     }
+0145:                 }
+0146:             }
+0147:         }
+0148:         return super.dispatchTouchEvent(ev)
+0149:     }
+0150: 
+0151:     private fun animateIconTap(icon: ImageView) {
+0152:         if (currentAnimatingIcon == icon && currentAnimatorSet?.isRunning == true) return
+0153:         currentAnimatingIcon = icon
+0154:         currentAnimatorSet?.cancel()
+0155:         val scaleX = ObjectAnimator.ofFloat(icon, View.SCALE_X, 1.0f, 0.85f, 1.0f)
+0156:         val scaleY = ObjectAnimator.ofFloat(icon, View.SCALE_Y, 1.0f, 0.85f, 1.0f)
+0157:         currentAnimatorSet = AnimatorSet().apply {
+0158:             playTogether(scaleX, scaleY)
+0159:             duration = 150
+0160:             interpolator = FastOutSlowInInterpolator()
+0161:             start()
+0162:         }
+0163:     }
+0164: }

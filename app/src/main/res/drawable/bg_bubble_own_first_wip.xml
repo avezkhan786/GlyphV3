@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The main bubble body -->
+    <item android:right="6dp">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/glyphBubbleOwn" />
+            <corners
+                android:topLeftRadius="18dp"
+                android:topRightRadius="0dp"
+                android:bottomLeftRadius="18dp"
+                android:bottomRightRadius="18dp" />
+        </shape>
+    </item>
+
+    <!-- The tail (triangle) on the right -->
+    <item
+        android:width="12dp"
+        android:height="12dp"
+        android:gravity="top|right"
+        android:top="0dp"
+        android:right="0dp">
+        <rotate
+            android:fromDegrees="45"
+            android:pivotX="100%"
+            android:pivotY="0%"
+            android:toDegrees="0">
+            <shape android:shape="rectangle">
+                <solid android:color="?attr/glyphBubbleOwn" />
+                <!-- Masking to force a triangle-like shape requires complex vector paths. 
+                     For XML shapes, we can overlap a square tilted. -->
+            </shape>
+        </rotate>
+    </item>
+    
+    <!-- Masking the inner corner of the tail to make it curved is hard in pure XML shape. 
+         Let's stick to the classic Android scalable vector/shape trick: 
+         A main box + a small triangle. 
+         Reference: WhatsApp uses a specific SVG path. 
+         
+         Since I cannot use a static vector (it won't stretch), and I don't have 9-patch assets...
+         I will use the most robust XML-only approximation:
+         1. A rounded rectangle with top-right 0 radius.
+         2. A small triangle pointing out.
+    -->
+</layer-list>

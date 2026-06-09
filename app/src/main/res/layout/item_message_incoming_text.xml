@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <FrameLayout
+        android:id="@+id/cardMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_message_incoming"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.glyph.glyph_v3.ui.chat.MessageBubbleLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <include layout="@layout/layout_group_sender_name" />
+
+                <include layout="@layout/layout_forwarded_label" />
+
+                <include
+                    android:id="@+id/includeReplyPreview"
+                    layout="@layout/item_message_reply_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <ViewStub
+                    android:id="@+id/linkPreviewStub"
+                    android:inflatedId="@+id/linkPreviewCard"
+                    android:layout="@layout/layout_link_preview_card"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="0dp"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/tvMessage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="?attr/glyphBubbleOtherText"
+                    android:textSize="15sp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    tools:text="Hello! How are you doing today?" />
+
+                <TextView
+                    android:id="@+id/tvTranslationLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="2dp"
+                    android:textColor="?attr/glyphBubbleTimestamp"
+                    android:textSize="11sp"
+                    android:visibility="gone"
+                    tools:text="Translated · Show original" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvTimestamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:paddingBottom="2dp"
+                    android:paddingEnd="4dp"
+                    android:textColor="?attr/glyphBubbleTimestamp"
+                    android:alpha="0.7"
+                    android:textSize="11sp"
+                    tools:text="10:30 AM" />
+            </LinearLayout>
+
+        </com.glyph.glyph_v3.ui.chat.MessageBubbleLayout>
+
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

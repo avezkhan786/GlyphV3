@@ -1,0 +1,427 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.13/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:dataBindingMergeDependencyArtifactsDebug UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:dataBindingGenBaseClassesDebug UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:compileDebugKotlin
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:161:1 Class 'ChatActivity' is not abstract and does not implement abstract member 'onDownloadClicked'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:368:13 Unresolved reference 'handleMultipleMediaUris'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:375:13 Unresolved reference 'handleMediaUri'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:382:13 Unresolved reference 'sendImage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:389:13 Unresolved reference 'sendVideo'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:404:13 Unresolved reference 'launchInAppCamera'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:423:25 Unresolved reference 'sendVideoNoteDirectly'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:425:25 Unresolved reference 'sendVideo'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:428:21 Unresolved reference 'sendImage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:465:17 Unresolved reference 'isBlockedForSending'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:496:13 Unresolved reference 'handleContactUri'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:543:9 Unresolved reference 'setupWindowInsets'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:550:13 Unresolved reference 'computeEmojiShiftDeltaIfNeeded'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:551:13 Unresolved reference 'updateAccessoryIcons'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:571:25 Unresolved reference 'hideEmojiPicker'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:578:21 Unresolved reference 'hideEmojiPicker'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:580:21 Unresolved reference 'cancelEditMode'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:663:9 Unresolved reference 'setupSelectionToolbar'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:665:13 Unresolved reference 'cancelEditMode'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:667:9 Unresolved reference 'setupRecyclerView'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:668:9 Unresolved reference 'setupTranslationFeature'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:669:9 Unresolved reference 'setupScrollToBottomFab'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:670:9 Unresolved reference 'setupBottomAnchoring'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:672:9 Unresolved reference 'setupVoiceFeatures'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:673:9 Unresolved reference 'setupComposeHeader'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:674:9 Unresolved reference 'applyPastelSkyTheme'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:675:9 Unresolved reference 'restoreDraftForChat'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:687:9 Unresolved reference 'loadMessages'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:693:13 Unresolved reference 'setupTypingIndicator'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:694:13 Unresolved reference 'setupExpressiveTyping'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:697:13 Unresolved reference 'setupEmojiPicker'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:700:13 Unresolved reference 'startAvatarAutoSync'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:707:13 Unresolved reference 'fetchOtherUserInfo'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:709:13 Unresolved reference 'updateHeaderInfo'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:710:13 Unresolved reference 'ensureLocalChatExists'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:713:9 Unresolved reference 'fetchCurrentUserInfo'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:720:17 Unresolved reference 'sendMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:730:13 Unresolved reference 'toggleEmojiPicker'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:769:17 Unresolved reference 'launchInAppCamera'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:962:29 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:962:62 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:963:17 Unresolved reference 'processMessagesWithHeaders'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:968:13 Unresolved reference 'prefillTimestampMs'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:970:13 Unresolved reference 'processedListItems'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:971:13 Unresolved reference 'currentMessages'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:975:17 Unresolved reference 'updateDisplayedMessageIds'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:998:17 Unresolved reference 'scrollToBottomAfterNextLayout'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1152:25 Unresolved reference 'showCameraOptions'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1343:25 Unresolved reference 'showAutoTranslateLanguageSelector'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1366:29 Unresolved reference 'showUnblockConfirmation'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1368:29 Unresolved reference 'showBlockConfirmation'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1430:13 Unresolved reference 'resetChatContentFromInteractiveMode'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1461:9 Unresolved reference 'updateLiveBannerVisibility'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1476:17 Unresolved reference 'updateLiveBannerVisibility'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1679:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1711:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1721:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1739:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1744:9 Unresolved reference 'startPresenceObservation'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1747:9 Unresolved reference 'startBlockStatusObservation'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1797:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1815:21 Unresolved reference 'startAvatarAutoSync'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1818:13 Unresolved reference 'ensureLocalChatExists'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1822:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1832:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1880:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1906:25 Unresolved reference 'reloadAvatarImage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1920:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1939:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1948:13 Unresolved reference 'scrollToMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:1989:41 Unresolved reference 'prefillTimestampMs'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2027:25 Unresolved reference 'onSwipeToReply'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2073:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2096:21 Unresolved reference 'refreshInputPadding'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2130:21 Unresolved reference 'updateTranslationForMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2138:13 Unresolved reference 'translateMessageInline'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2147:17 Unresolved reference 'updateTranslationForMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2166:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2172:9 Unresolved reference 'updateTranslationForMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2194:21 Unresolved reference 'updateTranslationForMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2203:17 Unresolved reference 'updateTranslationForMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2212:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2221:13 Unresolved reference 'updateTranslationForMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2235:25 Unresolved reference 'updateTranslationForMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2240:21 Unresolved reference 'updateTranslationForMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2250:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2268:9 Unresolved reference 'processedListItems'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2277:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2285:18 Unresolved reference 'isRecyclerAtBottom'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2286:13 Unresolved reference 'requestScrollToBottomAfterNextPreDraw'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2292:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2311:13 Unresolved reference 'hideScrollFabImmediately'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2313:13 Unresolved reference 'scrollToBottomSmooth'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2314:13 Unresolved reference 'setUnreadCountInternal'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2315:13 Unresolved reference 'collapseScrollFab'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2320:17 Unresolved reference 'scheduleScrollFabUpdate'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2325:21 Unresolved reference 'scheduleScrollFabUpdate'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2331:45 Unresolved reference 'scheduleScrollFabUpdate'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2334:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2339:13 Unresolved reference 'updateScrollFabUi'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2343:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2348:13 Unresolved reference 'setScrollFabVisible'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2352:29 Unresolved reference 'isRecyclerNearBottom'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2359:13 Unresolved reference 'setUnreadCountInternal'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2360:13 Unresolved reference 'collapseScrollFab'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2365:13 Unresolved reference 'hideScrollFabImmediately'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2371:9 Unresolved reference 'setScrollFabVisible'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2376:13 Unresolved reference 'expandScrollFabIfNeeded'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2379:13 Unresolved reference 'collapseScrollFab'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2383:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2419:21 Unresolved reference 'collapseScrollFab'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2425:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2442:9 Unresolved reference 'collapseScrollFab'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2445:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2496:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2504:13 Unresolved reference 'isTypingTransitionRunning'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2536:38 Unresolved reference 'resolveTypingIndicatorShiftPx'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2542:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2550:45 Unresolved reference 'formatUnreadLabel'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2579:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2587:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2591:17 Unresolved reference 'animateScrollFabWidthToMeasured'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2619:9 Unresolved reference 'animateScrollFabWidthToMeasured'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2622:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2628:27 Unresolved reference 'dpToPx'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2658:13 'val' cannot be reassigned.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2658:28 Assignment type mismatch: actual type is 'androidx.interpolator.view.animation.FastOutSlowInInterpolator', but 'android.view.animation.AccelerateDecelerateInterpolator' was expected.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2667:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2669:27 Unresolved reference 'dpToPx'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2685:91 Unresolved reference 'dpToPx'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2701:13 'val' cannot be reassigned.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2701:28 Assignment type mismatch: actual type is 'androidx.interpolator.view.animation.FastOutSlowInInterpolator', but 'android.view.animation.AccelerateDecelerateInterpolator' was expected.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2710:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2715:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2716:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2717:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2718:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2723:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2726:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2879:25 Unresolved reference 'updateHeaderStatus'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2893:45 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2893:78 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2899:33 Unresolved reference 'processMessagesWithHeaders'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2903:54 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2906:29 Unresolved reference 'submitListAwait'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2908:29 Unresolved reference 'updateDisplayedMessageIds'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2919:49 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2919:82 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2920:37 Unresolved reference 'processMessagesWithHeaders'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2930:33 Unresolved reference 'submitListAwait'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2932:33 Unresolved reference 'updateDisplayedMessageIds'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2936:37 Unresolved reference 'requestScrollToBottomAfterNextPreDraw'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2972:46 Unresolved reference 'detectTypingIndicatorTransition'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2973:49 Unresolved reference 'submitListWithTypingTransition'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2978:47 Unresolved reference 'TypingIndicatorTransition'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2982:29 Unresolved reference 'updateDisplayedMessageIds'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2991:45 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2991:78 Cannot infer type for this parameter. Please specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:2992:33 Unresolved reference 'processMessagesWithHeaders'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3001:46 Unresolved reference 'detectTypingIndicatorTransition'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3002:49 Unresolved reference 'submitListWithTypingTransition'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3007:47 Unresolved reference 'TypingIndicatorTransition'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3011:29 Unresolved reference 'updateDisplayedMessageIds'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3026:29 Unresolved reference 'requestScrollToBottomAfterNextPreDraw'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3049:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3057:5 Modifier 'private' is not applicable to 'local class'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3057:13 Modifier 'enum' is not applicable to 'local class'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3063:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3068:71 Enum entry 'APPEAR' is uninitialized here.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3069:71 Enum entry 'DISAPPEAR' is uninitialized here.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3070:47 Enum entry 'NONE' is uninitialized here.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3081:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3083:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3095:82 Unresolved reference 'isRecyclerAtBottom'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3098:39 Enum entry 'APPEAR' is uninitialized here.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3104:50 Unresolved reference 'doOnLayoutAwait'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3106:40 Unresolved reference 'resolveTypingIndicatorShiftPx'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3108:25 Unresolved reference 'animateRecyclerTypingPush'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3109:25 Unresolved reference 'ensureLastItemFullyVisibleAboveBottomUi'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3118:39 Enum entry 'DISAPPEAR' is uninitialized here.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3134:46 Unresolved reference 'doOnLayoutAwait'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3139:40 Unresolved reference 'resolveTypingIndicatorShiftPx'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3142:26 Unresolved reference 'animateRecyclerTypingPush'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3159:25 Unresolved reference 'ensureLastItemFullyVisibleAboveBottomUi'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3165:39 Enum entry 'NONE' is uninitialized here.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3173:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3203:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3212:17 'val' cannot be reassigned.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3212:32 Assignment type mismatch: actual type is 'androidx.interpolator.view.animation.FastOutSlowInInterpolator', but 'android.view.animation.AccelerateDecelerateInterpolator' was expected.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3242:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3265:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3272:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3356:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3392:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3402:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3409:13 Unresolved reference 'getNavBarHeight'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3414:45 Unresolved reference 'getNavBarHeight'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3444:21 Unresolved reference 'updateContentBottomPadding'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3444:76 Unresolved reference 'getNavBarHeight'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3490:13 Unresolved reference 'sendKlipyMedia'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3491:13 Unresolved reference 'autoCloseExpandedPicker'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3495:13 Unresolved reference 'sendKlipyMedia'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3496:13 Unresolved reference 'autoCloseExpandedPicker'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3500:13 Unresolved reference 'sendKlipyMedia'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3501:13 Unresolved reference 'autoCloseExpandedPicker'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3505:13 Unresolved reference 'sendKlipyMedia'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3506:13 Unresolved reference 'autoCloseExpandedPicker'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3514:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3518:13 Unresolved reference 'hideEmojiPicker'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3522:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3526:13 Unresolved reference 'collapseExpandedSearch'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3538:13 Unresolved reference 'showEmojiPicker'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3542:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3557:9 Unresolved reference 'updateContentBottomPadding'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3557:64 Unresolved reference 'getNavBarHeight'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3566:30 Unresolved reference 'getNavBarHeight'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3573:17 Unresolved reference 'updateContentBottomPadding'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3578:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3602:9 Unresolved reference 'updateContentBottomPadding'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3602:73 Unresolved reference 'getNavBarHeight'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3609:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3624:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3633:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3634:13 Unresolved reference 'isBlockedForSending'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3661:9 Unresolved reference 'cancelReply'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3664:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3678:18 Unresolved reference 'isMessageEditable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3680:17 Unresolved reference 'cancelEditMode'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3689:17 Unresolved reference 'cancelEditMode'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3702:13 Unresolved reference 'cancelEditMode'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3703:13 Unresolved reference 'clearDraftForChat'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3734:13 Unresolved reference 'cancelReply'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3735:13 Unresolved reference 'clearDraftForChat'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3742:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3949:13 Unresolved reference 'cancelReply'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:3953:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4004:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4037:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4038:14 Unresolved reference 'isMessageEditable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4067:9 Unresolved reference 'showEditPreview'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4071:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4073:9 Unresolved reference 'hideEditPreview'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4085:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4087:35 Unresolved reference 'getEditPreviewText'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4096:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4106:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4124:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4134:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4144:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4151:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4160:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4162:9 Unresolved reference 'showCompressionBottomSheet'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4165:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4167:9 Unresolved reference 'showCompressionBottomSheet'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4173:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4198:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4224:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4243:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4245:9 Unresolved reference 'showCompressionBottomSheet'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4248:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4267:9 Unresolved reference 'showCompressionBottomSheet'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4277:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4286:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4293:17 Unresolved reference 'sendMediaWithCompression'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4305:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4374:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4376:9 Unresolved reference 'launchInAppCamera'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4380:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4391:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4405:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4414:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4448:13 Unresolved reference 'sendContactCard'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4454:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4483:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4500:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4507:13 Unresolved reference 'persistDraft'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4511:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4515:9 Unresolved reference 'persistDraft'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4518:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4525:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4538:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4553:13 Unresolved reference 'updateAccessoryIcons'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4581:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4613:17 Unresolved reference 'refreshTypingIndicatorInline'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4626:9 Unresolved reference 'setupSentimentLayers'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4642:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4707:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4728:17 Unresolved reference 'requestScrollToBottomAfterNextPreDraw'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4733:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4742:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4833:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4846:13 Unresolved reference 'hideTypingIndicator'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4849:17 Unresolved reference 'updatePresenceUI'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4855:13 Unresolved reference 'hideTypingIndicator'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4858:17 Unresolved reference 'updatePresenceUI'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4866:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4879:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4883:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4885:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4896:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4897:9 Unresolved reference 'requestScrollToBottomAfterNextPreDraw'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4906:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4942:21 Unresolved reference 'ensureLastItemFullyVisibleAboveBottomUi'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4955:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4967:35 Unresolved reference 'computeBottomBlockingTopOnScreen'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:4978:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5000:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5002:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5037:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5046:17 Unresolved reference 'updateInputBarForBlockStatus'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5051:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5080:53 Unresolved reference 'showUnblockConfirmation'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5103:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5126:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5146:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5159:26 Unresolved reference 'formatLastSeen'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5185:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5204:13 Unresolved reference 'isToday'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5209:13 Unresolved reference 'isYesterday'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5226:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5233:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5240:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5274:21 Unresolved reference 'updateContentBottomPadding'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5346:80 Argument type mismatch: actual type is 'kotlin.Int', but 'kotlin.Float' was expected.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5353:17 Unresolved reference 'updateContentBottomPadding'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5360:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5362:5 Modifier 'override' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5424:5 Modifier 'override' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5447:5 Modifier 'override' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5451:5 Modifier 'override' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5516:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5543:32 Unresolved reference 'stopRecordingAndShowOptions'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5556:41 Unresolved reference 'sendPendingVoiceNote'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5557:41 Unresolved reference 'startSpeechToText'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5558:51 Unresolved reference 'handleSttLanguageChanged'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5559:47 Unresolved reference 'retranslateWithLanguage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5560:53 Unresolved reference 'insertTextAndDismissOptions'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5561:35 Unresolved reference 'dismissVoiceOptions'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5567:9 Unresolved reference 'updatePlaybackState'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5575:18 Unresolved reference 'updatePlaybackState'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5581:18 Unresolved reference 'updatePlaybackState'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5588:38 Unresolved reference 'handleAudioCompletion'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5591:24 Unresolved reference 'playingMessageId'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5592:24 Unresolved reference 'playingMessageId'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5593:24 Unresolved reference 'updatePlaybackState'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5615:21 Unresolved reference 'startRecording'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5649:30 Unresolved reference 'stopRecordingAndShowOptions'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5668:5 Modifier 'private' is not applicable to 'local variable'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5670:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5687:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5722:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5758:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5802:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5819:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5873:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5894:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5905:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5914:31 Unresolved reference 'playVoiceMessage'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5936:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:5974:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6022:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6024:13 Unresolved reference 'updateSelectionToolbar'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6108:13 Unresolved reference 'showSelectionMenu'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6112:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6188:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6250:5 Modifier 'override' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6310:5 Modifier 'override' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6317:5 Modifier 'override' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6321:5 Modifier 'override' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6346:5 Modifier 'override' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6370:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6517:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6759:5 Modifier 'override' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6767:14 Unresolved reference 'shakeScreen'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6769:18 Unresolved reference 'showBuzzOverlay'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6771:18 Unresolved reference 'showBuzzBanner'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6776:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6845:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6854:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6888:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6958:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6966:5 Modifier 'private' is not applicable to 'local function'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatActivity.kt:6975:5 Modifier 'private' is not applicable to 'local function'.
+
+> Task :app:compileDebugKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 3m 25s
+21 actionable tasks: 1 executed, 20 up-to-date

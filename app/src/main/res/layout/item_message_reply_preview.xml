@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/replyPreviewContainer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:visibility="gone"
+    android:layout_marginBottom="4dp"
+    android:background="@drawable/bg_reply_preview_bubble">
+
+    <!-- Vertical Accent Bar -->
+    <View
+        android:id="@+id/replyBar"
+        android:layout_width="4dp"
+        android:layout_height="0dp"
+        android:background="?attr/colorPrimary"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:layout_marginStart="4dp"/>
+
+    <!-- Barrier before media thumbnails so text doesn't overlap either type -->
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/barrierMedia"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="start"
+        app:constraint_referenced_ids="ivReplyImage,replyCollageContainer" />
+
+    <!-- Contact Name -->
+    <TextView
+        android:id="@+id/tvReplyContact"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Sender Name"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="?attr/colorPrimary"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginEnd="8dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        app:layout_constraintStart_toEndOf="@id/replyBar"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/barrierMedia"/>
+
+    <!-- Message Content -->
+    <TextView
+        android:id="@+id/tvReplyContent"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="Message text"
+        android:textSize="12sp"
+        android:textColor="?android:attr/textColorSecondary"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginBottom="6dp"
+        android:ellipsize="end"
+        android:maxLines="2"
+        app:layout_constraintStart_toEndOf="@id/replyBar"
+        app:layout_constraintTop_toBottomOf="@id/tvReplyContact"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/barrierMedia"/>
+
+    <!-- Optional Media Thumbnail (single image) -->
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/ivReplyImage"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        tools:visibility="visible"
+        android:layout_marginEnd="4dp"
+        app:shapeAppearanceOverlay="@style/RoundedCornerImage"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:src="@tools:sample/backgrounds/scenic"/>
+
+    <!-- Stacked collage thumbnails container (up to 4) -->
+    <FrameLayout
+        android:id="@+id/replyCollageContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:layout_marginEnd="4dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivCollage1"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="0dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            android:elevation="4dp"
+            app:strokeColor="?android:attr/textColorSecondary"
+            app:strokeWidth="1dp"
+            app:shapeAppearanceOverlay="@style/RoundedCornerImage" />
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivCollage2"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            android:elevation="3dp"
+            app:strokeColor="?android:attr/textColorSecondary"
+            app:strokeWidth="1dp"
+            app:shapeAppearanceOverlay="@style/RoundedCornerImage" />
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivCollage3"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="16dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            android:elevation="2dp"
+            app:strokeColor="?android:attr/textColorSecondary"
+            app:strokeWidth="1dp"
+            app:shapeAppearanceOverlay="@style/RoundedCornerImage" />
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivCollage4"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="24dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            android:elevation="1dp"
+            app:strokeColor="?android:attr/textColorSecondary"
+            app:strokeWidth="1dp"
+            app:shapeAppearanceOverlay="@style/RoundedCornerImage" />
+
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

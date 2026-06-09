@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="tag_emoji_only" type="id" />
+    <item name="tag_link_preview_thumbnail_url" type="id" />
+    <item name="tag_media_background_mode" type="id" />
+    <item name="tag_bubble_corner_key" type="id" />
+    <item name="glyph_reaction_overlay_root" type="id" />
+    <item name="glyph_reaction_chip" type="id" />
+</resources>

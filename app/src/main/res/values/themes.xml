@@ -1,0 +1,625 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    
+    <!-- ========== LIGHT THEME ========== -->
+    <style name="Theme.GlyphV3.Light" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Material3 Primary colors -->
+        <item name="colorPrimary">@color/light_primary</item>
+        <item name="colorPrimaryVariant">@color/light_primary_variant</item>
+        <item name="colorOnPrimary">@color/light_on_primary</item>
+        
+        <!-- Material3 Secondary colors -->
+        <item name="colorSecondary">@color/light_accent</item>
+        <item name="colorSecondaryVariant">@color/light_accent_variant</item>
+        <item name="colorOnSecondary">@color/white</item>
+        
+        <!-- Status bar -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+
+        <!-- Navigation bar (edge-to-edge) -->
+        <item name="android:navigationBarColor">@color/light_surface</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+
+        <!-- Material3 Backgrounds -->
+        <item name="android:colorBackground">@color/light_bubble_other_mid</item>
+        <item name="colorSurface">@color/light_bubble_other_mid</item>
+        <item name="colorSurfaceVariant">@color/light_surface_variant</item>
+        
+        <!-- Material3 Text Colors -->
+        <item name="android:textColorPrimary">@color/light_text</item>
+        <item name="android:textColorSecondary">@color/light_text_secondary</item>
+        <item name="android:textColorTertiary">@color/light_text_tertiary</item>
+        <item name="android:textColorHint">@color/light_text_tertiary</item>
+        <item name="android:editTextColor">@color/light_text</item>
+        <item name="colorControlNormal">?attr/glyphToolbarIcon</item>
+        
+        <!-- ========== GLYPH CUSTOM ATTRIBUTES ========== -->
+        <!-- Background Colors -->
+        <item name="glyphBackground">@color/light_bubble_other_mid</item>
+        <item name="glyphSurface">@color/light_bubble_other_mid</item>
+        <item name="glyphSurfaceSecondary">@color/light_surface_secondary</item>
+        <item name="glyphSurfaceVariant">@color/light_surface_variant</item>
+        <item name="glyphSurfaceTinted">@color/light_surface_tinted</item>
+        <item name="glyphSurfaceWarm">@color/light_surface_warm</item>
+        <item name="glyphSearchBarBackground">@color/search_bar_light</item>
+        
+        <!-- Text Colors -->
+        <item name="glyphTextPrimary">@color/light_text</item>
+        <item name="glyphTextSecondary">@color/light_text_secondary</item>
+        <item name="glyphTextTertiary">@color/light_text_tertiary</item>
+        <item name="glyphTextInverse">@color/light_text_inverse</item>
+        <item name="glyphTextHint">@color/light_text_muted</item>
+        
+        <!-- Primary Colors -->
+        <item name="glyphPrimary">@color/light_primary</item>
+        <item name="glyphPrimaryVariant">@color/light_primary_variant</item>
+        <item name="glyphPrimaryLight">@color/light_primary_light</item>
+        <item name="glyphOnPrimary">@color/light_on_primary</item>
+        
+        <!-- Secondary/Accent Colors -->
+        <item name="glyphSecondary">@color/light_secondary</item>
+        <item name="glyphAccent">@color/light_accent</item>
+        <item name="glyphAccentVariant">@color/light_accent_variant</item>
+        
+        <!-- Status Colors -->
+        <item name="glyphSuccess">@color/light_success</item>
+        <item name="glyphWarning">@color/light_warning</item>
+        <item name="glyphError">@color/light_error</item>
+        <item name="glyphInfo">@color/light_info</item>
+        
+        <!-- Border Colors -->
+        <item name="glyphBorder">@color/light_border</item>
+        <item name="glyphBorderVariant">@color/light_border_variant</item>
+        <item name="glyphBorderAccent">@color/light_border_accent</item>
+        <item name="glyphDivider">@color/light_border_light</item>
+        
+        <!-- Card/Item Colors -->
+        <item name="glyphCardBackground">@color/light_surface</item>
+        <item name="glyphCardBackgroundSelected">@color/light_chat_item_selected</item>
+        <item name="glyphRipple">#20006A6A</item>
+        <item name="glyphSettingsHeroBackground">@color/light_surface</item>
+        <item name="glyphSettingsHeroSurface">@color/light_surface</item>
+        <item name="glyphSettingsHeroStroke">@color/light_border</item>
+        <item name="glyphSettingsHeroPrimaryText">@color/light_text</item>
+        <item name="glyphSettingsHeroSecondaryText">#5A6872</item>
+        <item name="glyphSettingsHeroActionBackground">#E6F0F2</item>
+        <item name="glyphSettingsHeroActionIcon">#16363B</item>
+        
+        <!-- Icon Colors -->
+        <item name="glyphIconPrimary">@color/light_text</item>
+        <item name="glyphIconSecondary">@color/light_text_secondary</item>
+        <item name="glyphIconTertiary">@color/light_text_tertiary</item>
+        <item name="glyphAiIcon">@color/glyph_primary</item>
+        <item name="glyphChatInputIcon">@color/light_text_secondary</item>
+        
+        <!-- Chat-specific Colors -->
+        <item name="glyphBubbleOwn">@color/light_bubble_own</item>
+        <item name="glyphBubbleOther">@color/light_bubble_other</item>
+        <item name="glyphBubbleOwnText">@color/black</item>
+        <item name="glyphBubbleOtherText">@color/black</item>
+        <item name="glyphBubbleTimestamp">@color/light_text_secondary</item>
+        <item name="glyphChatInputBackground">@color/light_surface</item>
+        <item name="glyphChatInputText">@color/light_text</item>
+        <item name="glyphChatInputHint">@color/light_text_muted</item>
+        <item name="glyphDateHeaderBackground">@color/light_surface_tinted</item>
+        <item name="glyphDateHeaderText">@color/light_text_secondary</item>
+        <item name="glyphUnreadBadge">@color/light_unread_badge</item>
+        <item name="glyphOnlineIndicator">@color/light_success</item>
+        <item name="glyphSendButton">@color/light_send_button</item>
+        
+        <!-- Toolbar Colors -->
+        <item name="glyphToolbarBackground">@color/light_bubble_other_mid</item>
+        <item name="glyphToolbarTitle">@color/light_text</item>
+        <item name="glyphToolbarSubtitle">@color/light_text_secondary</item>
+        <item name="glyphToolbarIcon">@color/light_text</item>
+        
+        <!-- Bottom Navigation Colors -->
+        <item name="glyphNavBackground">@color/light_bubble_other_mid</item>
+        <item name="glyphNavGradientStart">@color/light_bubble_other_mid</item>
+        <item name="glyphNavGradientEnd">@color/light_bubble_own_end</item>
+        <item name="glyphNavItemActive">@color/light_primary</item>
+        <item name="glyphNavItemInactive">@color/light_text_secondary</item>
+        <item name="glyphNavTextActive">@color/light_primary</item>
+        <item name="glyphNavTextInactive">@color/light_text_secondary</item>
+        <!-- Active pill color for Light theme: use Send button color so pill matches FAB -->
+        <item name="glyphNavActiveIndicator">?attr/glyphSendButton</item>
+        
+        <!-- Dialog/Sheet Colors -->
+        <item name="glyphDialogBackground">@color/light_surface</item>
+        <item name="glyphSheetBackground">@color/light_surface</item>
+        <item name="glyphOverlay">#80000000</item>
+        
+        <!-- Avatar/Image Placeholder -->
+        <item name="glyphAvatarPlaceholder">#DFE6E9</item>
+        <item name="glyphImagePlaceholder">#F1F5F9</item>
+        
+        <!-- Attachment Menu Colors -->
+        <item name="glyphAttachmentBackground">@color/light_surface</item>
+        <item name="glyphAttachmentText">@color/light_text_secondary</item>
+        <item name="glyphAttachmentIcon">@color/light_primary</item>
+        
+        <!-- FAB Colors -->
+        <item name="glyphFabBackground">@color/light_primary</item>
+        <item name="glyphFabIcon">@color/white</item>
+        <item name="glyphScrollFabBackground">@color/light_send_button</item>
+        <item name="glyphScrollFabIcon">@color/light_text</item>
+        <item name="glyphScrollFabBorder">@color/light_border_variant</item>
+        
+        <!-- Selection Colors -->
+        <item name="glyphSelectionBackground">#400EA5E9</item>
+        <item name="glyphSelectionHighlight">#200EA5E9</item>
+        
+        <!-- FAB styling -->
+        <item name="floatingActionButtonStyle">@style/GlyphFabStyle.Light</item>
+    </style>
+    
+    <!-- ========== DARK THEME ========== -->
+    <style name="Theme.GlyphV3.Dark" parent="Theme.Material3.Dark.NoActionBar">
+        <!-- Material3 Primary colors -->
+        <item name="colorPrimary">@color/dark_primary</item>
+        <item name="colorPrimaryVariant">@color/dark_primary_variant</item>
+        <item name="colorOnPrimary">@color/dark_on_primary</item>
+        
+        <!-- Material3 Secondary colors -->
+        <item name="colorSecondary">@color/dark_accent</item>
+        <item name="colorSecondaryVariant">@color/dark_accent_variant</item>
+        <item name="colorOnSecondary">@color/white</item>
+        
+        <!-- Status bar -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+
+        <!-- Navigation bar (edge-to-edge) -->
+        <item name="android:navigationBarColor">@color/dark_surface</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+
+        <!-- Material3 Backgrounds -->
+        <item name="android:colorBackground">@color/dark_background</item>
+        <item name="colorSurface">@color/dark_background</item>
+        <item name="colorSurfaceVariant">@color/dark_surface_variant</item>
+        
+        <!-- Material3 Text Colors -->
+        <item name="android:textColorPrimary">@color/dark_text</item>
+        <item name="android:textColorSecondary">@color/dark_text_secondary</item>
+        <item name="android:textColorTertiary">@color/dark_text_tertiary</item>
+        <item name="android:textColorHint">@color/dark_text_tertiary</item>
+        <item name="android:editTextColor">@color/dark_text</item>
+        <item name="colorControlNormal">?attr/glyphToolbarIcon</item>
+        
+        <!-- ========== GLYPH CUSTOM ATTRIBUTES ========== -->
+        <!-- Background Colors -->
+        <item name="glyphBackground">@color/dark_background</item>
+        <item name="glyphSurface">@color/dark_background</item>
+        <item name="glyphSurfaceSecondary">@color/dark_surface_secondary</item>
+        <item name="glyphSurfaceVariant">@color/dark_surface_variant</item>
+        <item name="glyphSurfaceTinted">#1A2D2D</item>
+        <item name="glyphSearchBarBackground">@color/search_bar_dark</item>
+        
+        <!-- Text Colors -->
+        <item name="glyphTextPrimary">@color/dark_text</item>
+        <item name="glyphTextSecondary">@color/dark_text_secondary</item>
+        <item name="glyphTextTertiary">@color/dark_text_tertiary</item>
+        <item name="glyphTextInverse">@color/dark_text_inverse</item>
+        <item name="glyphTextHint">@color/dark_text_tertiary</item>
+        
+        <!-- Primary Colors -->
+        <item name="glyphPrimary">@color/dark_primary</item>
+        <item name="glyphPrimaryVariant">@color/dark_primary_variant</item>
+        <item name="glyphPrimaryLight">#5DE69B</item>
+        <item name="glyphOnPrimary">@color/dark_on_primary</item>
+        
+        <!-- Secondary/Accent Colors -->
+        <item name="glyphSecondary">@color/dark_accent</item>
+        <item name="glyphAccent">@color/dark_accent</item>
+        <item name="glyphAccentVariant">@color/dark_accent_variant</item>
+        
+        <!-- Status Colors -->
+        <item name="glyphSuccess">@color/dark_success</item>
+        <item name="glyphWarning">@color/dark_warning</item>
+        <item name="glyphError">@color/dark_error</item>
+        <item name="glyphInfo">@color/dark_info</item>
+        
+        <!-- Border Colors -->
+        <item name="glyphBorder">@color/dark_border</item>
+        <item name="glyphBorderVariant">@color/dark_border_variant</item>
+        <item name="glyphDivider">@color/dark_border</item>
+        
+        <!-- Card/Item Colors -->
+        <item name="glyphCardBackground">@color/dark_surface</item>
+        <item name="glyphCardBackgroundSelected">@color/dark_chat_item_selected</item>
+        <item name="glyphRipple">#2025D366</item>
+        <item name="glyphSettingsHeroBackground">@color/ai_dark_surface</item>
+        <item name="glyphSettingsHeroSurface">@color/ai_dark_surface</item>
+        <item name="glyphSettingsHeroStroke">@color/dark_border_variant</item>
+        <item name="glyphSettingsHeroPrimaryText">#EAEFF2</item>
+        <item name="glyphSettingsHeroSecondaryText">#8696A0</item>
+        <item name="glyphSettingsHeroActionBackground">#141E26</item>
+        <item name="glyphSettingsHeroActionIcon">#25D366</item>
+        
+        <!-- Icon Colors -->
+        <item name="glyphIconPrimary">@color/dark_text</item>
+        <item name="glyphIconSecondary">@color/dark_text_secondary</item>
+        <item name="glyphIconTertiary">@color/dark_text_tertiary</item>
+        <item name="glyphAiIcon">@color/dark_success</item>
+        <item name="glyphChatInputIcon">@android:color/white</item>
+        
+        <!-- Chat-specific Colors -->
+        <item name="glyphBubbleOwn">#134d37</item>
+        <item name="glyphBubbleOther">#1f272a</item>
+        <item name="glyphBubbleOwnText">@color/dark_text</item>
+        <item name="glyphBubbleOtherText">@color/dark_text</item>
+        <item name="glyphBubbleTimestamp">#f6f8fa</item>
+        <item name="glyphChatInputBackground">@color/dark_surface</item>
+        <item name="glyphChatInputText">@color/dark_text</item>
+        <item name="glyphChatInputHint">@color/dark_text_tertiary</item>
+        <item name="glyphDateHeaderBackground">#182229</item>
+        <item name="glyphDateHeaderText">@color/dark_text_secondary</item>
+        <item name="glyphUnreadBadge">@color/dark_unread_badge</item>
+        <item name="glyphOnlineIndicator">#25D366</item>
+        <item name="glyphSendButton">@color/dark_primary</item>
+        
+        <!-- Toolbar Colors -->
+        <item name="glyphToolbarBackground">@color/dark_background</item>
+        <item name="glyphToolbarTitle">@color/dark_toolbar_title</item>
+        <item name="glyphToolbarSubtitle">@color/dark_text_secondary</item>
+        <item name="glyphToolbarIcon">@color/dark_text</item>
+        
+        <!-- Bottom Navigation Colors -->
+        <item name="glyphNavBackground">@color/dark_background</item>
+        <item name="glyphNavGradientStart">@color/dark_background</item>
+        <item name="glyphNavGradientEnd">@color/dark_surface</item>
+        <item name="glyphNavItemActive">@color/dark_nav_icon_selected</item>
+        <item name="glyphNavItemInactive">@color/dark_nav_icon</item>
+        <!-- Custom attributes for separate text/icon control if needed in XML layouts -->
+        <item name="glyphNavTextActive">@color/dark_nav_text_selected</item>
+        <item name="glyphNavTextInactive">@color/dark_nav_text</item>
+        <!-- Active pill color for Dark theme -->
+        <item name="glyphNavActiveIndicator">@color/dark_nav_indicator</item>
+        
+        <!-- Dialog/Sheet Colors -->
+        <item name="glyphDialogBackground">@color/dark_surface</item>
+        <item name="glyphSheetBackground">#1F2C34</item>
+        <item name="glyphOverlay">#CC000000</item>
+        
+        <!-- Avatar/Image Placeholder -->
+        <item name="glyphAvatarPlaceholder">#2D3B41</item>
+        <item name="glyphImagePlaceholder">#2D2D2D</item>
+        
+        <!-- Attachment Menu Colors -->
+        <item name="glyphAttachmentBackground">#1F2C34</item>
+        <item name="glyphAttachmentText">@color/dark_text_secondary</item>
+        <item name="glyphAttachmentIcon">@color/dark_primary</item>
+        
+        <!-- FAB Colors -->
+        <item name="glyphFabBackground">@color/dark_primary</item>
+        <item name="glyphFabIcon">@color/dark_on_primary</item>
+        <item name="glyphScrollFabBackground">@color/dark_scroll_fab_background</item>
+        <item name="glyphScrollFabIcon">@color/dark_scroll_fab_icon</item>
+        <item name="glyphScrollFabBorder">@color/dark_border_variant</item>
+        
+        <!-- Selection Colors -->
+        <item name="glyphSelectionBackground">#4025D366</item>
+        <item name="glyphSelectionHighlight">#2025D366</item>
+        
+        <!-- FAB styling -->
+        <item name="floatingActionButtonStyle">@style/GlyphFabStyle.Dark</item>
+    </style>
+
+    <!-- Specific theme for Chat/AI screens in Dark Mode (Pure Black surfaces) -->
+    <style name="Theme.GlyphV3.Dark.Deep" parent="Theme.GlyphV3.Dark">
+        <item name="android:windowBackground">@color/ai_dark_surface</item>
+        <item name="android:colorBackground">@color/ai_dark_surface</item>
+        <item name="colorSurface">@color/ai_dark_surface</item>
+        <item name="colorSurfaceVariant">@color/ai_dark_surface</item>
+        <item name="glyphBackground">@color/ai_dark_surface</item>
+        <item name="glyphSurface">@color/ai_dark_surface</item>
+        <item name="glyphSurfaceSecondary">@color/ai_dark_surface</item>
+        <item name="glyphToolbarBackground">@color/ai_dark_surface</item>
+        <item name="glyphChatInputBackground">@color/ai_dark_surface</item>
+        <item name="glyphDivider">@color/ai_dark_surface</item>
+        <item name="glyphBorder">@color/ai_dark_surface</item>
+        <item name="glyphBorderVariant">@color/ai_dark_surface</item>
+    </style>
+    
+    <!-- ========== PASTEL-SKY THEME ========== -->
+    <style name="Theme.GlyphV3.PastelSky" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Material3 Primary colors -->
+        <item name="colorPrimary">@color/pastel_sky_blue</item>
+        <item name="colorPrimaryVariant">@color/pastel_mint_cloud</item>
+        <item name="colorOnPrimary">@color/pastel_deep_indigo</item>
+        
+        <!-- Material3 Secondary colors -->
+        <item name="colorSecondary">@color/pastel_mint_cloud</item>
+        <item name="colorSecondaryVariant">@color/pastel_lavender_mist</item>
+        <item name="colorOnSecondary">@color/pastel_text_primary</item>
+        
+        <!-- Status bar -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+
+        <!-- Navigation bar (edge-to-edge) -->
+        <item name="android:navigationBarColor">@color/pastel_background</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+
+        <!-- Material3 Backgrounds -->
+        <item name="android:colorBackground">@color/pastel_background</item>
+        <item name="colorSurface">@color/pastel_background</item>
+        <item name="colorSurfaceVariant">#E8EFF3</item>
+        
+        <!-- Material3 Text Colors -->
+        <item name="android:textColorPrimary">@color/pastel_text_primary</item>
+        <item name="android:textColorSecondary">@color/pastel_text_secondary</item>
+        <item name="android:textColorTertiary">@color/pastel_text_tertiary</item>
+        <item name="android:textColorHint">@color/pastel_text_hint</item>
+        <item name="android:editTextColor">@color/pastel_text_primary</item>
+        <item name="colorControlNormal">?attr/glyphToolbarIcon</item>
+        
+        <!-- ========== GLYPH CUSTOM ATTRIBUTES ========== -->
+        <!-- Background Colors -->
+        <item name="glyphBackground">@color/pastel_background</item>
+        <item name="glyphSurface">@color/pastel_background</item>
+        <item name="glyphSurfaceSecondary">@color/pastel_surface</item>
+        <item name="glyphSurfaceVariant">#F4F2FA</item>
+        <item name="glyphSurfaceTinted">@color/pastel_cloud_gray</item>
+        <item name="glyphSurfaceWarm">@color/pastel_peach_haze</item>
+        
+        <!-- Text Colors -->
+        <item name="glyphTextPrimary">@color/pastel_text_primary</item>
+        <item name="glyphTextSecondary">@color/pastel_text_secondary</item>
+        <item name="glyphTextTertiary">@color/pastel_text_tertiary</item>
+        <item name="glyphTextInverse">@color/white</item>
+        <item name="glyphTextHint">@color/pastel_text_hint</item>
+        
+        <!-- Primary Colors -->
+        <item name="glyphPrimary">@color/pastel_sky_blue</item>
+        <item name="glyphPrimaryVariant">@color/pastel_mint_cloud</item>
+        <item name="glyphPrimaryLight">@color/pastel_cloud_gray</item>
+        <item name="glyphOnPrimary">@color/pastel_deep_indigo</item>
+        
+        <!-- Secondary/Accent Colors -->
+        <item name="glyphSecondary">@color/pastel_lavender_mist</item>
+        <item name="glyphAccent">@color/pastel_mint_cloud</item>
+        <item name="glyphAccentVariant">@color/pastel_sky_blue</item>
+        
+        <!-- Status Colors (softened for pastel theme) -->
+        <item name="glyphSuccess">#6B9B7A</item>
+        <item name="glyphWarning">#F2C94C</item>
+        <item name="glyphError">#EB9694</item>
+        <item name="glyphInfo">@color/pastel_sky_blue</item>
+        
+        <!-- Border Colors -->
+        <item name="glyphBorder">#E6E2F2</item>
+        <item name="glyphBorderVariant">@color/pastel_input_border</item>
+        <item name="glyphBorderAccent">@color/pastel_mint_cloud</item>
+        <item name="glyphDivider">#E6E2F2</item>
+        
+        <!-- Card/Item Colors -->
+        <item name="glyphCardBackground">@color/pastel_surface</item>
+        <item name="glyphCardBackgroundSelected">@color/pastel_chat_row_pressed</item>
+        <item name="glyphRipple">@color/pastel_ripple</item>
+        <item name="glyphSettingsHeroBackground">@color/pastel_surface_elevated</item>
+        <item name="glyphSettingsHeroSurface">@color/pastel_surface_elevated</item>
+        <item name="glyphSettingsHeroStroke">@color/pastel_input_border</item>
+        <item name="glyphSettingsHeroPrimaryText">@color/pastel_text_primary</item>
+        <item name="glyphSettingsHeroSecondaryText">@color/pastel_text_secondary</item>
+        <item name="glyphSettingsHeroActionBackground">#E6EEF7</item>
+        <item name="glyphSettingsHeroActionIcon">@color/pastel_deep_indigo</item>
+        
+        <!-- Icon Colors -->
+        <item name="glyphIconPrimary">@color/pastel_deep_indigo</item>
+        <item name="glyphIconSecondary">@color/pastel_text_secondary</item>
+        <item name="glyphIconTertiary">@color/pastel_text_tertiary</item>
+        <item name="glyphAiIcon">@color/pastel_vibrant_green</item>
+        <item name="glyphChatInputIcon">@color/pastel_deep_indigo</item>
+        
+        <!-- Chat-specific Colors -->
+        <item name="glyphBubbleOwn">#E2F5EE</item>
+        <item name="glyphBubbleOther">@color/pastel_bubble_incoming</item>
+        <item name="glyphBubbleOwnText">@color/pastel_bubble_outgoing_text</item>
+        <item name="glyphBubbleOtherText">@color/pastel_bubble_incoming_text</item>
+        <item name="glyphBubbleTimestamp">@color/pastel_text_secondary</item>
+        <item name="glyphChatInputBackground">@color/pastel_input_bg</item>
+        <item name="glyphChatInputText">@color/pastel_text_primary</item>
+        <item name="glyphChatInputHint">@color/pastel_text_hint</item>
+        <item name="glyphDateHeaderBackground">@color/pastel_date_header_bg</item>
+        <item name="glyphDateHeaderText">@color/pastel_date_header_text</item>
+        <item name="glyphUnreadBadge">@color/pastel_unread_highlight</item>
+        <item name="glyphOnlineIndicator">@color/pastel_online_indicator</item>
+        <item name="glyphSendButton">@color/pastel_vibrant_purple</item>
+        
+        <!-- Toolbar Colors -->
+        <item name="glyphToolbarBackground">@color/pastel_background</item>
+        <item name="glyphToolbarTitle">@color/pastel_text_primary</item>
+        <item name="glyphToolbarSubtitle">@color/pastel_text_secondary</item>
+        <item name="glyphToolbarIcon">@color/pastel_deep_indigo</item>
+        
+        <!-- Bottom Navigation Colors -->
+        <item name="glyphNavBackground">@color/pastel_background</item>
+        <item name="glyphNavGradientStart">@color/pastel_cream_white</item>
+        <item name="glyphNavGradientEnd">@color/pastel_cloud_gray</item>
+        <item name="glyphNavItemActive">@color/pastel_vibrant_purple</item>
+        <item name="glyphNavItemInactive">@color/pastel_text_secondary</item>
+        <item name="glyphNavTextActive">@color/pastel_vibrant_purple</item>
+        <item name="glyphNavTextInactive">@color/pastel_text_secondary</item>
+        <!-- Active pill color for Pastel-Sky theme: use pastel indicator (keeps softer look) -->
+        <item name="glyphNavActiveIndicator">@color/pastel_nav_indicator</item>
+        
+        <!-- Dialog/Sheet Colors -->
+        <item name="glyphDialogBackground">@color/pastel_surface_elevated</item>
+        <item name="glyphSheetBackground">@color/pastel_surface_elevated</item>
+        <item name="glyphOverlay">#52000000</item>
+        
+        <!-- Avatar/Image Placeholder -->
+        <item name="glyphAvatarPlaceholder">@color/pastel_cloud_gray</item>
+        <item name="glyphImagePlaceholder">@color/pastel_surface_elevated</item>
+        
+        <!-- Attachment Menu Colors -->
+        <item name="glyphAttachmentBackground">@color/pastel_surface</item>
+        <item name="glyphAttachmentText">@color/pastel_text_secondary</item>
+        <item name="glyphAttachmentIcon">@color/pastel_deep_indigo</item>
+        
+        <!-- FAB Colors -->
+        <item name="glyphFabBackground">@color/pastel_mint_cloud</item>
+        <item name="glyphFabIcon">@color/pastel_deep_indigo</item>
+        <item name="glyphScrollFabBackground">@color/pastel_sky_blue</item>
+        <item name="glyphScrollFabIcon">@color/pastel_deep_indigo</item>
+        <item name="glyphScrollFabBorder">@color/pastel_input_border</item>
+        
+        <!-- Selection Colors -->
+        <item name="glyphSelectionBackground">#30CFE9F3</item>
+        <item name="glyphSelectionHighlight">#18DFF2EA</item>
+        
+        <!-- FAB styling -->
+        <item name="floatingActionButtonStyle">@style/GlyphFabStyle.PastelSky</item>
+    </style>
+    
+    <!-- Default theme (points to Light) -->
+    <style name="Theme.GlyphV3" parent="Theme.GlyphV3.Light" />
+
+    <!--
+        Branded splash: applied before super.onCreate() on the first cold-start frame.
+        Uses a white window background so the launcher icon transition is smooth.
+        ThemeManager replaces this with the real app theme immediately after.
+    -->
+    <style name="Theme.GlyphV3.SplashBranded" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/white</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@color/white</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <style name="Theme.GlyphV3.TransparentLiveAudio" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
+    <!-- AvatarPreview: transparent window so we can draw our own animated black scrim -->
+    <style name="Theme.GlyphV3.AvatarPreview" parent="Theme.GlyphV3">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowContentTransitions">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+    
+    <!-- ========== FAB STYLES ========== -->
+    <style name="GlyphFabStyle.Light" parent="Widget.Material3.FloatingActionButton.Primary">
+        <item name="backgroundTint">@drawable/bg_fab_gradient</item>
+        <item name="tint">@color/white</item>
+        <item name="elevation">8dp</item>
+    </style>
+    
+    <style name="GlyphFabStyle.Dark" parent="Widget.Material3.FloatingActionButton.Primary">
+        <item name="backgroundTint">@color/dark_primary</item>
+        <item name="tint">@color/white</item>
+        <item name="elevation">8dp</item>
+    </style>
+    
+    <style name="GlyphFabStyle.PastelSky" parent="Widget.Material3.FloatingActionButton.Primary">
+        <item name="backgroundTint">@color/pastel_mint_cloud</item>
+        <item name="tint">@color/pastel_send_button_icon</item>
+        <item name="elevation">2dp</item>
+    </style>
+    
+    <!-- ========== TEXT STYLES ========== -->
+    <style name="TextAppearance.Glyph.Headline" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:textSize">26sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="fontFamily">sans-serif-medium</item>
+    </style>
+    
+    <style name="TextAppearance.Glyph.Title" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="fontFamily">sans-serif-medium</item>
+    </style>
+    
+    <style name="TextAppearance.Glyph.Body" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textSize">16sp</item>
+        <item name="fontFamily">sans-serif</item>
+    </style>
+    
+    <style name="TextAppearance.Glyph.Caption" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textSize">14sp</item>
+        <item name="fontFamily">sans-serif</item>
+    </style>
+    
+    <!-- Glyph Toolbar Title Style - WhatsApp style (compact, SemiBold) -->
+    <style name="GlyphToolbarTitle" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">23sp</item>
+        <item name="android:textStyle">normal</item>
+        <item name="android:textColor">?attr/glyphToolbarTitle</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">600</item>
+    </style>
+
+    <!-- Glyph Main Toolbar Title for chat list (white, larger, bold) -->
+    <style name="GlyphMainToolbarTitle" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textFontWeight">700</item>
+    </style>
+    
+    <!-- Bottom Sheet Dialog Theme -->
+    <style name="BottomSheetDialogTheme" parent="Theme.Material3.DayNight.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/BottomSheetStyle</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowSoftInputMode">adjustResize</item>
+    </style>
+    
+    <style name="BottomSheetStyle" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+    </style>
+    
+    <!-- ========== POPUP MENU THEMES ========== -->
+    <style name="PopupTheme" parent="ThemeOverlay.Material3">
+        <item name="android:textColor">?attr/glyphTextPrimary</item>
+        <item name="android:colorBackground">?attr/colorSurface</item>
+    </style>
+    
+    <style name="ToolbarTheme" parent="ThemeOverlay.Material3.Dark.ActionBar">
+        <item name="colorControlNormal">?attr/glyphToolbarIcon</item>
+    </style>
+    
+    <!-- ========== MATERIAL CARD STYLES ========== -->
+    <style name="GlyphCard" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardBackgroundColor">?attr/glyphCardBackground</item>
+        <item name="cardCornerRadius">12dp</item>
+        <item name="cardElevation">2dp</item>
+    </style>
+    
+    <style name="GlyphCard.Chat" parent="GlyphCard">
+        <item name="cardCornerRadius">16dp</item>
+    </style>
+    
+    <!-- ========== BUTTON STYLES ========== -->
+    <style name="GlyphButton.Primary" parent="Widget.Material3.Button">
+        <item name="backgroundTint">?attr/glyphPrimary</item>
+        <item name="android:textColor">?attr/glyphOnPrimary</item>
+    </style>
+    
+    <style name="GlyphButton.Secondary" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="strokeColor">?attr/glyphPrimary</item>
+        <item name="android:textColor">?attr/glyphPrimary</item>
+    </style>
+    
+</resources>

@@ -1,0 +1,212 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "assembleDebug",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:assembleDebug"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "assembleDebug",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:assembleDebug",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "assembleDebug (after perf tags)",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:assembleDebug",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "assembleDebug (stacktrace)",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:assembleDebug",
+				"--no-daemon",
+				"--console=plain",
+				"--stacktrace"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "compileDebugKotlin (stacktrace)",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:compileDebugKotlin",
+				"--no-daemon",
+				"--console=plain",
+				"--stacktrace"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "compileDebugKotlin (plain)",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:compileDebugKotlin",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "compileDebugKotlin (tee)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Set-Location \"c:\\Users\\avezk\\AndroidStudioProjects\\GlyphV3\"; .\\gradlew.bat :app:compileDebugKotlin --no-daemon --console=plain *>&1 | Tee-Object -FilePath build_compileDebugKotlin.log"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "compileDebugKotlin (after putState fix)",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:compileDebugKotlin",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "assembleDebug (validation)",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:assembleDebug",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "assembleDebug (after cheap-mode + wallpaper gating)",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:assembleDebug",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "assembleDebug (stacktrace)",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:assembleDebug",
+				"--no-daemon",
+				"--console=plain",
+				"--stacktrace"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "compileDebugKotlin (tee log)",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"Set-Location \"c:\\Users\\avezk\\AndroidStudioProjects\\GlyphV3\"; .\\gradlew.bat :app:compileDebugKotlin --no-daemon --console=plain *>&1 | Tee-Object -FilePath build_compileDebugKotlin2.log"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "compileDebugKotlin (post RectangleShape fix)",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:compileDebugKotlin",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "assembleDebug (post RectangleShape fix)",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:assembleDebug",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "compileDebugKotlin live-location validation",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:compileDebugKotlin",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "compileDebugKotlin live-location validation 2",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:compileDebugKotlin",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "compileDebugKotlin live-location last-seen validation",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				":app:compileDebugKotlin",
+				"--no-daemon",
+				"--console=plain"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "validate walkie-talkie TURN config",
+			"type": "shell",
+			"command": "cmd.exe",
+			"args": [
+				"/c",
+				"cd /d C:\\Users\\avezk\\AndroidStudioProjects\\GlyphV3 && gradlew.bat :app:compileDebugKotlin --no-daemon --console=plain"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		}
+	]
+}

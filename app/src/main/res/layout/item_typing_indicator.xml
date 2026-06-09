@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="6dp"
+    android:paddingTop="4dp"
+    android:paddingEnd="6dp"
+    android:paddingBottom="4dp"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Single unified bubble: switches between dots and live text internally -->
+    <FrameLayout
+        android:id="@+id/bubbleLayout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:minHeight="34dp"
+        android:background="@drawable/bg_typing_indicator"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <!-- Sentiment gradient layer (inside bubble, follows width) -->
+        <com.glyph.glyph_v3.ui.chat.expressive.AnimatedGradientView
+            android:id="@+id/gradientView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <!-- Floating emoji overlay (centered on bubble, overflows via clipChildren=false) -->
+        <com.glyph.glyph_v3.ui.chat.expressive.FloatingEmojiView
+            android:id="@+id/floatingEmojiView"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/contentContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minHeight="34dp"
+            android:layout_gravity="center_vertical|start"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="7dp"
+            android:paddingBottom="7dp"
+            android:clipChildren="false"
+            android:clipToPadding="false">
+
+            <!-- Live text (group label / expressive mode) -->
+            <TextView
+                android:id="@+id/tvLiveText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:maxLines="5"
+                android:ellipsize="end"
+                android:textSize="14sp"
+                android:textColor="?attr/glyphBubbleOtherText"
+                android:fontFamily="sans-serif"
+                android:includeFontPadding="true"
+                android:lineSpacingExtra="1dp"
+                android:lineSpacingMultiplier="1.0"
+                android:visibility="invisible"
+                android:alpha="0"
+                tools:text="John is typing" />
+
+            <!-- Bouncing dots (default mode, also shown for group labels) -->
+            <LinearLayout
+                android:id="@+id/dotsContainer"
+                android:layout_width="wrap_content"
+                android:layout_height="14dp"
+                android:minHeight="14dp"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingStart="2dp"
+                android:paddingEnd="2dp"
+                android:clipChildren="false"
+                android:clipToPadding="false">
+
+                <ImageView
+                    android:id="@+id/dot1"
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:src="@drawable/ic_typing_dot"
+                    android:layout_marginEnd="3dp"
+                    android:tint="?attr/glyphBubbleOtherText" />
+
+                <ImageView
+                    android:id="@+id/dot2"
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:src="@drawable/ic_typing_dot"
+                    android:layout_marginEnd="3dp"
+                    android:tint="?attr/glyphBubbleOtherText" />
+
+                <ImageView
+                    android:id="@+id/dot3"
+                    android:layout_width="6dp"
+                    android:layout_height="6dp"
+                    android:src="@drawable/ic_typing_dot"
+                    android:tint="?attr/glyphBubbleOtherText" />
+
+            </LinearLayout>
+        </LinearLayout>
+
+    </FrameLayout>
+
+</FrameLayout>

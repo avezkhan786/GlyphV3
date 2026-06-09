@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Emoji/GIF/Sticker picker panel layout.
+    Appears below the chat input bar, replacing the keyboard area.
+    Height is set programmatically to match measured keyboard height.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?attr/glyphSurface"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- ── Tab Bar ──────────────────────────────────────────────────── -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:id="@+id/tabBar"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="?attr/glyphSurfaceVariant"
+            android:elevation="2dp">
+
+            <!-- Emoji Tab -->
+            <LinearLayout
+                android:id="@+id/tabEmoji"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:paddingHorizontal="8dp">
+
+                <ImageView
+                    android:id="@+id/ivTabEmoji"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_emoji"
+                    app:tint="@color/picker_tab_active"
+                    android:contentDescription="Emoji tab" />
+
+                <TextView
+                    android:id="@+id/tvTabEmoji"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="Emoji"
+                    android:textSize="12sp"
+                    android:textColor="@color/picker_tab_active"
+                    android:fontFamily="sans-serif-medium" />
+            </LinearLayout>
+
+            <!-- GIF Tab -->
+            <LinearLayout
+                android:id="@+id/tabGif"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:paddingHorizontal="8dp">
+
+                <ImageView
+                    android:id="@+id/ivTabGif"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_gif_tab"
+                    app:tint="@color/picker_tab_inactive"
+                    android:contentDescription="GIF tab" />
+
+                <TextView
+                    android:id="@+id/tvTabGif"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="GIF"
+                    android:textSize="12sp"
+                    android:textColor="@color/picker_tab_inactive"
+                    android:fontFamily="sans-serif-medium" />
+            </LinearLayout>
+
+            <!-- Sticker Tab -->
+            <LinearLayout
+                android:id="@+id/tabSticker"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:paddingHorizontal="8dp">
+
+                <ImageView
+                    android:id="@+id/ivTabSticker"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_sticker_tab"
+                    app:tint="@color/picker_tab_inactive"
+                    android:contentDescription="Sticker tab" />
+
+                <TextView
+                    android:id="@+id/tvTabSticker"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="Stickers"
+                    android:textSize="12sp"
+                    android:textColor="@color/picker_tab_inactive"
+                    android:fontFamily="sans-serif-medium" />
+            </LinearLayout>
+
+            <!-- Meme Tab -->
+            <LinearLayout
+                android:id="@+id/tabMeme"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?attr/selectableItemBackground"
+                android:paddingHorizontal="8dp">
+
+                <ImageView
+                    android:id="@+id/ivTabMeme"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_meme_tab"
+                    app:tint="@color/picker_tab_inactive"
+                    android:contentDescription="Meme tab" />
+
+                <TextView
+                    android:id="@+id/tvTabMeme"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="Meme"
+                    android:textSize="12sp"
+                    android:textColor="@color/picker_tab_inactive"
+                    android:fontFamily="sans-serif-medium" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Active tab indicator (slides horizontally) -->
+        <View
+            android:id="@+id/tabIndicator"
+            android:layout_width="0dp"
+            android:layout_height="2dp"
+            android:layout_gravity="bottom"
+            android:background="?attr/colorPrimary"
+            tools:layout_width="120dp" />
+
+    </FrameLayout>
+
+    <!-- ── ViewPager2 holding 3 tab fragments ───────────────────────── -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/vpPickerPager"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- ── "Powered by KLIPY" attribution (required by API ToS) ────── -->
+    <TextView
+        android:id="@+id/tvPoweredBy"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingVertical="4dp"
+        android:text="Powered by KLIPY"
+        android:textSize="10sp"
+        android:textColor="?attr/glyphTextSecondary"
+        android:alpha="0.6"
+        android:background="?attr/glyphSurfaceVariant" />
+
+</LinearLayout>

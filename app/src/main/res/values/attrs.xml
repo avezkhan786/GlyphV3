@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ========== GLYPH CUSTOM THEME ATTRIBUTES ========== -->
+    <!-- These attributes provide a single source of truth for theming -->
+    <!-- All layouts should reference these instead of hardcoded colors -->
+    
+    <!-- Background Colors -->
+    <attr name="glyphBackground" format="color"/>
+    <attr name="glyphSurface" format="color"/>
+    <attr name="glyphSurfaceSecondary" format="color"/>
+    <attr name="glyphSurfaceVariant" format="color"/>
+    <attr name="glyphSurfaceTinted" format="color"/>
+    <attr name="glyphSurfaceWarm" format="color"/>
+    
+    <!-- Text Colors -->
+    <attr name="glyphTextPrimary" format="color"/>
+    <attr name="glyphTextSecondary" format="color"/>
+    <attr name="glyphTextTertiary" format="color"/>
+    <attr name="glyphTextInverse" format="color"/>
+    <attr name="glyphTextHint" format="color"/>
+    
+    <!-- Primary Colors -->
+    <attr name="glyphPrimary" format="color"/>
+    <attr name="glyphPrimaryVariant" format="color"/>
+    <attr name="glyphPrimaryLight" format="color"/>
+    <attr name="glyphOnPrimary" format="color"/>
+    
+    <!-- Secondary/Accent Colors -->
+    <attr name="glyphSecondary" format="color"/>
+    <attr name="glyphAccent" format="color"/>
+    <attr name="glyphAccentVariant" format="color"/>
+    
+    <!-- Status Colors -->
+    <attr name="glyphSuccess" format="color"/>
+    <attr name="glyphWarning" format="color"/>
+    <attr name="glyphError" format="color"/>
+    <attr name="glyphInfo" format="color"/>
+    
+    <!-- Border Colors -->
+    <attr name="glyphBorder" format="color"/>
+    <attr name="glyphBorderVariant" format="color"/>
+    <attr name="glyphBorderAccent" format="color"/>
+    <attr name="glyphDivider" format="color"/>
+    
+    <!-- Card/Item Colors -->
+    <attr name="glyphCardBackground" format="color"/>
+    <attr name="glyphCardBackgroundSelected" format="color"/>
+    <attr name="glyphSearchBarBackground" format="color"/>
+    <attr name="glyphRipple" format="color"/>
+
+    <!-- Settings Hero Colors -->
+    <attr name="glyphSettingsHeroBackground" format="color"/>
+    <attr name="glyphSettingsHeroSurface" format="color"/>
+    <attr name="glyphSettingsHeroStroke" format="color"/>
+    <attr name="glyphSettingsHeroPrimaryText" format="color"/>
+    <attr name="glyphSettingsHeroSecondaryText" format="color"/>
+    <attr name="glyphSettingsHeroActionBackground" format="color"/>
+    <attr name="glyphSettingsHeroActionIcon" format="color"/>
+    
+    <!-- Icon Colors -->
+    <attr name="glyphIconPrimary" format="color"/>
+    <attr name="glyphIconSecondary" format="color"/>
+    <attr name="glyphIconTertiary" format="color"/>
+    <attr name="glyphAiIcon" format="color"/>
+    <attr name="glyphChatInputIcon" format="color"/>
+    
+    <!-- Chat-specific Colors -->
+    <attr name="glyphBubbleOwn" format="color"/>
+    <attr name="glyphBubbleOther" format="color"/>
+    <attr name="glyphBubbleOwnText" format="color"/>
+    <attr name="glyphBubbleOtherText" format="color"/>
+    <attr name="glyphBubbleTimestamp" format="color"/>
+    <attr name="glyphChatInputBackground" format="color"/>
+    <attr name="glyphChatInputText" format="color"/>
+    <attr name="glyphChatInputHint" format="color"/>
+    <attr name="glyphDateHeaderBackground" format="color"/>
+    <attr name="glyphDateHeaderText" format="color"/>
+    <attr name="glyphUnreadBadge" format="color"/>
+    <attr name="glyphOnlineIndicator" format="color"/>
+    <attr name="glyphSendButton" format="color"/>
+    
+    <!-- Toolbar Colors -->
+    <attr name="glyphToolbarBackground" format="color"/>
+    <attr name="glyphToolbarTitle" format="color"/>
+    <attr name="glyphToolbarSubtitle" format="color"/>
+    <attr name="glyphToolbarIcon" format="color"/>
+    
+    <!-- Bottom Navigation Colors -->
+    <attr name="glyphNavBackground" format="color"/>
+    <attr name="glyphNavGradientStart" format="color"/>
+    <attr name="glyphNavGradientEnd" format="color"/>
+    <attr name="glyphNavItemActive" format="color"/>
+    <attr name="glyphNavItemInactive" format="color"/>
+    <attr name="glyphNavTextActive" format="color"/>
+    <attr name="glyphNavTextInactive" format="color"/>
+    <!-- Color used for the bottom nav active pill (per-theme). For Light this maps to glyphSendButton -->
+    <attr name="glyphNavActiveIndicator" format="color"/>
+    
+    <!-- Dialog/Sheet Colors -->
+    <attr name="glyphDialogBackground" format="color"/>
+    <attr name="glyphSheetBackground" format="color"/>
+    <attr name="glyphOverlay" format="color"/>
+    
+    <!-- Avatar/Image Placeholder -->
+    <attr name="glyphAvatarPlaceholder" format="color"/>
+    <attr name="glyphImagePlaceholder" format="color"/>
+    
+    <!-- Attachment Menu Colors -->
+    <attr name="glyphAttachmentBackground" format="color"/>
+    <attr name="glyphAttachmentText" format="color"/>
+    <attr name="glyphAttachmentIcon" format="color"/>
+    
+    <!-- FAB Colors -->
+    <attr name="glyphFabBackground" format="color"/>
+    <attr name="glyphFabIcon" format="color"/>
+    <attr name="glyphScrollFabBackground" format="color"/>
+    <attr name="glyphScrollFabIcon" format="color"/>
+    <attr name="glyphScrollFabBorder" format="color"/>
+    
+    <!-- Selection Colors -->
+    <attr name="glyphSelectionBackground" format="color"/>
+    <attr name="glyphSelectionHighlight" format="color"/>
+    
+</resources>

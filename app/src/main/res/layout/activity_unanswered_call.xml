@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Unanswered Call screen — pixel-precise WhatsApp "No answer" replica.
+
+    Layout hierarchy:
+    FrameLayout (root, full-bleed background image + dark scrim)
+    └── LinearLayout (vertical content scaffold — top/bottom padding set via WindowInsets in code)
+        ├── Space (weight 1 — pushes name block to upper region)
+        ├── [name block]  contact name · "No answer"
+        ├── Space (fixed 36 dp gap)
+        ├── ImageView (circular avatar, 200 dp)
+        ├── Space (weight 2 — flexible gap above bottom buttons)
+        └── [bottom actions]  Cancel · Record voice message · Call again
+            └── FrameLayout (bottom padding applied via WindowInsets in code)
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootUnansweredCall"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Full-bleed background image (same as ringing screen) -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/voice_call_bg"
+        android:contentDescription="@null" />
+
+    <!-- Dark scrim for legibility -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000" />
+
+    <!-- ── Vertical content scaffold ─────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/unansweredContentRoot"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- Flexible top spacer (approx. 25 % of screen height) -->
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- ── NAME BLOCK ─────────────────────────────────────── -->
+        <TextView
+            android:id="@+id/tvUnansweredName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#FFFFFFFF"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.01"
+            android:gravity="center"
+            tools:text="Nazia" />
+
+        <TextView
+            android:id="@+id/tvUnansweredStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="No answer"
+            android:textColor="#AAFFFFFF"
+            android:textSize="16sp"
+            android:layout_marginTop="6dp"
+            android:gravity="center" />
+
+        <!-- Fixed gap between name block and avatar -->
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="36dp" />
+
+        <!-- ── AVATAR ──────────────────────────────────────────── -->
+        <ImageView
+            android:id="@+id/ivUnansweredAvatar"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_default_avatar"
+            android:clipToOutline="true"
+            android:background="@drawable/bg_call_avatar"
+            tools:ignore="ContentDescription" />
+
+        <!-- Flexible gap above the action buttons (approx. remaining space) -->
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="2" />
+
+        <!-- ── BOTTOM ACTIONS WRAPPER ─────────────────────────── -->
+        <!--
+            id=unansweredBottomWrapper — WindowInsets handler applies
+            paddingBottom = navBarHeight + 24 dp here.
+        -->
+        <LinearLayout
+            android:id="@+id/unansweredBottomWrapper"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="32dp">
+
+            <!-- ── CANCEL ────────────────────────────────────── -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center_horizontal">
+
+                <FrameLayout
+                    android:id="@+id/btnUnansweredCancel"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:background="@drawable/bg_unanswered_cancel_btn"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_close"
+                        android:tint="#FF333333"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cancel"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="10dp" />
+            </LinearLayout>
+
+            <!-- ── RECORD VOICE MESSAGE ─────────────────────── -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center_horizontal">
+
+                <FrameLayout
+                    android:id="@+id/btnUnansweredRecord"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:background="@drawable/bg_unanswered_record_btn"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_mic_custom"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="80dp"
+                    android:layout_height="wrap_content"
+                    android:text="Record voice\nmessage"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="10dp" />
+            </LinearLayout>
+
+            <!-- ── CALL AGAIN ─────────────────────────────── -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center_horizontal">
+
+                <FrameLayout
+                    android:id="@+id/btnUnansweredCallAgain"
+                    android:layout_width="72dp"
+                    android:layout_height="72dp"
+                    android:background="@drawable/bg_call_again_btn"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_call"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Call again"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="10dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

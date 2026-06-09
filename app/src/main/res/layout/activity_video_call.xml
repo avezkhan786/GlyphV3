@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootVideoCall"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF000000"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <org.webrtc.SurfaceViewRenderer
+        android:id="@+id/remoteVideoView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <View
+        android:id="@+id/videoTapLayer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/transparent"
+        android:clickable="true"
+        android:focusable="false" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="220dp"
+        android:layout_gravity="top"
+        android:background="@drawable/bg_call_top_scrim" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="310dp"
+        android:layout_gravity="bottom"
+        android:background="@drawable/bg_call_bottom_scrim" />
+
+    <ImageView
+        android:id="@+id/ivVoiceAvatar"
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_call_avatar"
+        android:clipToOutline="true"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_default_avatar"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="8dp">
+
+        <ImageView
+            android:id="@+id/btnMinimize"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:contentDescription="@null"
+            android:elevation="10dp"
+            android:focusable="true"
+            android:padding="18dp"
+            android:src="@drawable/ic_call_minimize"
+            android:tint="#FFFFFFFF" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingHorizontal="10dp">
+
+            <TextView
+                android:id="@+id/tvContactName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:shadowColor="#88000000"
+                android:shadowDx="0"
+                android:shadowDy="2"
+                android:shadowRadius="16"
+                android:textColor="#FFFFFFFF"
+                android:textSize="19sp"
+                android:textStyle="bold"
+                tools:text="Nazia" />
+
+            <TextView
+                android:id="@+id/tvCallTimer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:shadowColor="#88000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="10"
+                android:textColor="#E0FFFFFF"
+                android:textSize="15sp"
+                tools:text="0:47" />
+
+            <TextView
+                android:id="@+id/tvCallStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:shadowColor="#88000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="10"
+                android:textColor="#D0FFFFFF"
+                android:textSize="14sp"
+                android:visibility="gone"
+                tools:text="Calling ..."
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/btnAddParticipant"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:contentDescription="@null"
+            android:elevation="10dp"
+            android:focusable="true"
+            android:padding="17dp"
+            android:src="@drawable/ic_person_add"
+            android:tint="#FFFFFFFF" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/localVideoContainer"
+        android:layout_width="190dp"
+        android:layout_height="320dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="112dp"
+        android:background="@drawable/bg_local_video_preview"
+        android:clipChildren="true"
+        android:clipToPadding="true"
+        android:elevation="16dp">
+
+        <io.getstream.webrtc.android.ui.VideoTextureViewRenderer
+            android:id="@+id/localVideoView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToOutline="true" />
+
+        <!-- HD badge — shown at top-left of own preview when HD mode is active -->
+        <ImageView
+            android:id="@+id/ivHdBadge"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_gravity="top|start"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="8dp"
+            android:contentDescription="@null"
+            android:elevation="9dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_hd"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/btnSwitchCameraPreview"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/bg_pip_action_button"
+            android:clickable="true"
+            android:contentDescription="@null"
+            android:focusable="true"
+            android:elevation="8dp"
+            android:padding="9dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_camera_switch"
+            android:tint="#F7FCFF" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/bottomControlBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="18dp"
+        android:background="@drawable/bg_call_controls_bar"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingHorizontal="10dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
+
+        <FrameLayout
+            android:id="@+id/btnMore"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_more_vert"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/btnCamera"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/ivCameraIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_videocam"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/btnSpeaker"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/ivSpeakerIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_volume_up"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/btnMute"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/ivMuteIcon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_mic_custom"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/btnEndCall"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/bg_call_end_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:rotation="135"
+                android:src="@drawable/ic_call"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

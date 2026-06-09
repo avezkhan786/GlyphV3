@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Design: flash_auto — 24dp, white -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M3,2v12h3v9l7,-12H9l4,-9H3zM16.85,7.65l0.85,3.35l3.3,0.85l-3.3,0.85l-0.85,3.3l-0.85,-3.3l-3.3,-0.85l3.3,-0.85z" />
+</vector>

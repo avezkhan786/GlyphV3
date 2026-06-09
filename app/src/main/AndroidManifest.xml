@@ -1,0 +1,478 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    
+    <!-- CRITICAL: Wake lock for reliable notification delivery -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- For network state awareness -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- For foreground service if needed -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <!-- Required for FOREGROUND_SERVICE_TYPE_PHONE_CALL on Android 14 -->
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <!-- Foreground service type for status media uploads (WorkManager) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Foreground service type for location sharing -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Location permissions for map background & live location -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Request exemption from battery optimization for reliable message delivery -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Full-screen intent for incoming call notifications -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+    <application
+        android:name=".GlyphApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.GlyphV3"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true">
+        
+        <!-- CRITICAL: Enable baseline profile for improved cold start performance -->
+        <profileable android:shell="true" tools:targetApi="q" />
+
+        <!-- Google Maps API Key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${mapsApiKey}" />
+
+        <activity
+            android:name=".SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.login.LoginActivity"
+            android:exported="false" />
+        
+        <activity android:name=".ui.login.SetupProfileActivity" />
+        <activity android:name=".ui.settings.EditProfileActivity" />
+        <activity 
+            android:name=".ui.settings.AvatarPreviewActivity"
+            android:theme="@style/Theme.GlyphV3.AvatarPreview" />
+        <activity android:name=".ui.settings.ThemeSelectionActivity" />
+        <activity android:name=".ui.settings.chat.ChatSettingsActivity" />
+        <activity android:name=".ui.settings.chat.WallpaperSelectionActivity" />
+        <activity android:name=".ui.settings.chat.WallpaperPreviewActivity" />
+        <activity android:name=".ui.users.UserListActivity" />
+        <activity android:name=".ui.groups.CreateGroupActivity" android:exported="false" />
+        <activity android:name=".ui.groups.GroupInfoActivity" android:exported="false" />
+        <activity android:name=".ui.calls.FavoritesActivity" />
+        <activity 
+            android:name=".ui.chat.ChatActivity"
+            android:windowSoftInputMode="adjustNothing" />
+        <activity
+            android:name=".ui.chat.forward.ForwardSelectionActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GlyphV3" />
+        <activity
+            android:name=".ui.settings.BlockedContactsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.settings.PrivacySettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.settings.NotificationSettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.settings.StorageDataActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.settings.SecuritySettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.settings.HelpSupportActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.settings.AccountSettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.settings.WalkieTalkieSettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.status.StatusPrivacyActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.chat.MessageDetailsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.chat.ContactViewActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.chat.ContactInfoActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GlyphV3" />
+        <activity
+            android:name=".ui.chat.MediaDocsLinksActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GlyphV3" />
+        <activity
+            android:name=".ui.chat.contactinfo.ChatNotificationsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GlyphV3" />
+        <activity
+            android:name=".ui.chat.contactinfo.DisappearingMessagesActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GlyphV3" />
+        <activity
+            android:name=".ui.chat.contactinfo.AdvancedChatPrivacyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GlyphV3" />
+        <activity
+            android:name=".ui.chat.contactinfo.ManageStorageActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GlyphV3" />
+        <activity
+            android:name=".ui.profile.FullScreenImageActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
+        <activity
+            android:name=".ui.media.MediaViewerActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+        <activity
+            android:name=".ui.media.VideoPlayerActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+        
+        <activity
+            android:name=".ui.viewer.ImageViewerActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:exported="false" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false" 
+            android:launchMode="singleTop"/>
+            
+        <activity android:name=".ui.chatlist.ArchivedChatsActivity" />
+        <activity android:name=".ui.chatlist.LockedChatsActivity" />
+        <activity android:name=".ui.chatlist.ChatLockSettingsActivity" />
+        <activity android:name=".ui.chatlist.HideLockedChatsActivity" />
+        <activity android:name=".ui.chatlist.CreateSecretCodeActivity" />
+
+        <!-- AI Agent -->
+        <activity
+            android:name=".ui.aiagent.AiAgentActivity"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- In-app Camera -->
+        <activity
+            android:name=".ui.camera.CameraActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.camera.CameraPreviewActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.chat.DocumentCaptionActivity"
+            android:theme="@style/Theme.GlyphV3"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <service
+            android:name=".data.service.MyFirebaseMessagingService"
+            android:exported="false"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        
+        <receiver
+            android:name=".data.service.NotificationActionReceiver"
+            android:exported="false"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="com.glyph.glyph_v3.ACTION_REPLY" />
+                <action android:name="com.glyph.glyph_v3.ACTION_MARK_READ" />
+            </intent-filter>
+        </receiver>
+
+        <service
+            android:name=".data.service.GlyphConnectionService"
+            android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.telecom.ConnectionService" />
+            </intent-filter>
+        </service>
+
+        <!-- Location update foreground service for map background & live sharing -->
+        <service
+            android:name=".data.service.LocationUpdateService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+        <service
+            android:name=".data.service.MapCameraShareForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="camera|microphone" />
+
+        <!-- Navigation foreground service — makes the navigation notification truly non-dismissible -->
+        <service
+            android:name=".ui.chat.map.routing.NavigationForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+        
+        <!-- Routing notification receiver for "Stop Navigation" button -->
+        <receiver
+            android:name=".ui.chat.map.routing.RoutingNotificationBroadcastReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.glyph.STOP_NAVIGATION" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ═══ Voice & Video Calling ═══════════════════════════════ -->
+
+        <!-- Incoming call fullscreen activity (shows over lock screen) -->
+        <activity
+            android:name=".ui.calls.IncomingCallActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <!-- Active call activity (voice + video) -->
+        <activity
+            android:name=".ui.calls.ActiveCallActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:turnScreenOn="true"
+            android:supportsPictureInPicture="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation" />
+
+        <!-- Group call activity (multi-party video/voice) -->
+        <activity
+            android:name=".ui.calls.GroupCallActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:turnScreenOn="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation" />
+
+        <activity
+            android:name=".ui.liveaudio.LiveAudioIncomingActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.GlyphV3.TransparentLiveAudio" />
+
+        <activity
+            android:name=".ui.walkietalkie.WalkieTalkieIncomingDispatchActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.GlyphV3.TransparentLiveAudio" />
+
+        <activity
+            android:name=".ui.walkietalkie.WalkieTalkieIncomingActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <activity
+            android:name=".ui.walkietalkie.WalkieTalkieActiveActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <!-- Unanswered call screen — shown when outgoing call is not answered -->
+        <activity
+            android:name=".ui.calls.UnansweredCallActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:screenOrientation="portrait" />
+
+        <!-- Call foreground service for background audio/camera -->
+        <service
+            android:name=".data.service.CallForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone|camera" />
+
+        <!-- Live Audio Sharing foreground service.
+             phoneCall: allows background start from FCM without SecurityException.
+             microphone: grants actual mic access once the service is running. -->
+        <service
+            android:name=".data.service.LiveAudioForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone" />
+
+        <!-- Live Audio Sharing settings screen -->
+        <activity
+            android:name=".ui.settings.LiveAudioSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GlyphV3" />
+
+        <!-- Broadcast receiver for call notification actions (accept/decline) -->
+        <receiver
+            android:name=".data.service.CallActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.glyph.glyph_v3.ACTION_ACCEPT_CALL" />
+                <action android:name="com.glyph.glyph_v3.ACTION_DECLINE_CALL" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Broadcast receiver for walkie-talkie notification actions (decline) -->
+        <receiver
+            android:name=".data.service.WalkieTalkieActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.glyph.glyph_v3.ACTION_DECLINE_WT" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".data.service.WalkieTalkieAutoAcceptActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.glyph.glyph_v3.ACTION_DISABLE_WT_AUTO_ACCEPT" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ═══ Share Sheet (appears in Android system Share Sheet) ═══════════ -->
+        <activity
+            android:name=".ui.share.ShareTargetActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.GlyphV3">
+
+            <!-- ACTION_SEND: plain text -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!-- ACTION_SEND: single image -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+
+            <!-- ACTION_SEND: single video -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+
+            <!-- ACTION_SEND: single file/document -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/*" />
+            </intent-filter>
+
+            <!-- ACTION_SEND_MULTIPLE: multiple images -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+
+            <!-- ACTION_SEND_MULTIPLE: multiple videos -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+
+            <!-- ACTION_SEND_MULTIPLE: multiple files/documents -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/*" />
+            </intent-filter>
+        </activity>
+
+        <!-- WorkManager foreground service — must declare foregroundServiceType
+             to match the type requested in ForegroundInfo (dataSync). -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+            
+    </application>
+
+</manifest>

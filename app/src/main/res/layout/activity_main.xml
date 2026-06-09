@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/main_view_pager"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="?attr/glyphBackground"
+        android:clipToPadding="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- WhatsApp-style Bottom Navigation Bar -->
+    <com.glyph.glyph_v3.ui.widgets.GlyphBottomNavigationView
+        android:id="@+id/bottom_navigation"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:minHeight="0dp"
+        android:maxHeight="60dp"
+        android:background="@drawable/bg_bottom_nav_surface_with_divider"
+        android:elevation="0dp"
+        android:translationZ="0dp"
+        android:fitsSystemWindows="false"
+        app:elevation="0dp"
+        app:itemActiveIndicatorStyle="@style/GlyphBottomNavActiveIndicator"
+        app:itemBackground="@null"
+        app:itemIconSize="24dp"
+        app:itemIconPadding="0dp"
+        app:itemIconTint="@color/selector_bottom_nav_icon"
+        app:itemPaddingBottom="0dp"
+        app:itemPaddingTop="0dp"
+        app:itemRippleColor="@android:color/transparent"
+        app:itemTextAppearanceActive="@style/GlyphBottomNavTextActive"
+        app:itemTextAppearanceInactive="@style/GlyphBottomNavTextInactive"
+        app:itemTextColor="@color/selector_bottom_nav"
+        app:labelVisibilityMode="labeled"
+        app:menu="@menu/bottom_nav_menu"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

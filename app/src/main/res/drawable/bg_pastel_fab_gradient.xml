@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pastel-Sky FAB Gradient -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <gradient
+        android:type="linear"
+        android:angle="45"
+        android:startColor="@color/pastel_sky_blue"
+        android:endColor="@color/pastel_mint_cloud" />
+</shape>

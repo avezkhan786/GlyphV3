@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wtIncomingRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_wt_incoming_screen"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/wtModeBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_wt_chip"
+            android:fontFamily="@font/bbh_bartle_regular"
+            android:letterSpacing="0.08"
+            android:paddingStart="18dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="18dp"
+            android:paddingBottom="10dp"
+            android:text="WALKIE-TALKIE"
+            android:textAllCaps="true"
+            android:textColor="#F4F5F7"
+            android:textSize="18sp" />
+
+        <Space
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="0.18" />
+
+        <LinearLayout
+            android:id="@+id/wtHeroPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_wt_panel"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingTop="28dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="28dp">
+
+            <FrameLayout
+                android:id="@+id/wtIconOrb"
+                android:layout_width="116dp"
+                android:layout_height="116dp"
+                android:background="@drawable/bg_wt_icon_orb"
+                android:foregroundGravity="center">
+
+                <ImageView
+                    android:id="@+id/wtCallerAvatar"
+                    android:layout_width="104dp"
+                    android:layout_height="104dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_call_avatar"
+                    android:clipToOutline="true"
+                    android:contentDescription="@null"
+                    android:elevation="2dp"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_default_avatar" />
+
+                <FrameLayout
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
+                    android:layout_gravity="bottom|end"
+                    android:layout_marginEnd="4dp"
+                    android:layout_marginBottom="4dp"
+                    android:background="@drawable/bg_wt_mic_badge"
+                    android:elevation="6dp">
+
+                    <ImageView
+                        android:id="@+id/wtIcon"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_live_audio"
+                        android:tint="#F8FBFF" />
+                </FrameLayout>
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/wtTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:fontFamily="@font/bbh_bartle_regular"
+                android:gravity="center"
+                android:text="Incoming radio ping"
+                android:textColor="#F7F8FB"
+                android:textSize="34sp" />
+
+            <TextView
+                android:id="@+id/wtSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="Half-duplex voice channel"
+                android:textColor="#A7BED6"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/wtCallerName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="26dp"
+                android:gravity="center"
+                android:textColor="#FFFFFF"
+                android:textSize="30sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/wtStatusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:gravity="center"
+                android:text="Mic stays muted until you hold Talk."
+                android:textColor="#D4DEEA"
+                android:textSize="15sp" />
+
+            <LinearLayout
+                android:id="@+id/wtFeatureRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="22dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/wtFeatureOne"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_wt_chip"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:paddingStart="8dp"
+                    android:paddingTop="9dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="9dp"
+                    android:text="Instant connect"
+                    android:textColor="#EEF5FF"
+                    android:textSize="10sp" />
+
+                <TextView
+                    android:id="@+id/wtFeatureTwo"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_wt_chip"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:paddingStart="8dp"
+                    android:paddingTop="9dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="9dp"
+                    android:text="PTT ready"
+                    android:textColor="#EEF5FF"
+                    android:textSize="10sp" />
+
+                <TextView
+                    android:id="@+id/wtFeatureThree"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_wt_chip"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:paddingStart="8dp"
+                    android:paddingTop="9dp"
+                    android:paddingEnd="8dp"
+                    android:paddingBottom="9dp"
+                    android:text="Private channel"
+                    android:textColor="#EEF5FF"
+                    android:textSize="10sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <Space
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="0.22" />
+
+        <LinearLayout
+            android:id="@+id/wtActionRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/wtDeclineButton"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_wt_decline_button"
+                android:text="Decline"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/wtAcceptButton"
+                android:layout_width="0dp"
+                android:layout_height="60dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_wt_accept_button"
+                android:text="Join Channel"
+                android:textAllCaps="false"
+                android:textColor="#062226"
+                android:textSize="17sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/wtFooterText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center"
+            android:text="Accept to open a live push-to-talk lane with instant hold-to-speak control."
+            android:textColor="#8EA4BA"
+            android:textSize="13sp" />
+
+        <Space
+            android:layout_width="1dp"
+            android:layout_height="0dp"
+            android:layout_weight="0.08" />
+    </LinearLayout>
+
+</FrameLayout>

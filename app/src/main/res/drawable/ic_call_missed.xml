@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Material Design "call_missed" icon converted from:
+    viewBox="0 -960 960 960" (Material Symbols coordinate space)
+  The group translateY="960" maps the -960..0 Y range onto 0..960.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <group android:translateY="960">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M480-263 200-543v183h-80v-320h320v80H256l224 224 304-304 56 57-360 360Z" />
+    </group>
+</vector>

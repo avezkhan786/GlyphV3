@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "958686747250",
+    "firebase_url": "https://glyphv3-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "glyphv3",
+    "storage_bucket": "glyphv3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:958686747250:android:86a13af6e5a712540cc0eb",
+        "android_client_info": {
+          "package_name": "com.glyph.glyph_v3"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBFs_eZGRpIPndyoOma5oo5g15QrKB8u4Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

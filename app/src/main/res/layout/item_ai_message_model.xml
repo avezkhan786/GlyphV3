@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AI model message bubble (left-aligned) -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="4dp"
+    android:paddingVertical="2dp">
+
+    <LinearLayout
+        android:id="@+id/msgContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="start"
+        android:maxWidth="300dp"
+        android:orientation="vertical"
+        android:background="@drawable/bg_bubble_left"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp">
+
+        <!-- AI label -->
+        <TextView
+            android:id="@+id/tvAiLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/ai_agent_title"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="?attr/glyphAiIcon"
+            android:layout_marginBottom="2dp" />
+
+        <!-- Message text (supports Markdown-style formatting) -->
+        <TextView
+            android:id="@+id/tvMessageText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="15sp"
+            android:textColor="?attr/glyphBubbleOtherText"
+            android:lineSpacingExtra="2dp"
+            android:textIsSelectable="true" />
+
+        <!-- Source citations container (visible only in search mode) -->
+        <LinearLayout
+            android:id="@+id/sourcesContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            android:layout_marginTop="6dp">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:background="?attr/glyphDivider"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tvSourcesLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_agent_sources"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="?attr/glyphTextSecondary"
+                android:layout_marginBottom="2dp" />
+
+            <!-- Dynamic source items added programmatically -->
+            <LinearLayout
+                android:id="@+id/sourcesList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+        </LinearLayout>
+
+        <!-- TTS button + timestamp row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="4dp">
+
+            <ImageButton
+                android:id="@+id/btnTts"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_volume_up"
+                android:contentDescription="Read aloud"
+                app:tint="?attr/glyphTextSecondary"
+                android:padding="2dp" />
+
+            <ImageButton
+                android:id="@+id/btnCopy"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_copy"
+                android:contentDescription="Copy"
+                app:tint="?attr/glyphTextSecondary"
+                android:padding="2dp"
+                android:layout_marginStart="8dp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tvTimestamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="11sp"
+                android:textColor="?attr/glyphBubbleOtherText"
+                android:alpha="0.6" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>

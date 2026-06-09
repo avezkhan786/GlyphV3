@@ -1,0 +1,139 @@
+{
+  "appName": "Glyph",
+  "description": "A feature-rich messaging app with AI-powered tools, expressive typing, media sharing, and beautiful themes.",
+  "features": [
+    {
+      "name": "AI Composer",
+      "description": "Enhances your messages using AI. Improve grammar, change tone (friendly, formal, funny, poetic, concise), or translate messages before sending.",
+      "howToUse": "In any chat, type your message then tap the sparkle/AI icon in the toolbar above the keyboard. Choose an action: Enhance, Grammar Fix, Tone Change, or Translate.",
+      "navigation": "Chat Screen → AI Toolbar (sparkle icon above keyboard)",
+      "keywords": ["ai", "enhance", "grammar", "tone", "rewrite", "compose", "sparkle", "toolbar"]
+    },
+    {
+      "name": "Live Expressive Typing",
+      "description": "Your typing is animated in real-time for the recipient. Characters appear with smooth animations as you type, making conversations feel alive.",
+      "howToUse": "This is automatic. When you type in a chat, the other person sees your keystrokes with fluid animations in real-time.",
+      "navigation": "Automatic in all chats",
+      "keywords": ["typing", "animation", "expressive", "live", "real-time", "keystrokes"]
+    },
+    {
+      "name": "Real-time Sentiment Animation",
+      "description": "The chat background subtly changes based on the emotional tone of the conversation. Uses AI to detect sentiment and animates color shifts.",
+      "howToUse": "Automatic — the background gently shifts colors based on conversation mood (warm for positive, cool for neutral, etc.).",
+      "navigation": "Automatic in chat view",
+      "keywords": ["sentiment", "mood", "background", "animation", "emotion", "color"]
+    },
+    {
+      "name": "Message Translation",
+      "description": "Translate any received message into your preferred language using AI-powered translation.",
+      "howToUse": "Long-press on any message → tap 'Translate' from the context menu. Choose your target language.",
+      "navigation": "Chat → Long-press message → Translate",
+      "keywords": ["translate", "language", "multilingual", "translation"]
+    },
+    {
+      "name": "Speech-to-Text (Voice Input)",
+      "description": "Convert voice messages to text or use voice input for composing messages.",
+      "howToUse": "Tap the microphone icon in the input bar to start voice input. Speak your message and it will be converted to text.",
+      "navigation": "Chat → Mic icon in input bar",
+      "keywords": ["voice", "speech", "microphone", "dictation", "stt", "mic"]
+    },
+    {
+      "name": "Text-to-Speech (TTS)",
+      "description": "Listen to any message read aloud using text-to-speech.",
+      "howToUse": "Long-press a message → tap the speaker/TTS icon to have the message read aloud.",
+      "navigation": "Chat → Long-press message → TTS icon",
+      "keywords": ["tts", "read aloud", "speaker", "listen", "text-to-speech"]
+    },
+    {
+      "name": "Themes & Wallpapers",
+      "description": "Customize the app's appearance with multiple built-in themes (including Pastel Sky) and chat wallpapers.",
+      "howToUse": "Go to Settings → Appearance → Themes to pick a theme. For wallpapers, go to Settings → Chat Settings → Wallpaper.",
+      "navigation": "Settings → Appearance → Themes / Wallpaper",
+      "keywords": ["theme", "wallpaper", "appearance", "pastel", "dark", "light", "color", "customize"]
+    },
+    {
+      "name": "Media Sharing",
+      "description": "Share photos, videos, documents, and media groups (collages). Supports camera capture and gallery picking.",
+      "howToUse": "In a chat, tap the attachment icon (paperclip) to pick media from gallery, or tap the camera icon to take a photo/video.",
+      "navigation": "Chat → Attachment icon / Camera icon",
+      "keywords": ["photo", "video", "image", "media", "camera", "gallery", "attachment", "document", "file", "collage"]
+    },
+    {
+      "name": "Swipe to Reply",
+      "description": "Swipe right on any message to reply to it directly, creating a quoted reply.",
+      "howToUse": "Swipe right on a message bubble to activate reply mode. The quoted message appears above the input bar.",
+      "navigation": "Chat → Swipe right on message",
+      "keywords": ["reply", "swipe", "quote", "respond"]
+    },
+    {
+      "name": "Buzz (Attention Nudge)",
+      "description": "Send a buzz to get someone's attention. Their phone vibrates with a special notification.",
+      "howToUse": "In a chat, tap the thunder/buzz icon in the toolbar to send a buzz to the other person.",
+      "navigation": "Chat → Buzz icon in toolbar",
+      "keywords": ["buzz", "nudge", "attention", "vibrate", "poke"]
+    },
+    {
+      "name": "Online Presence & Last Seen",
+      "description": "See when contacts are online or their last seen time. Green dot = online, timestamp = last active.",
+      "howToUse": "Open any chat — the status appears below the contact name in the toolbar (Online, or 'Last seen ...').",
+      "navigation": "Chat → Toolbar subtitle",
+      "keywords": ["online", "last seen", "presence", "status", "active", "offline"]
+    },
+    {
+      "name": "Typing Indicators",
+      "description": "See when someone is typing a message to you with animated dots.",
+      "howToUse": "Automatic — when the other person types, you see '...' or 'typing' below their name.",
+      "navigation": "Automatic in chat toolbar",
+      "keywords": ["typing", "indicator", "dots", "composing"]
+    },
+    {
+      "name": "Read Receipts & Delivery Status",
+      "description": "Messages show delivery and read status: single check (sent), double check (delivered), blue checks (read).",
+      "howToUse": "Look at the check marks next to your sent messages. Grey = sent, double grey = delivered, blue = read.",
+      "navigation": "Automatic on sent messages",
+      "keywords": ["read", "receipt", "delivered", "sent", "check", "blue tick", "seen"]
+    },
+    {
+      "name": "Delete for Everyone",
+      "description": "Delete messages for all participants within 48 hours of sending.",
+      "howToUse": "Long-press your sent message → tap 'Delete' → choose 'Delete for Everyone'.",
+      "navigation": "Chat → Long-press own message → Delete → Delete for Everyone",
+      "keywords": ["delete", "unsend", "remove", "everyone", "recall"]
+    },
+    {
+      "name": "Profile & Avatar",
+      "description": "Set your profile photo, display name, and about text. Your avatar syncs across all chats.",
+      "howToUse": "Go to Settings → Profile. Tap your photo to change it, edit your name or about text.",
+      "navigation": "Settings → Profile",
+      "keywords": ["profile", "avatar", "photo", "picture", "name", "about", "bio"]
+    },
+    {
+      "name": "Notifications",
+      "description": "Push notifications for new messages, buzzes, and other events. Customizable per-chat notification settings.",
+      "howToUse": "Notifications work automatically. To customize, go to Settings → Notifications, or mute specific chats.",
+      "navigation": "Settings → Notifications",
+      "keywords": ["notification", "push", "alert", "sound", "mute", "ring"]
+    },
+    {
+      "name": "Archive Chats",
+      "description": "Archive chats to hide them from the main list without deleting them.",
+      "howToUse": "Long-press a chat in the chat list → tap 'Archive'. View archived chats at the bottom of the chat list.",
+      "navigation": "Chat List → Long-press chat → Archive",
+      "keywords": ["archive", "hide", "organize", "clean"]
+    },
+    {
+      "name": "Search Chats",
+      "description": "Search through your conversations to find specific messages or contacts.",
+      "howToUse": "Tap the search icon at the top of the chat list. Type keywords to find messages or contacts.",
+      "navigation": "Chat List → Search icon",
+      "keywords": ["search", "find", "look up", "query"]
+    },
+    {
+      "name": "Glyph AI Agent",
+      "description": "Your built-in AI assistant with three modes: General Chat (ask anything), Chat Intelligence (search across your conversations), and App Help (get help with Glyph features).",
+      "howToUse": "From the chat list, tap the 'Glyph AI' pinned card at the top. Switch between Chat, Search, and App Help modes using the chips at the top.",
+      "navigation": "Chat List → Glyph AI card (pinned at top)",
+      "keywords": ["ai", "agent", "assistant", "help", "ask", "glyph ai"]
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+# Baseline Profile for Chat Screen Performance
+# This helps ART pre-compile (AOT) critical methods during installation so the
+# JIT does not have to warm them up during the first scroll gestures.
+#
+# IMPORTANT: The live chat surface is the XML RecyclerView path
+#   ChatActivity + ChatAdapter (+ ViewHolders) + RecyclerCoordinator + CollageImageView
+# The old Compose ChatScreen.kt path is dead code and is intentionally NOT profiled.
+#
+# Wildcard rules below use the profgen human-readable format:
+#   HSPL<package>/**->**(**)**  => mark every method of every class in the package
+#                                  as Hot + Startup + Post-startup so it is AOT compiled.
+# Unmatched rules are skipped with a warning (they never fail the build).
+
+# ── REAL chat hot path: full XML RecyclerView bind/inflate/scroll pipeline ──
+HSPLcom/glyph/glyph_v3/ui/chat/ChatActivity;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatActivity$**->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatAdapter;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatAdapter$**->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/RecyclerCoordinator;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/RecyclerCoordinator$**->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/CollageImageView;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/CollageImageView$**->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatMediaLayoutSizing;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatMediaLayoutSizing$**->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatOpenPrefetcher;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatOpenPrefetcher$**->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/MessagePreviewCacheManager;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/MessagePreviewCacheManager$**->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/MessageBubbleLayout;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatListItem;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatListItem$**->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatViewModel;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chat/ChatViewModel$**->**(**)**
+# Catch-all for any other helper classes in the chat package (controllers, sizing, etc.)
+HSPLcom/glyph/glyph_v3/ui/chat/**->**(**)**
+Lcom/glyph/glyph_v3/ui/chat/**
+
+# ── Data models & caches touched on every bind ──
+HSPLcom/glyph/glyph_v3/data/models/**->**(**)**
+HSPLcom/glyph/glyph_v3/data/cache/**->**(**)**
+
+# ── RecyclerView internals: recycler, layout manager, prefetch, view holder pool ──
+HSPLandroidx/recyclerview/widget/**->**(**)**
+Landroidx/recyclerview/widget/**
+
+# ── Glide image pipeline hot path (decode / engine / request / bitmap / gif) ──
+HSPLcom/bumptech/glide/load/engine/**->**(**)**
+HSPLcom/bumptech/glide/load/resource/bitmap/**->**(**)**
+HSPLcom/bumptech/glide/load/resource/gif/**->**(**)**
+HSPLcom/bumptech/glide/load/resource/drawable/**->**(**)**
+HSPLcom/bumptech/glide/request/**->**(**)**
+HSPLcom/bumptech/glide/load/model/**->**(**)**
+HSPLcom/bumptech/glide/RequestBuilder;->**(**)**
+HSPLcom/bumptech/glide/RequestManager;->**(**)**
+HSPLcom/bumptech/glide/manager/**->**(**)**
+
+# LazyColumn and Compose Foundation - CRITICAL for scroll performance
+HSPLandroidx/compose/foundation/lazy/LazyListKt;->LazyColumn(Landroidx/compose/ui/Modifier;Landroidx/compose/foundation/lazy/LazyListState;Landroidx/compose/foundation/layout/PaddingValues;ZLandroidx/compose/foundation/layout/Arrangement$Vertical;Landroidx/compose/ui/Alignment$Horizontal;Landroidx/compose/foundation/gestures/FlingBehavior;ZILkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;III)V
+HSPLandroidx/compose/foundation/lazy/LazyListState;->getFirstVisibleItemIndex()I
+HSPLandroidx/compose/foundation/lazy/LazyListState;->getFirstVisibleItemScrollOffset()I
+HSPLandroidx/compose/foundation/lazy/LazyListState;->getLayoutInfo()Landroidx/compose/foundation/lazy/LazyListLayoutInfo;
+HSPLandroidx/compose/foundation/lazy/LazyListState;->scrollToItem(IILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+HSPLandroidx/compose/foundation/lazy/LazyListState;->animateScrollToItem(IILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+HSPLandroidx/compose/foundation/lazy/LazyListState;->isScrollInProgress()Z
+HSPLandroidx/compose/foundation/lazy/LazyListLayoutInfo;->getVisibleItemsInfo()Ljava/util/List;
+HSPLandroidx/compose/foundation/lazy/LazyListItemInfo;->getIndex()I
+HSPLandroidx/compose/foundation/lazy/LazyListItemInfo;->getKey()Ljava/lang/Object;
+HSPLandroidx/compose/foundation/lazy/LazyListItemInfo;->getOffset()I
+
+# Compose Foundation Layout - Fast layout calculations
+HSPLandroidx/compose/foundation/layout/BoxKt;->Box(Landroidx/compose/ui/Modifier;Landroidx/compose/ui/Alignment;ZLkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+HSPLandroidx/compose/foundation/layout/ColumnKt;->Column(Landroidx/compose/ui/Modifier;Landroidx/compose/foundation/layout/Arrangement$Vertical;Landroidx/compose/ui/Alignment$Horizontal;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+HSPLandroidx/compose/foundation/layout/RowKt;->Row(Landroidx/compose/ui/Modifier;Landroidx/compose/foundation/layout/Arrangement$Horizontal;Landroidx/compose/ui/Alignment$Vertical;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;II)V
+HSPLandroidx/compose/foundation/layout/SpacerKt;->Spacer(Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;I)V
+HSPLandroidx/compose/foundation/layout/SizeKt;->size(Landroidx/compose/ui/Modifier;FF)Landroidx/compose/ui/Modifier;
+HSPLandroidx/compose/foundation/layout/SizeKt;->width(Landroidx/compose/ui/Modifier;F)Landroidx/compose/ui/Modifier;
+HSPLandroidx/compose/foundation/layout/SizeKt;->height(Landroidx/compose/ui/Modifier;F)Landroidx/compose/ui/Modifier;
+HSPLandroidx/compose/foundation/layout/SizeKt;->fillMaxWidth(Landroidx/compose/ui/Modifier;F)Landroidx/compose/ui/Modifier;
+HSPLandroidx/compose/foundation/layout/SizeKt;->fillMaxSize(Landroidx/compose/ui/Modifier;F)Landroidx/compose/ui/Modifier;
+HSPLandroidx/compose/foundation/layout/PaddingKt;->padding(Landroidx/compose/ui/Modifier;FFFF)Landroidx/compose/ui/Modifier;
+
+# Image Loading (Coil) - Pre-compile image pipeline
+HSPLcoil/compose/AsyncImageKt;->AsyncImage(Ljava/lang/Object;Ljava/lang/String;Lcoil/ImageLoader;Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Alignment;Landroidx/compose/ui/layout/ContentScale;FLandroidx/compose/ui/graphics/ColorFilter;ILandroidx/compose/runtime/Composer;II)V
+HSPLcoil/request/ImageRequest$Builder;->data(Ljava/lang/Object;)Lcoil/request/ImageRequest$Builder;
+HSPLcoil/request/ImageRequest$Builder;->size(I)Lcoil/request/ImageRequest$Builder;
+HSPLcoil/request/ImageRequest$Builder;->memoryCacheKey(Ljava/lang/String;)Lcoil/request/ImageRequest$Builder;
+HSPLcoil/request/ImageRequest$Builder;->diskCacheKey(Ljava/lang/String;)Lcoil/request/ImageRequest$Builder;
+HSPLcoil/request/ImageRequest$Builder;->allowHardware(Z)Lcoil/request/ImageRequest$Builder;
+HSPLcoil/request/ImageRequest$Builder;->crossfade(Z)Lcoil/request/ImageRequest$Builder;
+HSPLcoil/request/ImageRequest$Builder;->placeholder(I)Lcoil/request/ImageRequest$Builder;
+HSPLcoil/request/ImageRequest$Builder;->build()Lcoil/request/ImageRequest;
+HSPLcoil/ImageLoader;->enqueue(Lcoil/request/ImageRequest;)Lcoil/request/Disposable;
+HSPLcoil/memory/MemoryCache;->get(Lcoil/memory/MemoryCache$Key;)Lcoil/memory/MemoryCache$Value;
+
+# Compose Runtime and State Management - CRITICAL for performance
+HSPLandroidx/compose/runtime/CompositionKt;->Composition(Landroidx/compose/runtime/Applier;Landroidx/compose/runtime/CompositionContext;)Landroidx/compose/runtime/Composition;
+HSPLandroidx/compose/runtime/SnapshotStateKt;->mutableStateOf(Ljava/lang/Object;Landroidx/compose/runtime/SnapshotMutationPolicy;)Landroidx/compose/runtime/MutableState;
+HSPLandroidx/compose/runtime/SnapshotStateKt;->derivedStateOf(Lkotlin/jvm/functions/Function0;)Landroidx/compose/runtime/State;
+HSPLandroidx/compose/runtime/SnapshotStateKt;->remember(Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Ljava/lang/Object;
+HSPLandroidx/compose/runtime/ComposerKt;->key(ILjava/lang/Object;Landroidx/compose/runtime/Composer;I)V
+HSPLandroidx/compose/runtime/snapshots/SnapshotKt;->snapshot(Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+HSPLandroidx/compose/runtime/snapshots/SnapshotKt;->snapshotFlow(Lkotlin/jvm/functions/Function0;)Lkotlinx/coroutines/flow/Flow;
+HSPLandroidx/compose/runtime/Composer;->changed(Ljava/lang/Object;)Z
+HSPLandroidx/compose/runtime/Composer;->startReplaceableGroup(I)V
+HSPLandroidx/compose/runtime/Composer;->endReplaceableGroup()V
+HSPLandroidx/compose/runtime/Composer;->skipToGroupEnd()V
+
+# Graphics and Drawing - Pre-compile drawing operations
+HSPLandroidx/compose/ui/graphics/GraphicsLayerModifierKt;->graphicsLayer(Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function1;)Landroidx/compose/ui/Modifier;
+HSPLandroidx/compose/ui/draw/DrawModifierKt;->drawBehind(Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function1;)Landroidx/compose/ui/Modifier;
+HSPLandroidx/compose/ui/draw/DrawModifierKt;->drawWithCache(Landroidx/compose/ui/Modifier;Lkotlin/jvm/functions/Function1;)Landroidx/compose/ui/Modifier;
+HSPLandroidx/compose/ui/draw/ClipKt;->clip(Landroidx/compose/ui/Modifier;Landroidx/compose/ui/graphics/Shape;)Landroidx/compose/ui/Modifier;
+HSPLandroidx/compose/ui/graphics/drawscope/DrawScope;->drawPath(Landroidx/compose/ui/graphics/Path;Landroidx/compose/ui/graphics/Brush;FLandroidx/compose/ui/graphics/drawscope/DrawStyle;Landroidx/compose/ui/graphics/ColorFilter;I)V
+HSPLandroidx/compose/ui/graphics/drawscope/DrawScope;->drawText(Landroidx/compose/ui/text/TextLayoutResult;JJFLandroidx/compose/ui/graphics/Shadow;Landroidx/compose/ui/graphics/drawscope/DrawStyle;)V
+HSPLandroidx/compose/ui/text/TextMeasurer;->measure(Ljava/lang/CharSequence;Landroidx/compose/ui/text/TextStyle;IIZILandroidx/compose/ui/unit/Constraints;Landroidx/compose/ui/unit/LayoutDirection;Landroidx/compose/ui/unit/Density;Landroidx/compose/ui/text/font/FontFamily$Resolver;Z)Landroidx/compose/ui/text/TextLayoutResult;
+HSPLandroidx/compose/foundation/shape/RoundedCornerShapeKt;->RoundedCornerShape(FFFF)Landroidx/compose/foundation/shape/RoundedCornerShape;
+HSPLandroidx/compose/foundation/shape/RoundedCornerShape;->createOutline(JLandroidx/compose/ui/unit/LayoutDirection;Landroidx/compose/ui/unit/Density;)Landroidx/compose/ui/graphics/Outline;
+
+# Text rendering - Pre-compile text measurement
+HSPLandroidx/compose/ui/text/TextLayoutResult;->getLineCount()I
+HSPLandroidx/compose/ui/text/TextLayoutResult;->getLineRight(I)F
+HSPLandroidx/compose/ui/text/TextLayoutResult;->getSize-YbymL2g()J
+
+# ViewModel and Data Loading
+HSPLcom/glyph/glyph_v3/ui/chat/ChatViewModel;->getUiState()Lkotlinx/coroutines/flow/StateFlow;
+HSPLcom/glyph/glyph_v3/ui/chat/ChatViewModel;->loadMessages()V
+HSPLcom/glyph/glyph_v3/data/models/Message;->getId()Ljava/lang/String;
+HSPLcom/glyph/glyph_v3/data/models/Message;->getText()Ljava/lang/String;
+HSPLcom/glyph/glyph_v3/data/models/Message;->getType()Lcom/glyph/glyph_v3/data/models/MessageType;
+HSPLcom/glyph/glyph_v3/data/models/Message;->getTimestamp()J
+HSPLcom/glyph/glyph_v3/data/models/Message;->isIncoming()Z
+HSPLcom/glyph/glyph_v3/data/models/Message;->getStatus()Lcom/glyph/glyph_v3/data/models/MessageStatus;
+HSPLcom/glyph/glyph_v3/data/models/Message;->getFormattedTime()Ljava/lang/String;
+HSPLcom/glyph/glyph_v3/data/models/Message;->getAspectRatio()F
+HSPLcom/glyph/glyph_v3/ui/chat/ChatListItem;->getId()Ljava/lang/String;
+HSPLcom/glyph/glyph_v3/ui/chat/ChatListItem$MessageItem;->getMessage()Lcom/glyph/glyph_v3/data/models/Message;
+HSPLcom/glyph/glyph_v3/ui/chat/ChatListItem$MessageItem;->getGroupPosition()Lcom/glyph/glyph_v3/ui/chat/BubbleGroupPosition;
+
+# Theme and Styling
+HSPLcom/glyph/glyph_v3/ui/theme/GlyphThemeKt;->getGlyphTheme()Lcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getBackgroundPrimary-0d7_KjU()J
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getTextPrimary-0d7_KjU()J
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getBubbleOutgoingBackground-0d7_KjU()J
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getBubbleIncomingBackground-0d7_KjU()J
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getBubbleOutgoingText-0d7_KjU()J
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getBubbleIncomingText-0d7_KjU()J
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getBubbleTimestamp-0d7_KjU()J
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getBubbleBorder-0d7_KjU()J
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getCornerRadiusMedium-D9Ej5fM()F
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getGradientBubbleOutgoing()Landroidx/compose/ui/graphics/Brush;
+PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getGradientBubbleIncoming()Landroidx/compose/ui/graphics/Brush;

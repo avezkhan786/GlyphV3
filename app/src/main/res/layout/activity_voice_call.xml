@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Outgoing / Ringing Voice Call screen — pixel-precise WhatsApp replica.
+
+    Layout hierarchy:
+    FrameLayout (root, full-bleed background image)
+    └── LinearLayout (vertical, edge-to-edge content — top/bottom padding set via WindowInsets in code)
+        ├── [top bar]  minimize · name+status · add-participant
+        ├── Space (weight 1.0 — pushes avatar slightly above centre)
+        ├── ImageView (circular avatar, 220 dp)
+        ├── Space (weight 1.5)
+        └── [bottom bar wrapper — bottom padding from nav-bar inset applied in code]
+            └── LinearLayout (rounded dark pill — the 5-button control row)
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootVoiceCall"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Full-bleed background image -->
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:src="@drawable/voice_call_bg"
+        android:contentDescription="@null" />
+
+    <!-- Dark scrim so text is always legible over the pattern -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000" />
+
+    <!-- ── Vertical content scaffold ─────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/voiceCallContentRoot"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- ── TOP BAR ─────────────────────────────────────────── -->
+        <!--
+            id=topBarContainer — WindowInsets handler in code applies
+            paddingTop = statusBarHeight + 10 dp here.
+        -->
+        <LinearLayout
+            android:id="@+id/topBarContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingTop="48dp"
+            android:paddingBottom="8dp">
+
+            <!-- Minimize (compress) button -->
+            <FrameLayout
+                android:id="@+id/btnMinimize"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_call_control_button"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_call_minimize"
+                    android:contentDescription="@null" />
+            </FrameLayout>
+
+            <!-- Contact name + call status -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:layout_marginHorizontal="8dp">
+
+                <TextView
+                    android:id="@+id/tvContactName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FFFFFFFF"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.01"
+                    tools:text="Nazia" />
+
+                <!-- Status: "Ringing …" or call-timer (set in code) -->
+                <TextView
+                    android:id="@+id/tvCallTimer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#AAFFFFFF"
+                    android:textSize="15sp"
+                    android:layout_marginTop="2dp"
+                    tools:text="+1 234 567 890" />
+
+                <TextView
+                    android:id="@+id/tvCallStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="#AAFFFFFF"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    tools:text="Calling ..."
+                    tools:visibility="visible" />
+            </LinearLayout>
+
+            <!-- Add participant button -->
+            <FrameLayout
+                android:id="@+id/btnAddParticipant"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_call_control_button"
+                android:clickable="true"
+                android:focusable="true">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_person_add"
+                    android:contentDescription="@null" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- ── FLEXIBLE SPACE (above avatar) ─────────────────────── -->
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- ── AVATAR ──────────────────────────────────────────── -->
+        <ImageView
+            android:id="@+id/ivContactAvatar"
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            android:layout_gravity="center_horizontal"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_default_avatar"
+            android:clipToOutline="true"
+            android:background="@drawable/bg_call_avatar"
+            tools:ignore="ContentDescription" />
+
+        <!-- ── FLEXIBLE SPACE (below avatar, larger to push avatar above centre) -->
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1.5" />
+
+        <!-- ── BOTTOM CONTROL BAR WRAPPER ─────────────────────── -->
+        <!--
+            id=controlBarWrapper — WindowInsets handler applies
+            paddingBottom = navBarHeight + 16 dp here.
+        -->
+        <FrameLayout
+            android:id="@+id/controlBarWrapper"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="24dp"
+            android:paddingHorizontal="20dp">
+
+            <!-- Rounded pill control bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_call_controls_bar"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="14dp">
+
+                <!-- Equal flex gap before first button -->
+                <Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+                <!-- More options (···) -->
+                <FrameLayout
+                    android:id="@+id/btnMore"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_call_control_button"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_more_vert"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+
+                <Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+                <!-- Video call switch -->
+                <FrameLayout
+                    android:id="@+id/btnVideo"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_call_control_button"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:id="@+id/ivVideoIcon"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_videocam"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+
+                <Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+                <!-- Speaker -->
+                <FrameLayout
+                    android:id="@+id/btnSpeaker"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_call_control_button"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:id="@+id/ivSpeakerIcon"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_volume_up"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+
+                <Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+                <!-- Mute microphone -->
+                <FrameLayout
+                    android:id="@+id/btnMute"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:background="@drawable/bg_call_control_button"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:id="@+id/ivMuteIcon"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_mic_custom"
+                        android:tint="#FFFFFFFF"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+
+                <Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+                <!-- End call — larger red button, centred vertically with others -->
+                <FrameLayout
+                    android:id="@+id/btnEndCall"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:background="@drawable/bg_call_end_button"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_call"
+                        android:tint="#FFFFFFFF"
+                        android:rotation="135"
+                        android:contentDescription="@null" />
+                </FrameLayout>
+
+                <Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" />
+
+            </LinearLayout>
+        </FrameLayout>
+
+    </LinearLayout>
+</FrameLayout>

@@ -1,0 +1,10 @@
+Project: Android Chat App
+
+Rules:
+- Always analyze before editing.
+- Never modify unrelated files.
+- Prefer Firebase implementation.
+- Use Kotlin.
+- Follow MVVM architecture.
+- Update imports automatically.
+- Explain changes before applying.

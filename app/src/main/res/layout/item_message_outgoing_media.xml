@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <LinearLayout
+        android:id="@+id/messageBubble"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_message_outgoing"
+        android:padding="0.5dp"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <include layout="@layout/layout_forwarded_label" />
+
+        <include
+            android:id="@+id/includeReplyPreview"
+            layout="@layout/item_message_reply_preview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"/>
+
+        <FrameLayout
+            android:id="@+id/mediaContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivImage"
+            android:layout_width="195dp"
+            android:layout_height="195dp"
+            android:adjustViewBounds="false"
+            android:scaleType="centerCrop"
+            android:maxHeight="600dp"
+            android:outlineProvider="background"
+            android:clipToOutline="true"
+            android:background="@drawable/bg_rounded_image"
+            tools:src="@tools:sample/backgrounds/scenic" />
+
+        <!-- Play button for videos -->
+        <ImageView
+            android:id="@+id/ivPlayButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_play_circle"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <!-- Upload/Download button -->
+        <ImageView
+            android:id="@+id/ivStatusAction"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_upload_circle"
+            android:visibility="gone" />
+
+        <!-- Progress Indicator -->
+        <com.glyph.glyph_v3.ui.chat.CircularProgressView
+            android:id="@+id/progressIndicator"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+
+        <!-- File size overlay -->
+        <TextView
+            android:id="@+id/tvFileSize"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/bg_timestamp_overlay"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
+            android:textColor="@android:color/white"
+            android:textSize="10sp"
+            android:visibility="gone"
+            tools:text="2.5 MB"
+            tools:visibility="visible" />
+
+        <!-- Video duration overlay -->
+        <TextView
+            android:id="@+id/tvVideoDuration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="8dp"
+            android:layout_marginBottom="32dp"
+            android:background="@drawable/bg_timestamp_overlay"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
+            android:textColor="@android:color/white"
+            android:textSize="10sp"
+            android:visibility="gone"
+            tools:text="0:45" />
+
+        <LinearLayout
+            android:id="@+id/layoutTimestamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/bg_timestamp_overlay"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvTimestamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@android:color/white"
+                android:textSize="10sp"
+                tools:text="10:30 AM" />
+
+            <ImageView
+                android:id="@+id/ivStatus"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/ic_check"
+                app:tint="@android:color/white" />
+        </LinearLayout>
+
+        </FrameLayout>
+
+        <!-- Timestamp + status shown below sticker (outside media overlay, no background) -->
+        <LinearLayout
+            android:id="@+id/layoutTimestampBelow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="2dp"
+            android:paddingBottom="4dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:visibility="gone"
+            tools:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvTimestampBelow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="10sp"
+                android:textColor="?android:textColorSecondary"
+                android:alpha="0.8"
+                tools:text="10:30 AM" />
+
+            <ImageView
+                android:id="@+id/ivStatusBelow"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="4dp"
+                android:alpha="0.8"
+                android:src="@drawable/ic_check" />
+
+        </LinearLayout>
+
+        <!-- Caption text (if present) -->
+        <TextView
+            android:id="@+id/tvCaption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="4dp"
+            android:textSize="15sp"
+            android:lineSpacingExtra="2dp"
+            android:visibility="gone"
+            tools:text="Check out this beautiful view!"
+            tools:visibility="visible" />
+
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btnForwardMessage"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="@drawable/bg_media_forward_button"
+        android:contentDescription="Forward"
+        android:elevation="4dp"
+        android:padding="7dp"
+        android:scaleType="center"
+        android:src="@drawable/ic_forwarded_action"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/messageBubble"
+        android:layout_marginEnd="10dp"
+        app:layout_constraintEnd_toStartOf="@id/messageBubble"
+        app:layout_constraintTop_toTopOf="@id/messageBubble"
+        app:layout_constraintVertical_bias="0.48"
+        app:tint="@android:color/white"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/glyph_reaction_chip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="3dp"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@id/messageBubble"
+        app:layout_constraintTop_toBottomOf="@id/messageBubble"
+        android:layout_marginEnd="10dp"
+        android:layout_marginTop="-4dp"
+        android:layout_marginBottom="4dp"
+        tools:visibility="visible"
+        tools:text="😂  1" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

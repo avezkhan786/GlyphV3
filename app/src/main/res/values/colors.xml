@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="transparent">#00000000</color>
+    
+    <!-- ========== LIGHT THEME COLORS ========== -->
+    
+    <!-- Background colors -->
+    <color name="light_background">#FEFEFE</color>
+    <color name="light_surface">#FFFFFF</color>
+    <color name="light_surface_secondary">#F8F9FA</color>
+    <color name="light_surface_variant">#F1F3F4</color>
+    <color name="light_surface_tinted">#F0F7FF</color>
+    <color name="light_surface_warm">#FFF8F0</color>
+    
+    <!-- Text colors -->
+    <color name="light_text">#1C1B1F</color>
+    <color name="light_text_secondary">#49454F</color>
+    <color name="light_text_tertiary">#79747E</color>
+    <color name="light_text_inverse">#FFFFFF</color>
+    <color name="light_text_muted">#938F99</color>
+    
+    <!-- Primary colors - Modern teal palette -->
+    <color name="light_primary">#006A6A</color>
+    <color name="light_primary_light">#4DD0E1</color>
+    <color name="light_primary_dark">#004C4C</color>
+    <color name="light_primary_variant">#00A4B4</color>
+    <color name="light_on_primary">#FFFFFF</color>
+    
+    <!-- Secondary colors - Warm coral -->
+    <color name="light_secondary">#FF8A65</color>
+    <color name="light_secondary_light">#FFAB91</color>
+    <color name="light_secondary_dark">#E64A19</color>
+    
+    <!-- Accent colors - Modern purple -->
+    <color name="light_accent">#7C4DFF</color>
+    <color name="light_accent_light">#B388FF</color>
+    <color name="light_accent_dark">#4A148C</color>
+    <color name="light_accent_variant">#651FFF</color>
+    
+    <!-- Status colors -->
+    <color name="light_success">#4CAF50</color>
+    <color name="light_success_light">#81C784</color>
+    <color name="light_warning">#FF9800</color>
+    <color name="light_warning_light">#FFB74D</color>
+    <color name="light_error">#F44336</color>
+    <color name="light_error_light">#EF5350</color>
+    <color name="light_info">#2196F3</color>
+    <color name="light_info_light">#64B5F6</color>
+    
+    <!-- Border colors -->
+    <color name="light_border">#E0E0E0</color>
+    <color name="light_border_light">#F0F0F0</color>
+    <color name="light_border_variant">#BDBDBD</color>
+    <color name="light_border_accent">#4DD0E1</color>
+    
+    <!-- Chat colors -->
+    <color name="light_chat_item">#FFFFFF</color>
+    <color name="light_chat_item_selected">#E5DED8</color>
+    <color name="light_unread_badge">#E3D5CA</color>
+    <color name="light_bubble_own">#d0f0e0</color>
+    <color name="light_bubble_other">#ebe6e1</color>
+    <color name="light_send_button">#D6CCC2</color>
+    
+    <!-- Bottom Navigation Colors - Light Theme -->
+    <color name="light_nav_icon">#006A6A</color>
+    <color name="light_nav_icon_selected">#006A6A</color>
+    <color name="light_nav_text">#006A6A</color>
+    <color name="light_nav_text_selected">#006A6A</color>
+    <color name="light_nav_indicator">#B3E5FC</color>
+    
+    <!-- Gradient colors for Light Theme -->
+    <color name="light_gradient_start">#4DD0E1</color>
+    <color name="light_gradient_mid1">#81C784</color>
+    <color name="light_gradient_mid2">#B388FF</color>
+    <color name="light_gradient_end">#FFAB91</color>
+    
+    <!-- FAB Gradient Colors -->
+    <color name="light_fab_start">#00A4B4</color>
+    <color name="light_fab_end">#4DD0E1</color>
+    
+    <!-- Bubble gradient colors -->
+    <color name="light_bubble_own_start">#E3D5CA</color>
+    <color name="light_bubble_own_mid">#D6CCC2</color>
+    <color name="light_bubble_own_end">#DED6CE</color>
+    <color name="light_bubble_other_start">#F5EBE0</color>
+    <color name="light_bubble_other_mid">#EEEAE6</color>
+    <color name="light_bubble_other_end">#E5DED8</color>
+    
+    <!-- ========== DARK THEME COLORS ========== -->
+    
+    <!-- Background colors -->
+    <color name="dark_background">#01090C</color>
+    <color name="dark_surface">#0b1014</color>
+    <color name="dark_surface_secondary">#071B18</color>
+    <color name="dark_surface_variant">#0D2422</color>
+    
+    <!-- Text colors (softened for dark mode to be easy on the eyes) -->
+    <color name="dark_text">#E6EEF1</color>
+    <!-- Slightly warm off-white for premium toolbar titles (dark theme) -->
+    <color name="dark_toolbar_title">#F2EEE3</color>
+    <color name="dark_text_secondary">#9EA7AC</color>
+    <color name="dark_text_tertiary">#8E8E93</color>
+    <color name="dark_text_inverse">#1F2937</color>
+    
+    <!-- Primary colors (muted slightly to reduce glare) -->
+    <color name="dark_primary">#1DB954</color>
+    <color name="dark_primary_variant">#128C7E</color>
+    <color name="dark_on_primary">#000000</color>
+    
+    <!-- Accent colors -->
+    <color name="dark_accent">#0EA5E9</color>
+    <color name="dark_accent_variant">#0284C7</color>
+
+    <!-- Scroll-to-bottom FAB colors -->
+    <color name="dark_scroll_fab_background">#1F1F1F</color>
+    <color name="dark_scroll_fab_icon">#F2F2F2</color>
+    
+    <!-- Status colors -->
+    <color name="dark_success">#25D366</color>
+    <color name="dark_warning">#F59E0B</color>
+    <color name="dark_error">#DC2626</color>
+    <color name="dark_info">#0EA5E9</color>
+    
+    <!-- Component-specific colors -->
+    <color name="dark_search_background">#1B1F25</color>
+    <color name="dark_search_text">#AEB2BB</color>
+    <color name="dark_fab_background">#1FBF71</color>
+    <color name="dark_nav_selected_pill">#18ad67</color>
+
+    <!-- Border colors -->
+    <color name="dark_border">#3A3A3A</color>
+    <color name="dark_border_variant">#2D2D2D</color>
+    
+    <!-- Chat colors -->
+    <color name="dark_chat_item">#1E1E1E</color>
+    <color name="dark_chat_item_selected">#2D2D2D</color>
+    <color name="dark_unread_badge">#1DB954</color>
+    <color name="dark_bubble_own">#134d37</color>
+    <color name="dark_bubble_other">#1f272a</color>
+    <color name="dark_send_button">#041014</color>
+    
+    <!-- Bottom Navigation Colors - Dark Theme -->
+    <color name="dark_nav_icon">#FFFFFF</color>
+    <color name="dark_nav_icon_selected">#d8fdd2</color>
+    <color name="dark_nav_icon_selected_dark">#0c343d</color>
+    <color name="dark_nav_text">#FFFFFF</color>
+    <color name="dark_nav_text_selected">#FFFFFF</color>
+    <color name="dark_nav_indicator">#103629</color>
+    
+    <!-- Legacy compatibility -->
+    <color name="whatsapp_teal_light">#128C7E</color>
+    <color name="whatsapp_green">#25D366</color>
+    <color name="whatsapp_dark_green">#075E54</color>
+    <color name="whatsapp_light_green">#00A884</color>
+    <color name="whatsapp_blue_check">#34B7F1</color>
+    <color name="gray_text">#667781</color>
+    <color name="icon_dark_gray">#363434</color>
+    <color name="glyph_primary">#059669</color>
+    <color name="glyph_primary_dark">#047857</color>
+    <color name="glyph_primary_light">#34D399</color>
+    <color name="glyph_accent_coral">#FF8A80</color>
+    <color name="glyph_background">#F8FAFC</color>
+    <color name="glyph_text_primary">#1F2937</color>
+    <color name="glyph_text_secondary">#6B7280</color>
+    <color name="glyph_text_hint">#B2BEC3</color>
+    <color name="glyph_divider">#E5E7EB</color>
+    <color name="glyph_online">#2ECC71</color>
+    <color name="glyph_online_green">#2ECC71</color>
+    <color name="glyph_offline_gray">#B2BEC3</color>
+    <color name="glyph_card_bg">#FFFFFF</color>
+    <color name="glyph_ripple">#20B39DDB</color>
+    <color name="glyph_avatar_placeholder">#DFE6E9</color>
+    <color name="glyph_avatar_icon">#A0A0A0</color>
+    <color name="glyph_icon_deep_purple">#471E58</color>
+    <color name="glyph_pastel_lavender">#E8E0F0</color>
+    <color name="glyph_pastel_pink">#F5E1E9</color>
+    <color name="glyph_pastel_pink_light">#FCE4EC</color>
+    <color name="glyph_pastel_peach">#FFECD2</color>
+    <color name="message_selected_background">#4034B7F1</color>
+    <color name="picker_search_bg">#26808080</color>
+    <color name="ai_shortcut_bg">#1F272A</color>
+    <color name="ai_dark_surface">#0A0A0A</color>
+    <color name="calls_overflow_menu_background">#13181C</color>
+    <color name="calls_overflow_menu_icon">#8D9598</color>
+    <color name="calls_overflow_menu_text">#E8ECED</color>
+    
+    <!-- ========== PASTEL-SKY THEME COLORS ========== -->
+    
+    <!-- Core Palette -->
+    <color name="pastel_sky_blue">#CFE9F3</color>
+    <color name="pastel_lavender_mist">#E6DDF2</color>
+    <color name="pastel_mint_cloud">#DFF2EA</color>
+    <color name="pastel_peach_haze">#F6E2D6</color>
+    <color name="pastel_cream_white">#FBFAF8</color>
+    <color name="pastel_cloud_gray">#E8EDF2</color>
+    
+    <!-- Vibrant Accents for Pastel-Sky (NEW) -->
+    <color name="pastel_vibrant_purple">#9B7EDE</color>
+    <color name="pastel_vibrant_teal">#4DD4D4</color>
+    <color name="pastel_vibrant_pink">#FF9ECD</color>
+    <color name="pastel_deep_indigo">#5B4B8A</color>
+    <color name="pastel_vibrant_green">#5FD4A0</color>
+    <color name="pastel_vibrant_yellow">#FFC857</color>
+    
+    <!-- Background Colors -->
+    <color name="pastel_background">#FBFAF8</color>
+    <color name="pastel_surface">#FBFAF8</color>
+    <color name="pastel_surface_elevated">#E8EDF2</color>
+    
+    <!-- Text Colors -->
+    <color name="pastel_text_primary">#5B4B8A</color>
+    <color name="pastel_text_secondary">#7B6BA8</color>
+    <color name="pastel_text_tertiary">#9AA3AF</color>
+    <color name="pastel_text_hint">#8A92A0</color>
+    
+    <!-- Top Bar -->
+    <color name="pastel_top_bar">#CFE9F3</color>
+    <color name="pastel_top_bar_title">#5B4B8A</color>
+    <color name="pastel_top_bar_icon">#9B7EDE</color>
+    
+    <!-- Chat List -->
+    <color name="pastel_chat_row_pressed">#E8EDF2</color>
+    <color name="pastel_unread_highlight">#FF9ECD</color>
+    <color name="pastel_unread_text">#5B4B8A</color>
+    <color name="pastel_online_indicator">#5FD4A0</color>
+    
+    <!-- Chat Bubbles -->
+    <color name="pastel_bubble_incoming_start">#E6DDF2</color>
+    <color name="pastel_bubble_incoming_end">#FBFAF8</color>
+    <color name="pastel_bubble_incoming">#FBFAF8</color>
+    <color name="pastel_bubble_incoming_border">#D1C4E9</color>
+    <color name="pastel_bubble_incoming_text">#5B4B8A</color>
+    <color name="pastel_bubble_outgoing_start">#DFF2EA</color>
+    <color name="pastel_bubble_outgoing_end">#CFE9F3</color>
+    <color name="pastel_bubble_outgoing_border">#B2DFDB</color>
+    <color name="pastel_bubble_outgoing_text">#5B4B8A</color>
+    
+    <!-- Date Header -->
+    <color name="pastel_date_header_bg">#E6DDF2</color>
+    <color name="pastel_date_header_text">#9B7EDE</color>
+    
+    <!-- Input Field -->
+    <color name="pastel_input_bg">#FBFAF8</color>
+    <color name="pastel_input_border">#E8EDF2</color>
+    <color name="pastel_cursor">#9B7EDE</color>
+    <color name="pastel_icons">#4DD4D4</color>
+    
+    <!-- Send Button -->
+    <color name="pastel_send_button_bg">#9B7EDE</color>
+    <color name="pastel_send_button_start">#CFE9F3</color>
+    <color name="pastel_send_button_end">#DFF2EA</color>
+    <color name="pastel_send_button_icon">#FFFFFF</color>
+    <color name="pastel_send_button_pressed">#B8D4E3</color>
+    
+    <!-- Bottom Navigation -->
+    <!-- Use the same vibrant purple as the FAB button for consistency -->
+    <color name="pastel_nav_icon_selected">#9B7EDE</color>
+    <color name="pastel_nav_icon_unselected">#9B7EDE</color>
+    <color name="pastel_nav_text_selected">#9B7EDE</color>
+    <color name="pastel_nav_text_unselected">#9B7EDE</color>
+    <!-- Lighter shade of purple for the indicator highlight -->
+    <color name="pastel_nav_indicator">#C4B5ED</color>
+    
+    <!-- Divider & Borders -->
+    <color name="pastel_divider">#40E8EDF2</color>
+    <color name="pastel_ripple">#14CFE9F3</color>
+    
+    <!-- FAB Gradient Colors -->
+    <color name="glyph_fab_start">#9575CD</color>
+    <color name="glyph_fab_end">#7E57C2</color>
+    
+    <!-- Status Bar -->
+    <color name="glyph_status_bar">#E8E0F0</color>
+    
+    <!-- Attachment Menu Colors -->
+    <color name="attachment_overlay_background">#80000000</color>
+    <color name="attachment_menu_background">#FFFFFF</color>
+    <color name="attachment_text_color">#636E72</color>
+    
+    <!-- Overwrite default theme colors -->
+    <color name="colorPrimary">@color/glyph_primary</color>
+    <color name="colorPrimaryVariant">@color/glyph_primary_dark</color>
+    <color name="colorOnPrimary">@color/white</color>
+    <color name="colorSecondary">@color/glyph_accent_coral</color>
+    <color name="colorOnSecondary">@color/white</color>
+
+    <!-- Hero & Info gradients (theme-aware via values-night overrides) -->
+    <color name="hero_gradient_start">#E8F5F0</color>
+    <color name="hero_gradient_center">#E0F2F7</color>
+    <color name="hero_gradient_end">#D5EEF7</color>
+
+    <color name="info_section_start">#F8FAFB</color>
+    <color name="info_section_end">#F3F6F8</color>
+    <color name="info_section_stroke">#E5E8EB</color>
+
+    <!-- Picker tab colors -->
+    <color name="picker_tab_active">#1DB954</color>
+    <color name="picker_tab_inactive">#808080</color>
+    <color name="search_bar_light">#F5F5F5</color>
+    <color name="search_bar_dark">#2D2D2D</color>
+</resources>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Translation result preview card.
+  Shown as PopupWindow below the toolbar when translation completes.
+  Does NOT modify the original chat bubble.
+-->
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/cardPreview"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="6dp"
+    app:strokeWidth="0dp"
+    app:cardBackgroundColor="?attr/glyphToolbarBackground">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:maxWidth="280dp">
+
+        <!-- Language label -->
+        <TextView
+            android:id="@+id/tvLanguageHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:textColor="?attr/glyphTextSecondary"
+            android:fontFamily="sans-serif-medium"
+            android:text="Translated to English" />
+
+        <!-- Translated text -->
+        <TextView
+            android:id="@+id/tvTranslatedText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="?attr/glyphTextPrimary"
+            android:layout_marginTop="4dp"
+            android:maxLines="8"
+            android:ellipsize="end"
+            android:lineSpacingMultiplier="1.2" />
+
+        <!-- Loading indicator -->
+        <ProgressBar
+            android:id="@+id/progressLoading"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="4dp"
+            android:visibility="gone"
+            android:indeterminateTint="?attr/glyphAccent" />
+
+        <!-- Error text -->
+        <TextView
+            android:id="@+id/tvError"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="#FF5252"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

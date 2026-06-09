@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Wallpaper -->
+    <ImageView
+        android:id="@+id/ivWallpaper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:contentDescription="Wallpaper" />
+
+    <View
+        android:id="@+id/wallpaperDimmingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/black"
+        android:alpha="0.3"
+        android:visibility="visible" />
+
+    <!-- Toolbar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/glyphToolbarBackground"
+        android:stateListAnimator="@null"
+        app:liftOnScroll="false"
+        app:elevation="0dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/toolbarContainer"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:paddingEnd="4dp">
+
+            <!-- Back Arrow -->
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="41dp"
+                android:layout_height="41dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_arrow_back"
+                android:contentDescription="Back"
+                app:tint="?attr/glyphIconPrimary"
+                android:padding="8dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginStart="4dp" />
+
+            <!-- AI Avatar -->
+            <ImageView
+                android:id="@+id/ivAiAvatar"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_ai_agent"
+                android:contentDescription="AI Avatar"
+                app:layout_constraintStart_toEndOf="@id/btnBack"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginStart="4dp" />
+
+            <!-- Title -->
+            <TextView
+                android:id="@+id/tvTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_agent_title"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="?attr/glyphTextPrimary"
+                android:singleLine="true"
+                app:layout_constraintStart_toEndOf="@id/ivAiAvatar"
+                app:layout_constraintEnd_toStartOf="@id/btnClearHistory"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginStart="10dp" />
+
+            <!-- Clear History Button -->
+            <ImageButton
+                android:id="@+id/btnClearHistory"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_delete"
+                android:contentDescription="Clear history"
+                app:tint="?attr/glyphIconPrimary"
+                android:padding="8dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginEnd="4dp" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Main content area -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <!-- Mode Chips -->
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupMode"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            app:singleSelection="true"
+            app:selectionRequired="true"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipChat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_mode_chat"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:checked="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipSearch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_mode_search"
+                style="@style/Widget.Material3.Chip.Filter" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipApp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_mode_app"
+                style="@style/Widget.Material3.Chip.Filter" />
+
+        </com.google.android.material.chip.ChipGroup>
+
+        <!-- Messages RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvMessages"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:clipToPadding="false"
+            android:paddingHorizontal="8dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            tools:listitem="@layout/item_ai_message_model"
+            app:layout_constraintTop_toBottomOf="@id/chipGroupMode"
+            app:layout_constraintBottom_toTopOf="@id/loadingIndicator" />
+
+        <!-- Empty State (Hidden when messages exist) -->
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/emptyStateContainer"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:fillViewport="true"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/chipGroupMode"
+            app:layout_constraintBottom_toTopOf="@id/inputBar">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingBottom="16dp">
+
+                <com.airbnb.lottie.LottieAnimationView
+                    android:id="@+id/lottieWelcome"
+                    android:layout_width="200dp"
+                    android:layout_height="200dp"
+                    app:lottie_fileName="robo.lottie"
+                    app:lottie_autoPlay="true"
+                    app:lottie_loop="true"
+                    android:layout_marginTop="32dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Glyph AI"
+                    android:textSize="28sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/glyphTextPrimary"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="sans-serif-black" />
+
+                <LinearLayout
+                    android:id="@+id/shortcutsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="32dp" />
+
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
+
+        <!-- Loading indicator -->
+        <LinearLayout
+            android:id="@+id/loadingIndicator"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="start|center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/inputBar">
+
+            <ProgressBar
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:indeterminate="true" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_agent_thinking"
+                android:textColor="?attr/glyphTextSecondary"
+                android:textSize="13sp"
+                android:layout_marginStart="8dp" />
+
+        </LinearLayout>
+
+        <!-- Input bar — matches ChatInput design -->
+        <LinearLayout
+            android:id="@+id/inputBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="bottom|center_vertical"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="5dp"
+            android:background="@android:color/transparent"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <!-- Pill container -->
+            <LinearLayout
+                android:id="@+id/inputPillContainer"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_weight="1"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:background="@drawable/bg_input_pill">
+
+                <!-- Attach (+) button — left side of pill -->
+                <ImageButton
+                    android:id="@+id/btnAttach"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_add_2"
+                    android:contentDescription="Attach"
+                    app:tint="?attr/glyphIconPrimary"
+                    android:padding="8dp" />
+
+                <!-- Text field -->
+                <EditText
+                    android:id="@+id/etMessage"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="@string/ai_agent_input_hint"
+                    android:textColorHint="?attr/glyphTextSecondary"
+                    android:textColor="?attr/glyphTextPrimary"
+                    android:textSize="16sp"
+                    android:maxLines="5"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:paddingStart="4dp"
+                    android:paddingEnd="4dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
+                    android:background="@android:color/transparent"
+                    android:minHeight="52dp" />
+
+                <!-- Right icon group: Emoji (fixed) + Camera/slot (dynamic) -->
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingEnd="4dp">
+
+                    <!-- Emoji button -->
+                    <ImageButton
+                        android:id="@+id/btnEmoji"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:src="@drawable/ic_emoji"
+                        android:contentDescription="Emoji"
+                        app:tint="?attr/glyphIconPrimary"
+                        android:padding="8dp" />
+
+                    <!-- Camera button (visible when not typing) -->
+                    <ImageButton
+                        android:id="@+id/btnCamera"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:src="@drawable/ic_camera"
+                        android:contentDescription="Camera"
+                        app:tint="?attr/glyphIconPrimary"
+                        android:padding="8dp" />
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <Space
+                android:layout_width="8dp"
+                android:layout_height="0dp" />
+
+            <!-- Send/Mic button — 52dp circle, two stacked icons that animate -->
+            <FrameLayout
+                android:id="@+id/btnSendContainer"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_circle_accent">
+
+                <ImageView
+                    android:id="@+id/ivMicIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_mic_custom"
+                    android:contentDescription="Voice"
+                    app:tint="?attr/glyphIconPrimary"
+                    android:padding="12dp"
+                    android:scaleX="1.0"
+                    android:scaleY="1.0" />
+
+                <ImageView
+                    android:id="@+id/ivSendIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_send_custom"
+                    android:contentDescription="Send"
+                    app:tint="?attr/glyphIconPrimary"
+                    android:padding="12dp"
+                    android:scaleX="0.0"
+                    android:scaleY="0.0"
+                    android:alpha="0.0" />
+
+            </FrameLayout>
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Emoji/GIF/Sticker picker panel (replaces keyboard) -->
+    <com.glyph.glyph_v3.ui.chat.picker.EmojiPickerPanel
+        android:id="@+id/emojiPickerPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:visibility="gone"
+        android:background="?attr/colorSurface"
+        android:elevation="8dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <FrameLayout
+        android:id="@+id/attachmentMenuOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:clipChildren="false"
+        app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior">
+
+        <include
+            android:id="@+id/layoutAttachmentMenu"
+            layout="@layout/layout_attachment_menu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:layout_marginBottom="16dp"
+            android:layout_gravity="bottom" />
+
+    </FrameLayout>
+
+    <!-- Voice Recorder Overlay (Highest Z-index) -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/voiceRecorderStub"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:elevation="100dp" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

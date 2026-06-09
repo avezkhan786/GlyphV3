@@ -1,0 +1,644 @@
+kotlin version: 2.2.10
+error message: java.lang.RuntimeException: Exception while generating code for:
+FUN name:warmPrefillMediaAsync visibility:private modality:FINAL returnType:kotlin.Unit
+  VALUE_PARAMETER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity
+  VALUE_PARAMETER kind:Regular name:messages index:1 type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message>
+  VALUE_PARAMETER kind:Regular name:preferExpandedWarmup index:2 type:kotlin.Boolean
+  BLOCK_BODY
+    WHEN type=kotlin.Unit origin=IF
+      BRANCH
+        if: CALL 'public abstract fun isEmpty (): kotlin.Boolean declared in kotlin.collections.List' type=kotlin.Boolean origin=null
+          ARG <this>: GET_VAR 'messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync' type=kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> origin=null
+        then: RETURN type=kotlin.Nothing from='private final fun warmPrefillMediaAsync (messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message>, preferExpandedWarmup: kotlin.Boolean): kotlin.Unit declared in com.glyph.glyph_v3.ui.chat.ChatActivity'
+          GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:kotlin.Unit visibility:public [final,static] declared in kotlin.Unit' type=kotlin.Unit origin=null
+    CALL 'public final fun warmMessagesAsync$default ($this: com.glyph.glyph_v3.data.cache.MessagePreviewCacheManager, context: android.content.Context, messages: kotlin.collections.Collection<com.glyph.glyph_v3.data.models.Message>, previewModelOverrides: kotlin.collections.Map<kotlin.String, kotlin.Any?>?, $mask0: kotlin.Int, $handler: kotlin.Any?): kotlin.Unit declared in com.glyph.glyph_v3.data.cache.MessagePreviewCacheManager' type=kotlin.Unit origin=DEFAULT_DISPATCH_CALL
+      ARG $this: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:com.glyph.glyph_v3.data.cache.MessagePreviewCacheManager visibility:public [final,static] declared in com.glyph.glyph_v3.data.cache.MessagePreviewCacheManager' type=com.glyph.glyph_v3.data.cache.MessagePreviewCacheManager origin=null
+      ARG context: BLOCK type=android.content.Context origin=null
+        VAR IR_TEMPORARY_VARIABLE name:tmp0 type:kotlin.Any? [val]
+          CALL 'public open fun getApplicationContext (): @[FlexibleNullability] android.content.Context? [fake_override] declared in com.glyph.glyph_v3.ui.chat.ChatActivity' type=@[FlexibleNullability] android.content.Context? origin=GET_PROPERTY
+            ARG <this>: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=IMPLICIT_ARGUMENT
+        CALL 'public final fun checkNotNullExpressionValue (value: kotlin.Any?, expression: kotlin.String): kotlin.Unit declared in kotlin.jvm.internal.Intrinsics' type=kotlin.Unit origin=null
+          ARG value: GET_VAR 'val tmp0: kotlin.Any? [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync' type=kotlin.Any? origin=null
+          ARG expression: CONST String type=kotlin.String value="getApplicationContext(...)"
+        GET_VAR 'val tmp0: kotlin.Any? [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync' type=kotlin.Any? origin=null
+      ARG messages: GET_VAR 'messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync' type=kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> origin=null
+      ARG previewModelOverrides: COMPOSITE type=kotlin.collections.Map<kotlin.String, kotlin.Any?>? origin=DEFAULT_VALUE
+        CONST Null type=kotlin.collections.Map<kotlin.String, kotlin.Any?>? value=null
+      ARG $mask0: CONST Int type=kotlin.Int value=4
+      ARG $handler: CONST Null type=kotlin.Any? value=null
+    COMPOSITE type=kotlin.Unit origin=null
+      CALL 'public final fun launch$default (<this>: kotlinx.coroutines.CoroutineScope, context: kotlin.coroutines.CoroutineContext?, start: kotlinx.coroutines.CoroutineStart?, block: @[ExtensionFunctionType] kotlin.coroutines.SuspendFunction1<kotlinx.coroutines.CoroutineScope, kotlin.Unit>, $mask0: kotlin.Int, $handler: kotlin.Any?): kotlinx.coroutines.Job declared in kotlinx.coroutines.BuildersKt' type=kotlinx.coroutines.Job origin=DEFAULT_DISPATCH_CALL
+        ARG <this>: CALL 'public final fun <get-lifecycleScope> (<this>: androidx.lifecycle.LifecycleOwner): androidx.lifecycle.LifecycleCoroutineScope declared in androidx.lifecycle.LifecycleOwnerKt' type=androidx.lifecycle.LifecycleCoroutineScope origin=GET_PROPERTY
+          ARG <this>: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=IMPLICIT_ARGUMENT
+        ARG context: COMPOSITE type=kotlin.coroutines.CoroutineContext? origin=DEFAULT_VALUE
+          CONST Null type=kotlin.coroutines.CoroutineContext? value=null
+        ARG start: COMPOSITE type=kotlinx.coroutines.CoroutineStart? origin=DEFAULT_VALUE
+          CONST Null type=kotlinx.coroutines.CoroutineStart? value=null
+        ARG block: BLOCK type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+          CLASS SUSPEND_LAMBDA CLASS name:<no name provided> modality:FINAL visibility:public/*package*/ superTypes:[kotlin.coroutines.jvm.internal.SuspendLambda; kotlin.jvm.functions.Function2<kotlinx.coroutines.CoroutineScope, kotlin.coroutines.Continuation<kotlin.Unit>?, kotlin.Any?>]
+            thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>
+            FIELD name:label type:kotlin.Int visibility:public/*package*/
+            CONSTRUCTOR SUSPEND_LAMBDA visibility:public/*package*/ returnType:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> [primary]
+              VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$preferExpandedWarmup index:0 type:kotlin.Boolean
+              VALUE_PARAMETER BOUND_RECEIVER_PARAMETER kind:Regular name:this$0 index:1 type:com.glyph.glyph_v3.ui.chat.ChatActivity
+              VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$messages index:2 type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message>
+              VALUE_PARAMETER kind:Regular name:$completion index:3 type:kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>>?
+              BLOCK_BODY
+                SET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$preferExpandedWarmup type:kotlin.Boolean visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.Unit origin=INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
+                  receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                  value: GET_VAR '$preferExpandedWarmup: kotlin.Boolean declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.<init>' type=kotlin.Boolean origin=null
+                SET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.Unit origin=INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
+                  receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                  value: GET_VAR 'this$0: com.glyph.glyph_v3.ui.chat.ChatActivity declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.<init>' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                SET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$messages type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.Unit origin=INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
+                  receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                  value: GET_VAR '$messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.<init>' type=kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> origin=null
+                DELEGATING_CONSTRUCTOR_CALL 'public constructor <init> (arity: kotlin.Int, $completion: kotlin.coroutines.Continuation<kotlin.Any?>?) declared in kotlin.coroutines.jvm.internal.SuspendLambda'
+                  ARG arity: CONST Int type=kotlin.Int value=2
+                  ARG $completion: GET_VAR '$completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>>? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.<init>' type=kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>>? origin=null
+                BLOCK type=kotlin.Unit origin=null
+            FUN name:invokeSuspend visibility:public modality:FINAL returnType:kotlin.Any?
+              VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>
+              VALUE_PARAMETER kind:Regular name:$result index:1 type:kotlin.Result<kotlin.Any?>
+              overridden:
+                protected abstract fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in kotlin.coroutines.jvm.internal.SuspendLambda
+              BLOCK_BODY
+                VAR name:sources type:kotlin.collections.List<kotlin.Any> [val]
+                  CALL 'public final fun withContext <T> (context: kotlin.coroutines.CoroutineContext, block: @[ExtensionFunctionType] kotlin.coroutines.SuspendFunction1<kotlinx.coroutines.CoroutineScope, T of kotlinx.coroutines.BuildersKt.withContext>, $completion: kotlin.coroutines.Continuation<T of kotlinx.coroutines.BuildersKt.withContext>): kotlin.Any? [suspend] declared in kotlinx.coroutines.BuildersKt' type=kotlin.collections.List<kotlin.Any> origin=null
+                    TYPE_ARG T: kotlin.collections.List<kotlin.Any>
+                    ARG context: CALL 'public final fun <get-Default> (): kotlinx.coroutines.CoroutineDispatcher declared in kotlinx.coroutines.Dispatchers' type=kotlinx.coroutines.CoroutineDispatcher origin=GET_PROPERTY
+                    ARG block: BLOCK type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                      CLASS SUSPEND_LAMBDA CLASS name:<no name provided> modality:FINAL visibility:public/*package*/ superTypes:[kotlin.coroutines.jvm.internal.SuspendLambda; kotlin.jvm.functions.Function2<kotlinx.coroutines.CoroutineScope, kotlin.coroutines.Continuation<kotlin.collections.List<kotlin.Any>>?, kotlin.Any?>]
+                        thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                        FIELD name:label type:kotlin.Int visibility:public/*package*/
+                        CONSTRUCTOR SUSPEND_LAMBDA visibility:public/*package*/ returnType:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> [primary]
+                          VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$preferExpandedWarmup index:0 type:kotlin.Boolean
+                          VALUE_PARAMETER BOUND_RECEIVER_PARAMETER kind:Regular name:this$0 index:1 type:com.glyph.glyph_v3.ui.chat.ChatActivity
+                          VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$messages index:2 type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message>
+                          VALUE_PARAMETER kind:Regular name:$completion index:3 type:kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>?
+                          BLOCK_BODY
+                            SET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$preferExpandedWarmup type:kotlin.Boolean visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Unit origin=INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
+                              receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                              value: GET_VAR '$preferExpandedWarmup: kotlin.Boolean declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.<init>' type=kotlin.Boolean origin=null
+                            SET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Unit origin=INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
+                              receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                              value: GET_VAR 'this$0: com.glyph.glyph_v3.ui.chat.ChatActivity declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.<init>' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                            SET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$messages type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Unit origin=INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
+                              receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                              value: GET_VAR '$messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.<init>' type=kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> origin=null
+                            DELEGATING_CONSTRUCTOR_CALL 'public constructor <init> (arity: kotlin.Int, $completion: kotlin.coroutines.Continuation<kotlin.Any?>?) declared in kotlin.coroutines.jvm.internal.SuspendLambda'
+                              ARG arity: CONST Int type=kotlin.Int value=2
+                              ARG $completion: GET_VAR '$completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.<init>' type=kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>? origin=null
+                            BLOCK type=kotlin.Unit origin=null
+                        FUN name:invokeSuspend visibility:public modality:FINAL returnType:kotlin.Any?
+                          VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                          VALUE_PARAMETER kind:Regular name:$result index:1 type:kotlin.Result<kotlin.Any?>
+                          overridden:
+                            protected abstract fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in kotlin.coroutines.jvm.internal.SuspendLambda
+                          BLOCK_BODY
+                            VAR name:count type:kotlin.Int [val]
+                              WHEN type=kotlin.Int origin=IF
+                                BRANCH
+                                  if: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$preferExpandedWarmup type:kotlin.Boolean visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Boolean origin=null
+                                    receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                  then: BLOCK type=kotlin.Int origin=null
+                                    CONST Int type=kotlin.Int value=56
+                                BRANCH
+                                  if: CONST Boolean type=kotlin.Boolean value=true
+                                  then: BLOCK type=kotlin.Int origin=null
+                                    CONST Int type=kotlin.Int value=10
+                            RETURN type=kotlin.Nothing from='public final fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                              CALL 'public final fun access$resolveAdapterMediaSources ($this: com.glyph.glyph_v3.ui.chat.ChatActivity, messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message>): kotlin.collections.List<kotlin.Any> declared in com.glyph.glyph_v3.ui.chat.ChatActivity' type=kotlin.collections.List<kotlin.Any> origin=null
+                                ARG $this: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                                  receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG messages: CALL 'public final fun takeLast <T> (<this>: kotlin.collections.List<T of kotlin.collections.CollectionsKt.takeLast>, n: kotlin.Int): kotlin.collections.List<T of kotlin.collections.CollectionsKt.takeLast> declared in kotlin.collections.CollectionsKt' type=kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> origin=null
+                                  TYPE_ARG T: com.glyph.glyph_v3.data.models.Message
+                                  ARG <this>: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$messages type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> origin=null
+                                    receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                  ARG n: GET_VAR 'val count: kotlin.Int [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend' type=kotlin.Int origin=null
+                        FUN name:create visibility:public modality:FINAL returnType:kotlin.coroutines.Continuation<kotlin.Unit>
+                          VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                          VALUE_PARAMETER kind:Regular name:value index:1 type:kotlin.Any?
+                          VALUE_PARAMETER kind:Regular name:$completion index:2 type:kotlin.coroutines.Continuation<kotlin.Nothing>
+                          overridden:
+                            public open fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in kotlin.coroutines.jvm.internal.SuspendLambda
+                          BLOCK_BODY
+                            RETURN type=kotlin.Nothing from='public final fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                              CONSTRUCTOR_CALL 'public/*package*/ constructor <init> ($preferExpandedWarmup: kotlin.Boolean, this$0: com.glyph.glyph_v3.ui.chat.ChatActivity, $messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message>, $completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>?) [primary] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG $preferExpandedWarmup: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$preferExpandedWarmup type:kotlin.Boolean visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Boolean origin=null
+                                  receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG this$0: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                                  receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG $messages: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$messages type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> origin=null
+                                  receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG $completion: GET_VAR '$completion: kotlin.coroutines.Continuation<kotlin.Nothing> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=kotlin.coroutines.Continuation<kotlin.Nothing> origin=null
+                        FUN name:invoke visibility:public modality:FINAL returnType:kotlin.Any?
+                          VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                          VALUE_PARAMETER kind:Regular name:p1 index:1 type:kotlinx.coroutines.CoroutineScope
+                          VALUE_PARAMETER kind:Regular name:p2 index:2 type:kotlin.coroutines.Continuation<kotlin.collections.List<kotlin.Any>>?
+                          overridden:
+                            public abstract fun invoke (p1: P1 of kotlin.jvm.functions.Function2, p2: P2 of kotlin.jvm.functions.Function2): R of kotlin.jvm.functions.Function2 declared in kotlin.jvm.functions.Function2
+                          BLOCK_BODY
+                            RETURN type=kotlin.Nothing from='public final fun invoke (p1: kotlinx.coroutines.CoroutineScope, p2: kotlin.coroutines.Continuation<kotlin.collections.List<kotlin.Any>>?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                              CALL 'public final fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Any? origin=null
+                                ARG <this>: TYPE_OP type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=IMPLICIT_CAST typeOperand=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                                  CALL 'public final fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.coroutines.Continuation<kotlin.Unit> origin=null
+                                    ARG <this>: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                    ARG value: GET_VAR 'p1: kotlinx.coroutines.CoroutineScope declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlinx.coroutines.CoroutineScope origin=null
+                                    ARG $completion: GET_VAR 'p2: kotlin.coroutines.Continuation<kotlin.collections.List<kotlin.Any>>? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlin.coroutines.Continuation<kotlin.collections.List<kotlin.Any>>? origin=null
+                                ARG $result: CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=kotlin.Result<kotlin.Any?> origin=null
+                                  TYPE_ARG T: kotlin.Any?
+                                  TYPE_ARG R: kotlin.Result<kotlin.Any?>
+                                  ARG v: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:kotlin.Unit visibility:public [final,static] declared in kotlin.Unit' type=kotlin.Unit origin=null
+                        FIELD FIELD_FOR_CAPTURED_VALUE name:$preferExpandedWarmup type:kotlin.Boolean visibility:public/*package*/ [final]
+                        FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final]
+                        FIELD FIELD_FOR_CAPTURED_VALUE name:$messages type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> visibility:public/*package*/ [final]
+                        FUN BRIDGE name:invoke visibility:public modality:OPEN returnType:kotlin.Any?
+                          VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                          VALUE_PARAMETER BRIDGE kind:Regular name:p1 index:1 type:kotlin.Any?
+                          VALUE_PARAMETER BRIDGE kind:Regular name:p2 index:2 type:kotlin.Any?
+                          EXPRESSION_BODY
+                            RETURN type=kotlin.Nothing from='public open fun invoke (p1: kotlin.Any?, p2: kotlin.Any?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                              CALL 'public final fun invoke (p1: kotlinx.coroutines.CoroutineScope, p2: kotlin.coroutines.Continuation<kotlin.collections.List<kotlin.Any>>?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Any? origin=BRIDGE_DELEGATION
+                                ARG <this>: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG p1: TYPE_OP type=kotlinx.coroutines.CoroutineScope origin=IMPLICIT_CAST typeOperand=kotlinx.coroutines.CoroutineScope
+                                  GET_VAR 'p1: kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlin.Any? origin=null
+                                ARG p2: TYPE_OP type=kotlin.coroutines.Continuation<*> origin=IMPLICIT_CAST typeOperand=kotlin.coroutines.Continuation<*>
+                                  GET_VAR 'p2: kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlin.Any? origin=null
+                      CONSTRUCTOR_CALL 'public/*package*/ constructor <init> ($preferExpandedWarmup: kotlin.Boolean, this$0: com.glyph.glyph_v3.ui.chat.ChatActivity, $messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message>, $completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>?) [primary] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                        ARG $preferExpandedWarmup: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$preferExpandedWarmup type:kotlin.Boolean visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.Boolean origin=null
+                          receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                        ARG this$0: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                          receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                        ARG $messages: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$messages type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> origin=null
+                          receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                        ARG $completion: CONST Null type=kotlin.Nothing? value=null
+                    ARG $completion: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                WHEN type=kotlin.Unit origin=IF
+                  BRANCH
+                    if: CALL 'public abstract fun isEmpty (): kotlin.Boolean declared in kotlin.collections.List' type=kotlin.Boolean origin=null
+                      ARG <this>: GET_VAR 'val sources: kotlin.collections.List<kotlin.Any> [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=kotlin.collections.List<kotlin.Any> origin=null
+                    then: RETURN type=kotlin.Nothing from='public final fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>'
+                      GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:kotlin.Unit visibility:public [final,static] declared in kotlin.Unit' type=kotlin.Unit origin=null
+                VAR name:remoteSources type:kotlin.collections.List<kotlin.Any> [val]
+                  CALL 'public final fun filter <T> (<this>: kotlin.collections.Iterable<T of kotlin.collections.CollectionsKt.filter>, predicate: kotlin.Function1<T of kotlin.collections.CollectionsKt.filter, kotlin.Boolean>): kotlin.collections.List<T of kotlin.collections.CollectionsKt.filter> [inline] declared in kotlin.collections.CollectionsKt' type=kotlin.collections.List<kotlin.Any> origin=null
+                    TYPE_ARG T: kotlin.Any
+                    ARG <this>: GET_VAR 'val sources: kotlin.collections.List<kotlin.Any> [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=kotlin.collections.List<kotlin.Any> origin=null
+                    ARG predicate: BLOCK type=kotlin.Function1<kotlin.Any, kotlin.Boolean> origin=LAMBDA
+                      COMPOSITE type=kotlin.Unit origin=null
+                      FUNCTION_REFERENCE 'private final fun invokeSuspend$lambda$0 (src: kotlin.Any): kotlin.Boolean declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.Function1<kotlin.Any, kotlin.Boolean> origin=INLINE_LAMBDA reflectionTarget=null
+                WHEN type=kotlin.Unit origin=IF
+                  BRANCH
+                    if: CALL 'public abstract fun isEmpty (): kotlin.Boolean declared in kotlin.collections.List' type=kotlin.Boolean origin=null
+                      ARG <this>: GET_VAR 'val remoteSources: kotlin.collections.List<kotlin.Any> [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=kotlin.collections.List<kotlin.Any> origin=null
+                    then: RETURN type=kotlin.Nothing from='public final fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>'
+                      GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:kotlin.Unit visibility:public [final,static] declared in kotlin.Unit' type=kotlin.Unit origin=null
+                VAR name:futures type:kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> [val]
+                  CALL 'public final fun withContext <T> (context: kotlin.coroutines.CoroutineContext, block: @[ExtensionFunctionType] kotlin.coroutines.SuspendFunction1<kotlinx.coroutines.CoroutineScope, T of kotlinx.coroutines.BuildersKt.withContext>, $completion: kotlin.coroutines.Continuation<T of kotlinx.coroutines.BuildersKt.withContext>): kotlin.Any? [suspend] declared in kotlinx.coroutines.BuildersKt' type=kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> origin=null
+                    TYPE_ARG T: kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>>
+                    ARG context: CALL 'public abstract fun <get-immediate> (): kotlinx.coroutines.MainCoroutineDispatcher declared in kotlinx.coroutines.MainCoroutineDispatcher' type=kotlinx.coroutines.MainCoroutineDispatcher origin=GET_PROPERTY
+                      ARG <this>: CALL 'public final fun <get-Main> (): kotlinx.coroutines.MainCoroutineDispatcher declared in kotlinx.coroutines.Dispatchers' type=kotlinx.coroutines.MainCoroutineDispatcher origin=GET_PROPERTY
+                    ARG block: BLOCK type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                      CLASS SUSPEND_LAMBDA CLASS name:<no name provided> modality:FINAL visibility:public/*package*/ superTypes:[kotlin.coroutines.jvm.internal.SuspendLambda; kotlin.jvm.functions.Function2<kotlinx.coroutines.CoroutineScope, kotlin.coroutines.Continuation<kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>>>?, kotlin.Any?>]
+                        thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                        FIELD name:label type:kotlin.Int visibility:public/*package*/
+                        CONSTRUCTOR SUSPEND_LAMBDA visibility:public/*package*/ returnType:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> [primary]
+                          VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$remoteSources index:0 type:kotlin.collections.List<kotlin.Any>
+                          VALUE_PARAMETER BOUND_RECEIVER_PARAMETER kind:Regular name:this$0 index:1 type:com.glyph.glyph_v3.ui.chat.ChatActivity
+                          VALUE_PARAMETER kind:Regular name:$completion index:2 type:kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>?
+                          BLOCK_BODY
+                            SET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$remoteSources type:kotlin.collections.List<kotlin.Any> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Unit origin=INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
+                              receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                              value: GET_VAR '$remoteSources: kotlin.collections.List<kotlin.Any> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.<init>' type=kotlin.collections.List<kotlin.Any> origin=null
+                            SET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Unit origin=INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
+                              receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                              value: GET_VAR 'this$0: com.glyph.glyph_v3.ui.chat.ChatActivity declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.<init>' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                            DELEGATING_CONSTRUCTOR_CALL 'public constructor <init> (arity: kotlin.Int, $completion: kotlin.coroutines.Continuation<kotlin.Any?>?) declared in kotlin.coroutines.jvm.internal.SuspendLambda'
+                              ARG arity: CONST Int type=kotlin.Int value=2
+                              ARG $completion: GET_VAR '$completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.<init>' type=kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>? origin=null
+                            BLOCK type=kotlin.Unit origin=null
+                        FUN name:invokeSuspend visibility:public modality:FINAL returnType:kotlin.Any?
+                          VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                          VALUE_PARAMETER kind:Regular name:$result index:1 type:kotlin.Result<kotlin.Any?>
+                          overridden:
+                            protected abstract fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in kotlin.coroutines.jvm.internal.SuspendLambda
+                          BLOCK_BODY
+                            RETURN type=kotlin.Nothing from='public final fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                              CALL 'public final fun map <T, R> (<this>: kotlin.collections.Iterable<T of kotlin.collections.CollectionsKt.map>, transform: kotlin.Function1<T of kotlin.collections.CollectionsKt.map, R of kotlin.collections.CollectionsKt.map>): kotlin.collections.List<R of kotlin.collections.CollectionsKt.map> [inline] declared in kotlin.collections.CollectionsKt' type=kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> origin=null
+                                TYPE_ARG T: kotlin.Any
+                                TYPE_ARG R: @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>
+                                ARG <this>: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$remoteSources type:kotlin.collections.List<kotlin.Any> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.collections.List<kotlin.Any> origin=null
+                                  receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG transform: BLOCK type=kotlin.Function1<kotlin.Any, @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> origin=LAMBDA
+                                  COMPOSITE type=kotlin.Unit origin=null
+                                  FUNCTION_REFERENCE 'private final fun invokeSuspend$lambda$0 (this$0: com.glyph.glyph_v3.ui.chat.ChatActivity, source: kotlin.Any): @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Function1<kotlin.Any, @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> origin=INLINE_LAMBDA reflectionTarget=null
+                                    ARG this$0: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                                      receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                        FUN name:create visibility:public modality:FINAL returnType:kotlin.coroutines.Continuation<kotlin.Unit>
+                          VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                          VALUE_PARAMETER kind:Regular name:value index:1 type:kotlin.Any?
+                          VALUE_PARAMETER kind:Regular name:$completion index:2 type:kotlin.coroutines.Continuation<kotlin.Nothing>
+                          overridden:
+                            public open fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in kotlin.coroutines.jvm.internal.SuspendLambda
+                          BLOCK_BODY
+                            RETURN type=kotlin.Nothing from='public final fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                              CONSTRUCTOR_CALL 'public/*package*/ constructor <init> ($remoteSources: kotlin.collections.List<kotlin.Any>, this$0: com.glyph.glyph_v3.ui.chat.ChatActivity, $completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>?) [primary] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG $remoteSources: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$remoteSources type:kotlin.collections.List<kotlin.Any> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.collections.List<kotlin.Any> origin=null
+                                  receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG this$0: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                                  receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG $completion: GET_VAR '$completion: kotlin.coroutines.Continuation<kotlin.Nothing> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=kotlin.coroutines.Continuation<kotlin.Nothing> origin=null
+                        FUN name:invoke visibility:public modality:FINAL returnType:kotlin.Any?
+                          VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                          VALUE_PARAMETER kind:Regular name:p1 index:1 type:kotlinx.coroutines.CoroutineScope
+                          VALUE_PARAMETER kind:Regular name:p2 index:2 type:kotlin.coroutines.Continuation<kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>>>?
+                          overridden:
+                            public abstract fun invoke (p1: P1 of kotlin.jvm.functions.Function2, p2: P2 of kotlin.jvm.functions.Function2): R of kotlin.jvm.functions.Function2 declared in kotlin.jvm.functions.Function2
+                          BLOCK_BODY
+                            RETURN type=kotlin.Nothing from='public final fun invoke (p1: kotlinx.coroutines.CoroutineScope, p2: kotlin.coroutines.Continuation<kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>>>?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                              CALL 'public final fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Any? origin=null
+                                ARG <this>: TYPE_OP type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=IMPLICIT_CAST typeOperand=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                                  CALL 'public final fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.coroutines.Continuation<kotlin.Unit> origin=null
+                                    ARG <this>: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                    ARG value: GET_VAR 'p1: kotlinx.coroutines.CoroutineScope declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlinx.coroutines.CoroutineScope origin=null
+                                    ARG $completion: GET_VAR 'p2: kotlin.coroutines.Continuation<kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>>>? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlin.coroutines.Continuation<kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>>>? origin=null
+                                ARG $result: CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=kotlin.Result<kotlin.Any?> origin=null
+                                  TYPE_ARG T: kotlin.Any?
+                                  TYPE_ARG R: kotlin.Result<kotlin.Any?>
+                                  ARG v: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:kotlin.Unit visibility:public [final,static] declared in kotlin.Unit' type=kotlin.Unit origin=null
+                        FIELD FIELD_FOR_CAPTURED_VALUE name:$remoteSources type:kotlin.collections.List<kotlin.Any> visibility:public/*package*/ [final]
+                        FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final]
+                        FUN INLINE_LAMBDA name:invokeSuspend$lambda$0 visibility:private modality:FINAL returnType:@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>
+                          VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:this$0 index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity
+                          VALUE_PARAMETER kind:Regular name:source index:1 type:kotlin.Any
+                          BLOCK_BODY
+                            VAR name:$i$a$-map-ChatActivity$warmPrefillMediaAsync$1$futures$1$1 type:kotlin.Int [val]
+                              CONST Int type=kotlin.Int value=0
+                            RETURN type=kotlin.Nothing from='private final fun invokeSuspend$lambda$0 (this$0: com.glyph.glyph_v3.ui.chat.ChatActivity, source: kotlin.Any): @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                              CALL 'public open fun submit (): @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] TranscodeType of com.bumptech.glide.RequestBuilder?> declared in com.bumptech.glide.RequestBuilder' type=@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?> origin=null
+                                ARG <this>: CALL 'public open fun priority (p0: @[EnhancedNullability] com.bumptech.glide.Priority): @[EnhancedNullability] com.bumptech.glide.RequestBuilder<@[FlexibleNullability] TranscodeType of com.bumptech.glide.RequestBuilder?> [fake_override] declared in com.bumptech.glide.RequestBuilder' type=@[EnhancedNullability] com.bumptech.glide.RequestBuilder<@[FlexibleNullability] java.io.File?> origin=null
+                                  ARG <this>: CALL 'public open fun diskCacheStrategy (p0: @[EnhancedNullability] com.bumptech.glide.load.engine.DiskCacheStrategy): @[EnhancedNullability] com.bumptech.glide.RequestBuilder<@[FlexibleNullability] TranscodeType of com.bumptech.glide.RequestBuilder?> [fake_override] declared in com.bumptech.glide.RequestBuilder' type=@[EnhancedNullability] com.bumptech.glide.RequestBuilder<@[FlexibleNullability] java.io.File?> origin=null
+                                    ARG <this>: CALL 'public open fun load (p0: @[EnhancedNullability] kotlin.Any?): @[EnhancedNullability] com.bumptech.glide.RequestBuilder<@[FlexibleNullability] TranscodeType of com.bumptech.glide.RequestBuilder?> declared in com.bumptech.glide.RequestBuilder' type=@[EnhancedNullability] com.bumptech.glide.RequestBuilder<@[FlexibleNullability] java.io.File?> origin=null
+                                      ARG <this>: CALL 'public open fun downloadOnly (): @[EnhancedNullability] com.bumptech.glide.RequestBuilder<@[FlexibleNullability] java.io.File?> declared in com.bumptech.glide.RequestManager' type=@[EnhancedNullability] com.bumptech.glide.RequestBuilder<@[FlexibleNullability] java.io.File?> origin=null
+                                        ARG <this>: CALL 'public open fun with (p0: @[EnhancedNullability] androidx.fragment.app.FragmentActivity): @[EnhancedNullability] com.bumptech.glide.RequestManager declared in com.bumptech.glide.Glide' type=@[EnhancedNullability] com.bumptech.glide.RequestManager origin=null
+                                          ARG p0: GET_VAR 'this$0: com.glyph.glyph_v3.ui.chat.ChatActivity declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend$lambda$0' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                                      ARG p0: GET_VAR 'source: kotlin.Any declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend$lambda$0' type=kotlin.Any origin=null
+                                    ARG p0: GET_FIELD 'FIELD IR_EXTERNAL_JAVA_DECLARATION_STUB name:ALL type:@[FlexibleNullability] com.bumptech.glide.load.engine.DiskCacheStrategy? visibility:public [final,static] declared in com.bumptech.glide.load.engine.DiskCacheStrategy' type=@[FlexibleNullability] com.bumptech.glide.load.engine.DiskCacheStrategy? superQualifierSymbol=com.bumptech.glide.load.engine.DiskCacheStrategy origin=null
+                                  ARG p0: GET_FIELD 'FIELD FIELD_FOR_ENUM_ENTRY name:HIGH type:com.bumptech.glide.Priority visibility:public [final,static] declared in com.bumptech.glide.Priority' type=com.bumptech.glide.Priority origin=null
+                        FUN BRIDGE name:invoke visibility:public modality:OPEN returnType:kotlin.Any?
+                          VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                          VALUE_PARAMETER BRIDGE kind:Regular name:p1 index:1 type:kotlin.Any?
+                          VALUE_PARAMETER BRIDGE kind:Regular name:p2 index:2 type:kotlin.Any?
+                          EXPRESSION_BODY
+                            RETURN type=kotlin.Nothing from='public open fun invoke (p1: kotlin.Any?, p2: kotlin.Any?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                              CALL 'public final fun invoke (p1: kotlinx.coroutines.CoroutineScope, p2: kotlin.coroutines.Continuation<kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>>>?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Any? origin=BRIDGE_DELEGATION
+                                ARG <this>: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                ARG p1: TYPE_OP type=kotlinx.coroutines.CoroutineScope origin=IMPLICIT_CAST typeOperand=kotlinx.coroutines.CoroutineScope
+                                  GET_VAR 'p1: kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlin.Any? origin=null
+                                ARG p2: TYPE_OP type=kotlin.coroutines.Continuation<*> origin=IMPLICIT_CAST typeOperand=kotlin.coroutines.Continuation<*>
+                                  GET_VAR 'p2: kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlin.Any? origin=null
+                      CONSTRUCTOR_CALL 'public/*package*/ constructor <init> ($remoteSources: kotlin.collections.List<kotlin.Any>, this$0: com.glyph.glyph_v3.ui.chat.ChatActivity, $completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>?) [primary] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                        ARG $remoteSources: GET_VAR 'val remoteSources: kotlin.collections.List<kotlin.Any> [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=kotlin.collections.List<kotlin.Any> origin=null
+                        ARG this$0: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                          receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                        ARG $completion: CONST Null type=kotlin.Nothing? value=null
+                    ARG $completion: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                CALL 'public final fun withContext <T> (context: kotlin.coroutines.CoroutineContext, block: @[ExtensionFunctionType] kotlin.coroutines.SuspendFunction1<kotlinx.coroutines.CoroutineScope, T of kotlinx.coroutines.BuildersKt.withContext>, $completion: kotlin.coroutines.Continuation<T of kotlinx.coroutines.BuildersKt.withContext>): kotlin.Any? [suspend] declared in kotlinx.coroutines.BuildersKt' type=kotlin.Unit origin=null
+                  TYPE_ARG T: kotlin.Unit
+                  ARG context: CALL 'public final fun <get-IO> (): kotlinx.coroutines.CoroutineDispatcher declared in kotlinx.coroutines.Dispatchers' type=kotlinx.coroutines.CoroutineDispatcher origin=GET_PROPERTY
+                  ARG block: BLOCK type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                    CLASS SUSPEND_LAMBDA CLASS name:<no name provided> modality:FINAL visibility:public/*package*/ superTypes:[kotlin.coroutines.jvm.internal.SuspendLambda; kotlin.jvm.functions.Function2<kotlinx.coroutines.CoroutineScope, kotlin.coroutines.Continuation<kotlin.Unit>?, kotlin.Any?>]
+                      thisReceiver: VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                      FIELD name:label type:kotlin.Int visibility:public/*package*/
+                      FIELD FIELD_FOR_CAPTURED_VALUE name:L$0 type:kotlin.Any? visibility:private
+                      CONSTRUCTOR SUSPEND_LAMBDA visibility:public/*package*/ returnType:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> [primary]
+                        VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$futures index:0 type:kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>>
+                        VALUE_PARAMETER kind:Regular name:$completion index:1 type:kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>?
+                        BLOCK_BODY
+                          SET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$futures type:kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Unit origin=INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE
+                            receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                            value: GET_VAR '$futures: kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.<init>' type=kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> origin=null
+                          DELEGATING_CONSTRUCTOR_CALL 'public constructor <init> (arity: kotlin.Int, $completion: kotlin.coroutines.Continuation<kotlin.Any?>?) declared in kotlin.coroutines.jvm.internal.SuspendLambda'
+                            ARG arity: CONST Int type=kotlin.Int value=2
+                            ARG $completion: GET_VAR '$completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.<init>' type=kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>? origin=null
+                          BLOCK type=kotlin.Unit origin=null
+                      FUN name:invokeSuspend visibility:public modality:FINAL returnType:kotlin.Any?
+                        VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                        VALUE_PARAMETER kind:Regular name:$result index:1 type:kotlin.Result<kotlin.Any?>
+                        overridden:
+                          protected abstract fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in kotlin.coroutines.jvm.internal.SuspendLambda
+                        BLOCK_BODY
+                          VAR SUSPEND_LAMBDA_PARAMETER name:$this$withContext type:kotlinx.coroutines.CoroutineScope [val]
+                            BLOCK type=kotlinx.coroutines.CoroutineScope origin=null
+                              GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:L$0 type:kotlin.Any? visibility:private declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlinx.coroutines.CoroutineScope origin=null
+                                receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                          CALL 'public final fun forEach <T> (<this>: kotlin.collections.Iterable<T of kotlin.collections.CollectionsKt.forEach>, action: kotlin.Function1<T of kotlin.collections.CollectionsKt.forEach, kotlin.Unit>): kotlin.Unit [inline] declared in kotlin.collections.CollectionsKt' type=kotlin.Unit origin=null
+                            TYPE_ARG T: @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>
+                            ARG <this>: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$futures type:kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> origin=null
+                              receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                            ARG action: BLOCK type=kotlin.Function1<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>, kotlin.Unit> origin=LAMBDA
+                              COMPOSITE type=kotlin.Unit origin=null
+                              FUNCTION_REFERENCE 'private final fun invokeSuspend$lambda$1 ($$this$withContext: kotlinx.coroutines.CoroutineScope, future: @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>): kotlin.Unit declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Function1<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>, kotlin.Unit> origin=INLINE_LAMBDA reflectionTarget=null
+                                ARG $$this$withContext: GET_VAR 'val $this$withContext: kotlinx.coroutines.CoroutineScope [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend' type=kotlinx.coroutines.CoroutineScope origin=null
+                      FUN name:create visibility:public modality:FINAL returnType:kotlin.coroutines.Continuation<kotlin.Unit>
+                        VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                        VALUE_PARAMETER kind:Regular name:value index:1 type:kotlin.Any?
+                        VALUE_PARAMETER kind:Regular name:$completion index:2 type:kotlin.coroutines.Continuation<kotlin.Nothing>
+                        overridden:
+                          public open fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in kotlin.coroutines.jvm.internal.SuspendLambda
+                        BLOCK_BODY
+                          VAR IR_TEMPORARY_VARIABLE name:tmp0_result type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> [val]
+                            CONSTRUCTOR_CALL 'public/*package*/ constructor <init> ($futures: kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>>, $completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>?) [primary] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                              ARG $futures: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$futures type:kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> origin=null
+                                receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                              ARG $completion: GET_VAR '$completion: kotlin.coroutines.Continuation<kotlin.Nothing> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=kotlin.coroutines.Continuation<kotlin.Nothing> origin=null
+                          SET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:L$0 type:kotlin.Any? visibility:private declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Unit origin=null
+                            receiver: GET_VAR 'val tmp0_result: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                            value: GET_VAR 'value: kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=kotlin.Any? origin=null
+                          RETURN type=kotlin.Nothing from='public final fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                            GET_VAR 'val tmp0_result: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                      FUN name:invoke visibility:public modality:FINAL returnType:kotlin.Any?
+                        VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                        VALUE_PARAMETER kind:Regular name:p1 index:1 type:kotlinx.coroutines.CoroutineScope
+                        VALUE_PARAMETER kind:Regular name:p2 index:2 type:kotlin.coroutines.Continuation<kotlin.Unit>?
+                        overridden:
+                          public abstract fun invoke (p1: P1 of kotlin.jvm.functions.Function2, p2: P2 of kotlin.jvm.functions.Function2): R of kotlin.jvm.functions.Function2 declared in kotlin.jvm.functions.Function2
+                        BLOCK_BODY
+                          RETURN type=kotlin.Nothing from='public final fun invoke (p1: kotlinx.coroutines.CoroutineScope, p2: kotlin.coroutines.Continuation<kotlin.Unit>?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                            CALL 'public final fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Any? origin=null
+                              ARG <this>: TYPE_OP type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=IMPLICIT_CAST typeOperand=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                                CALL 'public final fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.coroutines.Continuation<kotlin.Unit> origin=null
+                                  ARG <this>: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                                  ARG value: GET_VAR 'p1: kotlinx.coroutines.CoroutineScope declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlinx.coroutines.CoroutineScope origin=null
+                                  ARG $completion: GET_VAR 'p2: kotlin.coroutines.Continuation<kotlin.Unit>? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlin.coroutines.Continuation<kotlin.Unit>? origin=null
+                              ARG $result: CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=kotlin.Result<kotlin.Any?> origin=null
+                                TYPE_ARG T: kotlin.Any?
+                                TYPE_ARG R: kotlin.Result<kotlin.Any?>
+                                ARG v: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:kotlin.Unit visibility:public [final,static] declared in kotlin.Unit' type=kotlin.Unit origin=null
+                      FIELD FIELD_FOR_CAPTURED_VALUE name:$futures type:kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> visibility:public/*package*/ [final]
+                      FUN INLINE_LAMBDA name:invokeSuspend$lambda$1$lambda$0 visibility:private modality:FINAL returnType:@[FlexibleNullability] java.io.File?
+                        VALUE_PARAMETER kind:ExtensionReceiver name:$this$runCatching index:0 type:kotlinx.coroutines.CoroutineScope
+                        VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$future index:1 type:@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>
+                        BLOCK_BODY
+                          VAR name:$i$a$-runCatching-ChatActivity$warmPrefillMediaAsync$1$1$1$1 type:kotlin.Int [val]
+                            CONST Int type=kotlin.Int value=0
+                          RETURN type=kotlin.Nothing from='private final fun invokeSuspend$lambda$1$lambda$0 ($this$runCatching: kotlinx.coroutines.CoroutineScope, $future: @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>): @[FlexibleNullability] java.io.File? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                            CALL 'public abstract fun get (p0: kotlin.Long, p1: @[FlexibleNullability] java.util.concurrent.TimeUnit?): @[FlexibleNullability] R of com.bumptech.glide.request.FutureTarget? [fake_override,operator] declared in com.bumptech.glide.request.FutureTarget' type=@[FlexibleNullability] java.io.File? origin=null
+                              ARG <this>: GET_VAR '$future: @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend$lambda$1$lambda$0' type=@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?> origin=null
+                              ARG p0: CONST Long type=kotlin.Long value=800
+                              ARG p1: GET_FIELD 'FIELD FIELD_FOR_ENUM_ENTRY name:MILLISECONDS type:java.util.concurrent.TimeUnit visibility:public [final,static] declared in java.util.concurrent.TimeUnit' type=java.util.concurrent.TimeUnit origin=null
+                      FUN INLINE_LAMBDA name:invokeSuspend$lambda$1 visibility:private modality:FINAL returnType:kotlin.Unit
+                        VALUE_PARAMETER BOUND_VALUE_PARAMETER kind:Regular name:$$this$withContext index:0 type:kotlinx.coroutines.CoroutineScope
+                        VALUE_PARAMETER kind:Regular name:future index:1 type:@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>
+                        BLOCK_BODY
+                          VAR name:$i$a$-forEach-ChatActivity$warmPrefillMediaAsync$1$1$1 type:kotlin.Int [val]
+                            CONST Int type=kotlin.Int value=0
+                          COMPOSITE type=kotlin.Unit origin=null
+                            CALL 'public final fun runCatching <T, R> (<this>: T of kotlin.ResultKt.runCatching, block: @[ExtensionFunctionType] kotlin.Function1<T of kotlin.ResultKt.runCatching, R of kotlin.ResultKt.runCatching>): kotlin.Result<R of kotlin.ResultKt.runCatching> [inline] declared in kotlin.ResultKt' type=kotlin.Result<@[FlexibleNullability] java.io.File?> origin=null
+                              TYPE_ARG T: kotlinx.coroutines.CoroutineScope
+                              TYPE_ARG R: @[FlexibleNullability] java.io.File?
+                              ARG <this>: GET_VAR '$$this$withContext: kotlinx.coroutines.CoroutineScope declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend$lambda$1' type=kotlinx.coroutines.CoroutineScope origin=null
+                              ARG block: BLOCK type=@[ExtensionFunctionType] kotlin.Function1<kotlinx.coroutines.CoroutineScope, @[FlexibleNullability] java.io.File?> origin=LAMBDA
+                                COMPOSITE type=kotlin.Unit origin=null
+                                FUNCTION_REFERENCE 'private final fun invokeSuspend$lambda$1$lambda$0 ($this$runCatching: kotlinx.coroutines.CoroutineScope, $future: @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>): @[FlexibleNullability] java.io.File? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=@[ExtensionFunctionType] kotlin.Function1<kotlinx.coroutines.CoroutineScope, @[FlexibleNullability] java.io.File?> origin=INLINE_LAMBDA reflectionTarget=null
+                                  ARG $future: GET_VAR 'future: @[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invokeSuspend$lambda$1' type=@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?> origin=null
+                            COMPOSITE type=kotlin.Unit origin=null
+                      FUN BRIDGE name:invoke visibility:public modality:OPEN returnType:kotlin.Any?
+                        VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>
+                        VALUE_PARAMETER BRIDGE kind:Regular name:p1 index:1 type:kotlin.Any?
+                        VALUE_PARAMETER BRIDGE kind:Regular name:p2 index:2 type:kotlin.Any?
+                        EXPRESSION_BODY
+                          RETURN type=kotlin.Nothing from='public open fun invoke (p1: kotlin.Any?, p2: kotlin.Any?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>'
+                            CALL 'public final fun invoke (p1: kotlinx.coroutines.CoroutineScope, p2: kotlin.coroutines.Continuation<kotlin.Unit>?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=kotlin.Any? origin=BRIDGE_DELEGATION
+                              ARG <this>: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                              ARG p1: TYPE_OP type=kotlinx.coroutines.CoroutineScope origin=IMPLICIT_CAST typeOperand=kotlinx.coroutines.CoroutineScope
+                                GET_VAR 'p1: kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlin.Any? origin=null
+                              ARG p2: TYPE_OP type=kotlin.coroutines.Continuation<*> origin=IMPLICIT_CAST typeOperand=kotlin.coroutines.Continuation<*>
+                                GET_VAR 'p2: kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>.invoke' type=kotlin.Any? origin=null
+                    CONSTRUCTOR_CALL 'public/*package*/ constructor <init> ($futures: kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>>, $completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>>?) [primary] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend.<no name provided> origin=null
+                      ARG $futures: GET_VAR 'val futures: kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> [val] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=kotlin.collections.List<@[EnhancedNullability] com.bumptech.glide.request.FutureTarget<@[FlexibleNullability] java.io.File?>> origin=null
+                      ARG $completion: CONST Null type=kotlin.Nothing? value=null
+                  ARG $completion: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+            FUN name:create visibility:public modality:FINAL returnType:kotlin.coroutines.Continuation<kotlin.Unit>
+              VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>
+              VALUE_PARAMETER kind:Regular name:value index:1 type:kotlin.Any?
+              VALUE_PARAMETER kind:Regular name:$completion index:2 type:kotlin.coroutines.Continuation<kotlin.Nothing>
+              overridden:
+                public open fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in kotlin.coroutines.jvm.internal.SuspendLambda
+              BLOCK_BODY
+                RETURN type=kotlin.Nothing from='public final fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>'
+                  CONSTRUCTOR_CALL 'public/*package*/ constructor <init> ($preferExpandedWarmup: kotlin.Boolean, this$0: com.glyph.glyph_v3.ui.chat.ChatActivity, $messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message>, $completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>>?) [primary] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                    ARG $preferExpandedWarmup: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$preferExpandedWarmup type:kotlin.Boolean visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.Boolean origin=null
+                      receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                    ARG this$0: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+                      receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                    ARG $messages: GET_FIELD 'FIELD FIELD_FOR_CAPTURED_VALUE name:$messages type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> visibility:public/*package*/ [final] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> origin=null
+                      receiver: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.create' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                    ARG $completion: GET_VAR '$completion: kotlin.coroutines.Continuation<kotlin.Nothing> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.create' type=kotlin.coroutines.Continuation<kotlin.Nothing> origin=null
+            FUN name:invoke visibility:public modality:FINAL returnType:kotlin.Any?
+              VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>
+              VALUE_PARAMETER kind:Regular name:p1 index:1 type:kotlinx.coroutines.CoroutineScope
+              VALUE_PARAMETER kind:Regular name:p2 index:2 type:kotlin.coroutines.Continuation<kotlin.Unit>?
+              overridden:
+                public abstract fun invoke (p1: P1 of kotlin.jvm.functions.Function2, p2: P2 of kotlin.jvm.functions.Function2): R of kotlin.jvm.functions.Function2 declared in kotlin.jvm.functions.Function2
+              BLOCK_BODY
+                RETURN type=kotlin.Nothing from='public final fun invoke (p1: kotlinx.coroutines.CoroutineScope, p2: kotlin.coroutines.Continuation<kotlin.Unit>?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>'
+                  CALL 'public final fun invokeSuspend ($result: kotlin.Result<kotlin.Any?>): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.Any? origin=null
+                    ARG <this>: TYPE_OP type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=IMPLICIT_CAST typeOperand=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>
+                      CALL 'public final fun create (value: kotlin.Any?, $completion: kotlin.coroutines.Continuation<kotlin.Nothing>): kotlin.coroutines.Continuation<kotlin.Unit> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.coroutines.Continuation<kotlin.Unit> origin=null
+                        ARG <this>: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invoke' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                        ARG value: GET_VAR 'p1: kotlinx.coroutines.CoroutineScope declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invoke' type=kotlinx.coroutines.CoroutineScope origin=null
+                        ARG $completion: GET_VAR 'p2: kotlin.coroutines.Continuation<kotlin.Unit>? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invoke' type=kotlin.coroutines.Continuation<kotlin.Unit>? origin=null
+                    ARG $result: CALL 'public final fun <unsafe-coerce> <T, R> (v: T of kotlin.jvm.internal.<unsafe-coerce>): R of kotlin.jvm.internal.<unsafe-coerce> declared in kotlin.jvm.internal' type=kotlin.Result<kotlin.Any?> origin=null
+                      TYPE_ARG T: kotlin.Any?
+                      TYPE_ARG R: kotlin.Result<kotlin.Any?>
+                      ARG v: GET_FIELD 'FIELD FIELD_FOR_OBJECT_INSTANCE name:INSTANCE type:kotlin.Unit visibility:public [final,static] declared in kotlin.Unit' type=kotlin.Unit origin=null
+            FIELD FIELD_FOR_CAPTURED_VALUE name:$preferExpandedWarmup type:kotlin.Boolean visibility:public/*package*/ [final]
+            FIELD FIELD_FOR_CAPTURED_VALUE name:this$0 type:com.glyph.glyph_v3.ui.chat.ChatActivity visibility:public/*package*/ [final]
+            FIELD FIELD_FOR_CAPTURED_VALUE name:$messages type:kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> visibility:public/*package*/ [final]
+            FUN INLINE_LAMBDA name:invokeSuspend$lambda$0 visibility:private modality:FINAL returnType:kotlin.Boolean
+              VALUE_PARAMETER kind:Regular name:src index:0 type:kotlin.Any
+              BLOCK_BODY
+                VAR name:$i$a$-filter-ChatActivity$warmPrefillMediaAsync$1$remoteSources$1 type:kotlin.Int [val]
+                  CONST Int type=kotlin.Int value=0
+                RETURN type=kotlin.Nothing from='private final fun invokeSuspend$lambda$0 (src: kotlin.Any): kotlin.Boolean declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>'
+                  CALL 'public final fun ANDAND (arg0: kotlin.Boolean, arg1: kotlin.Boolean): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=null
+                    ARG arg0: TYPE_OP type=kotlin.Boolean origin=INSTANCEOF typeOperand=kotlin.String
+                      GET_VAR 'src: kotlin.Any declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend$lambda$0' type=kotlin.Any origin=null
+                    ARG arg1: CALL 'public final fun OROR (arg0: kotlin.Boolean, arg1: kotlin.Boolean): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=null
+                      ARG arg0: CALL 'public final fun startsWith$default (<this>: kotlin.String, prefix: kotlin.String, ignoreCase: kotlin.Boolean, $mask0: kotlin.Int, $handler: kotlin.Any?): kotlin.Boolean declared in kotlin.text.StringsKt' type=kotlin.Boolean origin=DEFAULT_DISPATCH_CALL
+                        ARG <this>: TYPE_OP type=kotlin.String origin=IMPLICIT_CAST typeOperand=kotlin.String
+                          GET_VAR 'src: kotlin.Any declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend$lambda$0' type=kotlin.Any origin=null
+                        ARG prefix: CONST String type=kotlin.String value="http://"
+                        ARG ignoreCase: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+                          CONST Boolean type=kotlin.Boolean value=false
+                        ARG $mask0: CONST Int type=kotlin.Int value=2
+                        ARG $handler: CONST Null type=kotlin.Any? value=null
+                      ARG arg1: CALL 'public final fun startsWith$default (<this>: kotlin.String, prefix: kotlin.String, ignoreCase: kotlin.Boolean, $mask0: kotlin.Int, $handler: kotlin.Any?): kotlin.Boolean declared in kotlin.text.StringsKt' type=kotlin.Boolean origin=DEFAULT_DISPATCH_CALL
+                        ARG <this>: TYPE_OP type=kotlin.String origin=IMPLICIT_CAST typeOperand=kotlin.String
+                          GET_VAR 'src: kotlin.Any declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invokeSuspend$lambda$0' type=kotlin.Any origin=null
+                        ARG prefix: CONST String type=kotlin.String value="https://"
+                        ARG ignoreCase: COMPOSITE type=kotlin.Boolean origin=DEFAULT_VALUE
+                          CONST Boolean type=kotlin.Boolean value=false
+                        ARG $mask0: CONST Int type=kotlin.Int value=2
+                        ARG $handler: CONST Null type=kotlin.Any? value=null
+            FUN BRIDGE name:invoke visibility:public modality:OPEN returnType:kotlin.Any?
+              VALUE_PARAMETER INSTANCE_RECEIVER kind:DispatchReceiver name:<this> index:0 type:com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>
+              VALUE_PARAMETER BRIDGE kind:Regular name:p1 index:1 type:kotlin.Any?
+              VALUE_PARAMETER BRIDGE kind:Regular name:p2 index:2 type:kotlin.Any?
+              EXPRESSION_BODY
+                RETURN type=kotlin.Nothing from='public open fun invoke (p1: kotlin.Any?, p2: kotlin.Any?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>'
+                  CALL 'public final fun invoke (p1: kotlinx.coroutines.CoroutineScope, p2: kotlin.coroutines.Continuation<kotlin.Unit>?): kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=kotlin.Any? origin=BRIDGE_DELEGATION
+                    ARG <this>: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invoke' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+                    ARG p1: TYPE_OP type=kotlinx.coroutines.CoroutineScope origin=IMPLICIT_CAST typeOperand=kotlinx.coroutines.CoroutineScope
+                      GET_VAR 'p1: kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invoke' type=kotlin.Any? origin=null
+                    ARG p2: TYPE_OP type=kotlin.coroutines.Continuation<*> origin=IMPLICIT_CAST typeOperand=kotlin.coroutines.Continuation<*>
+                      GET_VAR 'p2: kotlin.Any? declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>.invoke' type=kotlin.Any? origin=null
+          CONSTRUCTOR_CALL 'public/*package*/ constructor <init> ($preferExpandedWarmup: kotlin.Boolean, this$0: com.glyph.glyph_v3.ui.chat.ChatActivity, $messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message>, $completion: kotlin.coroutines.Continuation<com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>>?) [primary] declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided>' type=com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync.<no name provided> origin=null
+            ARG $preferExpandedWarmup: GET_VAR 'preferExpandedWarmup: kotlin.Boolean declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync' type=kotlin.Boolean origin=null
+            ARG this$0: GET_VAR '<this>: com.glyph.glyph_v3.ui.chat.ChatActivity declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync' type=com.glyph.glyph_v3.ui.chat.ChatActivity origin=null
+            ARG $messages: GET_VAR 'messages: kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> declared in com.glyph.glyph_v3.ui.chat.ChatActivity.warmPrefillMediaAsync' type=kotlin.collections.List<com.glyph.glyph_v3.data.models.Message> origin=null
+            ARG $completion: CONST Null type=kotlin.Nothing? value=null
+        ARG $mask0: CONST Int type=kotlin.Int value=3
+        ARG $handler: CONST Null type=kotlin.Any? value=null
+      COMPOSITE type=kotlin.Unit origin=null
+
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.generate(FunctionCodegen.kt:50)
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.generate$default(FunctionCodegen.kt:43)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generateMethodNode(ClassCodegen.kt:422)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generateMethod(ClassCodegen.kt:439)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generate(ClassCodegen.kt:164)
+	at org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory.generateFile(JvmIrCodegenFactory.kt:419)
+	at org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory.invokeCodegen(JvmIrCodegenFactory.kt:388)
+	at org.jetbrains.kotlin.cli.jvm.compiler.KotlinToJVMBytecodeCompiler.runCodegen$cli(KotlinToJVMBytecodeCompiler.kt:431)
+	at org.jetbrains.kotlin.cli.pipeline.jvm.JvmBackendPipelinePhase.executePhase(JvmBackendPipelinePhase.kt:95)
+	at org.jetbrains.kotlin.cli.pipeline.jvm.JvmBackendPipelinePhase.executePhase(JvmBackendPipelinePhase.kt:36)
+	at org.jetbrains.kotlin.cli.pipeline.jvm.JvmBackendPipelinePhase.executePhase(JvmBackendPipelinePhase.kt:29)
+	at org.jetbrains.kotlin.cli.pipeline.PipelinePhase.phaseBody(PipelinePhase.kt:68)
+	at org.jetbrains.kotlin.cli.pipeline.PipelinePhase.phaseBody(PipelinePhase.kt:58)
+	at org.jetbrains.kotlin.config.phaser.NamedCompilerPhase.invoke(CompilerPhase.kt:102)
+	at org.jetbrains.kotlin.backend.common.phaser.CompositePhase.invoke(PhaseBuilders.kt:22)
+	at org.jetbrains.kotlin.config.phaser.CompilerPhaseKt.invokeToplevel(CompilerPhase.kt:53)
+	at org.jetbrains.kotlin.cli.pipeline.AbstractCliPipeline.runPhasedPipeline(AbstractCliPipeline.kt:109)
+	at org.jetbrains.kotlin.cli.pipeline.AbstractCliPipeline.execute(AbstractCliPipeline.kt:68)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecutePhased(K2JVMCompiler.kt:78)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecutePhased(K2JVMCompiler.kt:44)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.execImpl(CLICompiler.kt:90)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.exec(CLICompiler.kt:352)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunnerBase.runCompiler(IncrementalJvmCompilerRunnerBase.kt:175)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunnerBase.runCompiler(IncrementalJvmCompilerRunnerBase.kt:38)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.doCompile(IncrementalCompilerRunner.kt:504)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileImpl(IncrementalCompilerRunner.kt:421)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:306)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:133)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:679)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:93)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1806)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(UnicastServerRef.java:360)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:200)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:197)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:712)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Transport.java:196)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(TCPTransport.java:587)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(TCPTransport.java:828)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(TCPTransport.java:705)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:399)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(TCPTransport.java:704)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:842)
+Caused by: org.jetbrains.kotlin.codegen.CompilationException: Back-end (JVM) Internal error: Couldn't transform method node:
+invoke (Lkotlinx/coroutines/CoroutineScope;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;:
+    // annotable parameter count: 2 (visible)
+    // annotable parameter count: 2 (invisible)
+   L0
+    ALOAD 0
+    ALOAD 1
+    ALOAD 2
+    INVOKEVIRTUAL com/glyph/glyph_v3/ui/chat/ChatActivity$warmPrefillMediaAsync$1.create (Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+    CHECKCAST com/glyph/glyph_v3/ui/chat/ChatActivity$warmPrefillMediaAsync$1
+    GETSTATIC kotlin/Unit.INSTANCE : Lkotlin/Unit;
+    INVOKEVIRTUAL com/glyph/glyph_v3/ui/chat/ChatActivity$warmPrefillMediaAsync$1.invokeSuspend (Ljava/lang/Object;)Ljava/lang/Object;
+    ARETURN
+   L1
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/ui/chat/ChatActivity$warmPrefillMediaAsync$1; L0 L1 0
+    LOCALVARIABLE p1 Lkotlinx/coroutines/CoroutineScope; L0 L1 1
+    LOCALVARIABLE p2 Lkotlin/coroutines/Continuation; L0 L1 2
+    MAXSTACK = 3
+    MAXLOCALS = 3
+
+File is unknown
+The root cause java.lang.OutOfMemoryError was thrown at: org.jetbrains.kotlin.codegen.optimization.LabelNormalizationMethodTransformer.transform(LabelNormalizationMethodTransformer.kt:28)
+	at org.jetbrains.kotlin.codegen.TransformationMethodVisitor.visitEnd(TransformationMethodVisitor.kt:89)
+	at org.jetbrains.org.objectweb.asm.MethodVisitor.visitEnd(MethodVisitor.java:796)
+	at org.jetbrains.org.objectweb.asm.tree.MethodNode.accept(MethodNode.java:770)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generateMethod(ClassCodegen.kt:469)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generate(ClassCodegen.kt:164)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitClass(ExpressionCodegen.kt:951)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitClass(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.declarations.IrClass.accept(IrClass.kt:72)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitStatementContainer(ExpressionCodegen.kt:527)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitContainerExpression(ExpressionCodegen.kt:541)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitContainerExpression(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.visitors.IrVisitor.visitBlock(IrVisitor.kt:122)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlock(ExpressionCodegen.kt:413)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlock(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.expressions.IrBlock.accept(IrBlock.kt:18)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.gen(ExpressionCodegen.kt:214)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrCallGenerator.genValueAndPut(IrCallGenerator.kt:48)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall$handleParameter(ExpressionCodegen.kt:564)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall(ExpressionCodegen.kt:577)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.expressions.IrCall.accept(IrCall.kt:24)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitStatementContainer(ExpressionCodegen.kt:527)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitContainerExpression(ExpressionCodegen.kt:541)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitContainerExpression(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.visitors.IrVisitor.visitComposite(IrVisitor.kt:125)
+	at org.jetbrains.kotlin.ir.expressions.IrComposite.accept(IrComposite.kt:18)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitStatementContainer(ExpressionCodegen.kt:527)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlockBody(ExpressionCodegen.kt:532)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlockBody(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.expressions.IrBlockBody.accept(IrBlockBody.kt:20)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.generate(ExpressionCodegen.kt:233)
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.doGenerate(FunctionCodegen.kt:126)
+	at org.jetbrains.kotlin.backend.jvm.codegen.FunctionCodegen.generate(FunctionCodegen.kt:47)
+	... 47 more
+Caused by: java.lang.OutOfMemoryError: GC overhead limit exceeded
+	at org.jetbrains.kotlin.codegen.optimization.LabelNormalizationMethodTransformer.transform(LabelNormalizationMethodTransformer.kt:28)
+	at org.jetbrains.kotlin.codegen.optimization.RedundantNopsCleanupMethodTransformer.transform(RedundantNopsCleanupMethodTransformer.kt:32)
+	at org.jetbrains.kotlin.codegen.optimization.transformer.CompositeMethodTransformer.transform(CompositeMethodTransformer.kt:25)
+	at org.jetbrains.kotlin.codegen.optimization.OptimizationMethodVisitor.performTransformations(OptimizationMethodVisitor.kt:74)
+	at org.jetbrains.kotlin.codegen.TransformationMethodVisitor.visitEnd(TransformationMethodVisitor.kt:67)
+	at org.jetbrains.org.objectweb.asm.MethodVisitor.visitEnd(MethodVisitor.java:796)
+	at org.jetbrains.org.objectweb.asm.tree.MethodNode.accept(MethodNode.java:770)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generateMethod(ClassCodegen.kt:469)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generate(ClassCodegen.kt:164)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitClass(ExpressionCodegen.kt:951)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitClass(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.declarations.IrClass.accept(IrClass.kt:72)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitStatementContainer(ExpressionCodegen.kt:527)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitContainerExpression(ExpressionCodegen.kt:541)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitContainerExpression(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.visitors.IrVisitor.visitBlock(IrVisitor.kt:122)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlock(ExpressionCodegen.kt:413)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlock(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.expressions.IrBlock.accept(IrBlock.kt:18)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.gen(ExpressionCodegen.kt:214)
+	at org.jetbrains.kotlin.backend.jvm.codegen.IrCallGenerator.genValueAndPut(IrCallGenerator.kt:48)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall$handleParameter(ExpressionCodegen.kt:564)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall(ExpressionCodegen.kt:577)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitCall(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.expressions.IrCall.accept(IrCall.kt:24)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitStatementContainer(ExpressionCodegen.kt:527)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitContainerExpression(ExpressionCodegen.kt:541)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitContainerExpression(ExpressionCodegen.kt:135)
+	at org.jetbrains.kotlin.ir.visitors.IrVisitor.visitComposite(IrVisitor.kt:125)
+	at org.jetbrains.kotlin.ir.expressions.IrComposite.accept(IrComposite.kt:18)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitStatementContainer(ExpressionCodegen.kt:527)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ExpressionCodegen.visitBlockBody(ExpressionCodegen.kt:532)
+
+

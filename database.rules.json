@@ -1,0 +1,155 @@
+{
+  "rules": {
+    "blocks": {
+      "$userId": {
+        ".read": "$userId === auth.uid",
+        ".write": "$userId === auth.uid",
+        "$blockedId": {
+          ".validate": "newData.hasChild('blockedAt')"
+        }
+      }
+    },
+    "pending_messages": {
+      "$recipientId": {
+        ".read": "$recipientId === auth.uid",
+        ".write": "auth != null && !root.child('blocks').child($recipientId).child(auth.uid).exists() && !root.child('blocks').child(auth.uid).child($recipientId).exists()",
+        "$messageId": {
+          ".validate": "newData.hasChildren(['chatId', 'senderId', 'text', 'timestamp', 'type'])"
+        }
+      }
+    },
+    "delivery_receipts": {
+      "$senderId": {
+        ".read": "$senderId === auth.uid",
+        "$chatId": {
+          "$messageId": {
+            ".write": "auth != null"
+          }
+        }
+      }
+    },
+    "presence": {
+      "$userId": {
+        ".read": "auth != null && !root.child('blocks').child($userId).child(auth.uid).exists() && !root.child('blocks').child(auth.uid).child($userId).exists()",
+        ".write": "$userId === auth.uid"
+      }
+    },
+    "chats": {
+      "$chatId": {
+        "typing": {
+          "$userId": {
+            "$receiverId": {
+              ".read": "auth.uid === $receiverId && !root.child('blocks').child($receiverId).child($userId).exists() && !root.child('blocks').child($userId).child($receiverId).exists()",
+              ".write": "auth.uid === $userId && auth.uid !== $receiverId && !root.child('blocks').child($receiverId).child($userId).exists() && !root.child('blocks').child($userId).child($receiverId).exists()",
+              ".validate": "newData.isBoolean()"
+            }
+          }
+        }
+      }
+    },
+    "groupTyping": {
+      "$chatId": {
+        ".read": "auth != null",
+        "$userId": {
+          ".write": "auth.uid === $userId",
+          ".validate": "!newData.exists() || newData.isBoolean()"
+        }
+      }
+    },
+    "liveTyping": {
+      "$chatId": {
+        "$userId": {
+          "$receiverId": {
+            ".read": "auth.uid === $receiverId && !root.child('blocks').child($receiverId).child($userId).exists() && !root.child('blocks').child($userId).child($receiverId).exists()",
+            ".write": "auth.uid === $userId && auth.uid !== $receiverId && !root.child('blocks').child($receiverId).child($userId).exists() && !root.child('blocks').child($userId).child($receiverId).exists()",
+            ".validate": "!newData.exists() || (newData.hasChildren(['chatId','senderId','liveText','timestamp','expressiveEnabled']) && newData.child('senderId').val() === auth.uid && newData.child('chatId').isString() && newData.child('liveText').isString())"
+          }
+        }
+      }
+    },
+    "locationSharing": {
+      "$senderId": {
+        "$receiverId": {
+          ".read": "auth.uid === $senderId || auth.uid === $receiverId",
+          ".write": "$senderId === auth.uid && !root.child('blocks').child($receiverId).child($senderId).exists() && !root.child('blocks').child($senderId).child($receiverId).exists()"
+        }
+      }
+    },
+    "liveAudioSessions": {
+      ".read": "auth != null && (query.orderByChild === 'broadcasterId' && query.equalTo === auth.uid || query.orderByChild === 'listenerId' && query.equalTo === auth.uid)",
+      ".indexOn": ["broadcasterId", "listenerId"],
+      "$sessionId": {
+        ".read": "auth != null && (auth.uid === data.child('broadcasterId').val() || auth.uid === data.child('listenerId').val())",
+        ".write": "auth != null && ((!data.exists() && newData.child('listenerId').val() === auth.uid) || (data.exists() && (auth.uid === data.child('broadcasterId').val() || auth.uid === data.child('listenerId').val())))",
+        ".validate": "newData.hasChildren(['sessionId','broadcasterId','listenerId','status','createdAt'])",
+        "candidates": {
+          "$candidateId": {
+            ".read": "auth != null && (auth.uid === data.parent().parent().child('broadcasterId').val() || auth.uid === data.parent().parent().child('listenerId').val())",
+            ".write": "auth != null && (auth.uid === data.parent().parent().child('broadcasterId').val() || auth.uid === data.parent().parent().child('listenerId').val())",
+            ".validate": "newData.hasChildren(['sdpMid','sdpMLineIndex','candidate','fromUserId'])"
+          }
+        }
+      }
+    },
+    "walkieTalkieSessions": {
+      ".read": "auth != null && (query.orderByChild === 'initiatorId' && query.equalTo === auth.uid || query.orderByChild === 'responderId' && query.equalTo === auth.uid)",
+      ".indexOn": ["initiatorId", "responderId"],
+      "$sessionId": {
+        ".read": "auth != null && (auth.uid === data.child('initiatorId').val() || auth.uid === data.child('responderId').val())",
+        ".write": "auth != null && ((!data.exists() && newData.child('initiatorId').val() === auth.uid) || (data.exists() && (auth.uid === data.child('initiatorId').val() || auth.uid === data.child('responderId').val())))",
+        ".validate": "newData.hasChildren(['sessionId','initiatorId','responderId','status','createdAt'])",
+        "floor": {
+          ".read": "auth != null && (auth.uid === data.parent().child('initiatorId').val() || auth.uid === data.parent().child('responderId').val())",
+          ".write": "auth != null && (auth.uid === data.parent().child('initiatorId').val() || auth.uid === data.parent().child('responderId').val())"
+        },
+        "candidates": {
+          "$candidateId": {
+            ".read": "auth != null && (auth.uid === data.parent().parent().child('initiatorId').val() || auth.uid === data.parent().parent().child('responderId').val())",
+            ".write": "auth != null && (auth.uid === data.parent().parent().child('initiatorId').val() || auth.uid === data.parent().parent().child('responderId').val())",
+            ".validate": "newData.hasChildren(['sdpMid','sdpMLineIndex','candidate','fromUserId'])"
+          }
+        }
+      }
+    },
+    "mapVideoSessions": {
+      "$chatId": {
+        "participants": {
+          "$userId": {
+            ".read": "auth != null",
+            ".write": "auth.uid === $userId"
+          }
+        },
+        "signal": {
+          "offer": {
+            ".read": "auth != null && (auth.uid === data.child('fromUserId').val() || auth.uid === data.child('targetUserId').val()) && !root.child('blocks').child(data.child('targetUserId').val()).child(data.child('fromUserId').val()).exists() && !root.child('blocks').child(data.child('fromUserId').val()).child(data.child('targetUserId').val()).exists()",
+            ".write": "auth != null && newData.child('fromUserId').val() === auth.uid && auth.uid !== newData.child('targetUserId').val() && !root.child('blocks').child(newData.child('targetUserId').val()).child(auth.uid).exists() && !root.child('blocks').child(auth.uid).child(newData.child('targetUserId').val()).exists()",
+            ".validate": "!newData.exists() || (newData.hasChildren(['sessionId','fromUserId','targetUserId','type','sdp']) && newData.child('fromUserId').isString() && newData.child('targetUserId').isString() && newData.child('sessionId').isString() && newData.child('sdp').isString())"
+          },
+          "answer": {
+            ".read": "auth != null && (auth.uid === data.child('fromUserId').val() || auth.uid === data.child('targetUserId').val()) && !root.child('blocks').child(data.child('targetUserId').val()).child(data.child('fromUserId').val()).exists() && !root.child('blocks').child(data.child('fromUserId').val()).child(data.child('targetUserId').val()).exists()",
+            ".write": "auth != null && newData.child('fromUserId').val() === auth.uid && auth.uid !== newData.child('targetUserId').val() && !root.child('blocks').child(newData.child('targetUserId').val()).child(auth.uid).exists() && !root.child('blocks').child(auth.uid).child(newData.child('targetUserId').val()).exists()",
+            ".validate": "!newData.exists() || (newData.hasChildren(['sessionId','fromUserId','targetUserId','type','sdp']) && newData.child('fromUserId').isString() && newData.child('targetUserId').isString() && newData.child('sessionId').isString() && newData.child('sdp').isString())"
+          }
+        },
+        "ice": {
+          "$userId": {
+            ".read": "auth.uid === $userId",
+            ".write": "auth != null && !root.child('blocks').child($userId).child(auth.uid).exists() && !root.child('blocks').child(auth.uid).child($userId).exists()",
+            "$candidateId": {
+              ".validate": "!newData.exists() || (newData.hasChildren(['sessionId','fromUserId','targetUserId','sdpMid','sdpMLineIndex','sdp']) && newData.child('fromUserId').val() === auth.uid && newData.child('targetUserId').val() === $userId && newData.child('sessionId').isString() && newData.child('sdp').isString())"
+            }
+          }
+        },
+        "commands": {
+          "$userId": {
+            ".read": "auth.uid === $userId",
+            ".write": "auth != null && !root.child('blocks').child($userId).child(auth.uid).exists() && !root.child('blocks').child(auth.uid).child($userId).exists()",
+            "cameraSwitch": {
+               ".validate": "!newData.exists() || newData.isNumber()"
+            }
+          }
+        }
+      }
+    }
+  }
+}

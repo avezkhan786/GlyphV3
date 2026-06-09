@@ -1,0 +1,36 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.13/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:dataBindingMergeDependencyArtifactsDebug UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:dataBindingGenBaseClassesDebug UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin
+> Task :app:compileDebugKotlin
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/SwipeToReplyTouchListener.kt:150:40 Condition is always 'true'.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/settings/SettingsFragment.kt:648:29 'fun userProfileChangeRequest(init: UserProfileChangeRequest.Builder.() -> Unit): UserProfileChangeRequest' is deprecated. Migrate to use the KTX API from the main module: https://firebase.google.com/docs/android/kotlin-migration.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/viewer/ImageViewerActivity.kt:29:26 'var systemUiVisibility: Int' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/viewer/ImageViewerActivity.kt:30:18 'static field SYSTEM_UI_FLAG_LAYOUT_STABLE: Int' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/viewer/ImageViewerActivity.kt:31:21 'static field SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/viewer/ImageViewerActivity.kt:32:21 'static field SYSTEM_UI_FLAG_FULLSCREEN: Int' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/viewer/ImageViewerActivity.kt:33:21 'static field SYSTEM_UI_FLAG_IMMERSIVE_STICKY: Int' is deprecated. Deprecated in Java.
+
+BUILD SUCCESSFUL in 2m 39s
+21 actionable tasks: 2 executed, 19 up-to-date

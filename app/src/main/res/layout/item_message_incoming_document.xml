@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <FrameLayout
+        android:id="@+id/cardMessage"
+        android:layout_width="260dp"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_message_incoming"
+        android:clipToOutline="true"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <include layout="@layout/layout_group_sender_name" />
+
+            <include layout="@layout/layout_forwarded_label" />
+
+            <!-- PDF first-page preview (visible only when thumbnail is available) -->
+            <ImageView
+                android:id="@+id/ivDocPreview"
+                android:layout_width="match_parent"
+                android:layout_height="110dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone"
+                tools:visibility="visible"
+                tools:src="@tools:sample/backgrounds/scenic" />
+
+            <!-- Content area with padding -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="10dp">
+
+            <!-- Document row: icon + info -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingBottom="6dp">
+
+                <!-- Document type icon background circle -->
+                <FrameLayout
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="10dp">
+
+                    <View
+                        android:id="@+id/docIconBg"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="@drawable/bg_attachment_icon_indigo" />
+
+                    <ImageView
+                        android:id="@+id/ivDocIcon"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_attachment_document"
+                        android:tint="@android:color/white" />
+                </FrameLayout>
+
+                <!-- File name + type+size info -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvFileName"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="?attr/glyphBubbleOtherText"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:maxLines="2"
+                        android:ellipsize="middle"
+                        tools:text="Foreclosure_EMI_Axis_Bank.pdf" />
+
+                    <TextView
+                        android:id="@+id/tvFileInfo"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="?attr/glyphBubbleOtherText"
+                        android:alpha="0.65"
+                        android:textSize="12sp"
+                        android:layout_marginTop="2dp"
+                        tools:text="1 page · 56 kB · PDF" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:background="?attr/glyphBubbleOtherText"
+                android:alpha="0.2"
+                android:layout_marginBottom="6dp" />
+
+            <!-- Caption (optional, hidden when empty) -->
+            <TextView
+                android:id="@+id/tvCaption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/glyphBubbleOtherText"
+                android:textSize="14sp"
+                android:layout_marginBottom="4dp"
+                android:visibility="gone"
+                tools:text="Here is the document you requested" />
+
+            <!-- Timestamp row -->
+            <TextView
+                android:id="@+id/tvTimestamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:textColor="?attr/glyphBubbleTimestamp"
+                android:alpha="0.7"
+                android:textSize="12sp"
+                tools:text="3:24 PM" />
+
+            </LinearLayout><!-- end content padding -->
+        </LinearLayout>
+    </FrameLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

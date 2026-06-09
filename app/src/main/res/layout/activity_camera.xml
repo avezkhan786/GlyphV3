@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <!-- Camera Preview -->
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Video Note Circular Mask Overlay (hidden by default) -->
+    <View
+        android:id="@+id/videoNoteOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Video Note Progress Bar (centered around the cutout) -->
+    <com.google.android.material.progressindicator.CircularProgressIndicator
+        android:id="@+id/videoNoteProgress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        app:indicatorColor="@android:color/white"
+        app:trackColor="#40FFFFFF"
+        app:trackThickness="4dp"
+        app:indicatorDirectionCircular="clockwise"
+        android:visibility="gone"
+        android:indeterminate="false"
+        android:max="60000" />
+
+    <!-- Focus indicator (tap-to-focus feedback) -->
+    <View
+        android:id="@+id/focusIndicator"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:background="@drawable/bg_focus_indicator"
+        android:visibility="gone"
+        android:elevation="10dp" />
+
+    <!-- ═══════════ TOP BAR ═══════════ -->
+    <FrameLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="12dp"
+        android:paddingTop="0dp"
+        android:paddingBottom="12dp">
+
+        <!-- Close Button — top-left -->
+        <ImageButton
+            android:id="@+id/btnClose"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="start|center_vertical"
+            android:background="@drawable/bg_camera_btn_circle"
+            android:src="@drawable/ic_camera_close"
+            android:scaleType="centerInside"
+            android:padding="10dp"
+            android:contentDescription="Close" />
+
+        <!-- Timer — center -->
+        <TextView
+            android:id="@+id/tvTimer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal|center_vertical"
+            android:gravity="center"
+            android:text="00:00"
+            android:textColor="@android:color/white"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif-medium"
+            android:background="@drawable/bg_timer_pill"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp"
+            android:visibility="visible"
+            tools:text="00:00" />
+
+        <!-- HD Toggle — next to flash -->
+        <ImageButton
+            android:id="@+id/btnHd"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="60dp"
+            android:background="@drawable/bg_camera_btn_circle"
+            android:src="@drawable/ic_hd"
+            android:scaleType="centerInside"
+            android:padding="10dp"
+            android:contentDescription="Resolution Toggle" />
+
+        <!-- Flash Toggle — top-right -->
+        <ImageButton
+            android:id="@+id/btnFlash"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="end|center_vertical"
+            android:background="@drawable/bg_camera_btn_circle"
+            android:src="@drawable/ic_camera_flash_off"
+            android:scaleType="centerInside"
+            android:padding="10dp"
+            android:contentDescription="Flash" />
+
+    </FrameLayout>
+
+    <!-- ═══════════ LENS SELECTOR (centered above bottom controls) ═══════════ -->
+    <LinearLayout
+        android:id="@+id/lensSelector"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal|bottom"
+        android:layout_marginBottom="187dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@drawable/bg_lens_selector"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="4dp"
+        android:visibility="gone"
+        android:elevation="4dp">
+
+        <!-- Lens buttons are built dynamically from detected physical cameras -->
+
+    </LinearLayout>
+
+    <!-- ═══════════ BOTTOM CONTROLS ═══════════ -->
+    <LinearLayout
+        android:id="@+id/bottomControls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_gravity="bottom"
+        android:paddingBottom="20dp">
+
+        <!-- Pull-up Chevron -->
+        <ImageView
+            android:id="@+id/ivChevron"
+            android:layout_width="32dp"
+            android:layout_height="16dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="4dp"
+            android:alpha="0.5"
+            android:contentDescription="Expand"
+            android:src="@drawable/ic_camera_chevron_up"
+            android:scaleType="centerInside"
+            android:visibility="gone" />
+
+        <!-- Recent Media Strip -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recentMediaStrip"
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:layout_marginBottom="16dp"
+            android:clipToPadding="false"
+            android:paddingHorizontal="12dp"
+            android:overScrollMode="never"
+            android:visibility="gone" />
+
+        <!-- ═══ Action Row ═══ -->
+        <FrameLayout
+            android:id="@+id/actionRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:paddingHorizontal="24dp"
+            android:minHeight="76dp">
+
+            <!-- Left group: Gallery + Effects -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start|center_vertical"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/btnGallery"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/bg_camera_btn_circle"
+                    android:src="@drawable/ic_camera_gallery"
+                    android:scaleType="centerInside"
+                    android:padding="10dp"
+                    android:contentDescription="Gallery" />
+
+                <ImageButton
+                    android:id="@+id/btnEffects"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="16dp"
+                    android:background="@drawable/bg_camera_btn_circle"
+                    android:src="@drawable/ic_camera_effects"
+                    android:scaleType="centerInside"
+                    android:padding="10dp"
+                    android:contentDescription="Effects" />
+
+            </LinearLayout>
+
+            <!-- Center: Shutter Button (absolutely centered) -->
+            <FrameLayout
+                android:id="@+id/shutterContainer"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_gravity="center">
+
+                <!-- Outer ring -->
+                <View
+                    android:id="@+id/shutterOuterRing"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_shutter_outer_ring" />
+
+                <!-- Inner circle -->
+                <View
+                    android:id="@+id/shutterInner"
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_shutter_inner_circle" />
+
+                <!-- Recording progress ring -->
+                <com.google.android.material.progressindicator.CircularProgressIndicator
+                    android:id="@+id/recordingProgress"
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:layout_gravity="center"
+                    app:indicatorColor="#FF4444"
+                    app:trackColor="@android:color/transparent"
+                    app:indicatorSize="80dp"
+                    app:trackThickness="4dp"
+                    android:visibility="gone"
+                    android:indeterminate="false"
+                    app:indicatorDirectionCircular="clockwise" />
+
+            </FrameLayout>
+
+            <!-- Right: Switch Camera -->
+            <ImageButton
+                android:id="@+id/btnSwitchCamera"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_gravity="end|center_vertical"
+                android:background="@drawable/bg_camera_btn_circle"
+                android:src="@drawable/ic_camera_switch"
+                android:scaleType="centerInside"
+                android:padding="10dp"
+                android:contentDescription="Switch Camera" />
+
+        </FrameLayout>
+
+        <!-- ═══ Mode Selector ═══ -->
+        <LinearLayout
+            android:id="@+id/modeSelector"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:orientation="horizontal"
+            android:layout_gravity="center_horizontal"
+            android:gravity="center">
+
+            <TextView
+                android:id="@+id/modeVideo"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:gravity="center"
+                android:text="Video"
+                android:textColor="#99FFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium"
+                android:paddingHorizontal="14dp"
+                android:background="@android:color/transparent" />
+
+            <TextView
+                android:id="@+id/modePhoto"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:gravity="center"
+                android:text="Photo"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium"
+                android:paddingHorizontal="14dp"
+                android:background="@drawable/bg_mode_active" />
+
+            <TextView
+                android:id="@+id/modeVideoNote"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:gravity="center"
+                android:text="Video note"
+                android:textColor="#99FFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif-medium"
+                android:paddingHorizontal="14dp"
+                android:background="@android:color/transparent" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>

@@ -1,0 +1,113 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :app
+WARNING: The option setting 'android.usesSdkInManifest.disallowed=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.sdk.defaultTargetSdkToCompileSdkIfUnset=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.enableAppCompileTimeRClass=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.builtInKotlin=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.newDsl=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.r8.optimizedResourceShrinking=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.defaults.buildfeatures.resvalues=true' is deprecated.
+The current default is 'false'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The property android.dependency.excludeLibraryComponentsFromConstraints improves project import performance for very large projects. It should be enabled to improve performance.
+To suppress this warning, add android.generateSyncIssueWhenLibraryConstraintsAreEnabled=false to gradle.properties
+WARNING: The property android.dependency.excludeLibraryComponentsFromConstraints improves project import performance for very large projects. It should be enabled to improve performance.
+To suppress this warning, add android.generateSyncIssueWhenLibraryConstraintsAreEnabled=false to gradle.properties
+WARNING: The property android.dependency.excludeLibraryComponentsFromConstraints improves project import performance for very large projects. It should be enabled to improve performance.
+To suppress this warning, add android.generateSyncIssueWhenLibraryConstraintsAreEnabled=false to gradle.properties
+WARNING: The property android.dependency.excludeLibraryComponentsFromConstraints improves project import performance for very large projects. It should be enabled to improve performance.
+To suppress this warning, add android.generateSyncIssueWhenLibraryConstraintsAreEnabled=false to gradle.properties
+
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:dataBindingMergeDependencyArtifactsDebug UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:dataBindingGenBaseClassesDebug UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin
+> Task :app:compileDebugKotlin
+w: Experimental context receivers are superseded by context parameters.
+Replace the '-Xcontext-receivers' compiler argument with '-Xcontext-parameters' and migrate to the new syntax.
+
+See the context parameters proposal for more details: https://kotl.in/context-parameters
+This warning will become an error in future releases.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:42:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:49:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:55:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:61:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:68:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:75:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:83:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:103:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:114:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:120:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:126:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:150:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:206:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:213:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:220:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:237:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:244:34 The corresponding parameter in the supertype 'Migration' is named 'db'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/local/AppDatabase.kt:268:18 'fun fallbackToDestructiveMigration(): RoomDatabase.Builder<AppDatabase>' is deprecated. Replace by overloaded version with parameter to indicate if all tables should be dropped or not.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/repo/WalkieTalkieRepository.kt:114:42 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/repo/WalkieTalkieRepository.kt:121:42 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/repo/WalkieTalkieRepository.kt:661:34 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/repo/WalkieTalkieRepository.kt:698:34 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/service/GlyphConnectionService.kt:239:22 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/service/GlyphConnectionService.kt:240:19 'fun onCallAudioStateChanged(p0: CallAudioState!): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/service/GlyphConnectionService.kt:276:17 'fun setAudioRoute(p0: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/service/LiveAudioSharingManager.kt:186:46 'var isSpeakerphoneOn: Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/data/service/LiveAudioSharingManager.kt:499:22 'var isSpeakerphoneOn: Boolean' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/ChatViewModel.kt:154:13 'when' is exhaustive so 'else' is redundant here.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/contactinfo/ChatNotificationsActivity.kt:65:32 'fun <T : Parcelable!> getParcelableExtra(p0: String!): T?' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/contactinfo/ChatNotificationsActivity.kt:75:32 'fun <T : Parcelable!> getParcelableExtra(p0: String!): T?' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat/translation/TranslationToolbarPopup.kt:472:36 The corresponding parameter in the supertype 'Observer' is named 'value'. This may cause problems when calling this function with named arguments.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/liveaudio/LiveAudioIncomingActivity.kt:128:13 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/navigation/MainBottomNavigation.kt:38:5 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/settings/AvatarPreviewActivity.kt:225:12 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/settings/AvatarPreviewActivity.kt:257:20 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/settings/AvatarPreviewActivity.kt:267:17 This declaration overrides a deprecated member but is not marked as deprecated itself. Add the '@Deprecated' annotation or suppress the diagnostic.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/settings/NotificationSettingsActivity.kt:61:19 'fun <T : Parcelable!> getParcelableExtra(p0: String!): T?' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/settings/SettingsFragment.kt:442:27 'fun overridePendingTransition(p0: Int, p1: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/status/LayoutStatusEditorScreen.kt:938:48 'val Icons.Filled.ArrowBack: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Filled.ArrowBack.
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/status/StatusUploadWorker.kt:264:42 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/status/StatusUploadWorker.kt:277:57 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+w: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/status/StatusUploadWorker.kt:292:45 This declaration needs opt-in. Its usage should be marked with '@kotlinx.coroutines.ExperimentalCoroutinesApi' or '@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)'
+
+BUILD SUCCESSFUL in 7m 23s
+21 actionable tasks: 2 executed, 19 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.3.1/userguide/configuration_cache_enabling.html

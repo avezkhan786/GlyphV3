@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="?attr/colorSurface">
+
+    <!-- Icon -->
+    <ImageView
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center_horizontal"
+        android:src="@drawable/ic_ai_agent"
+        android:contentDescription="AI Search"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Title -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/ai_agent_search_consent_title"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="?attr/glyphTextPrimary"
+        android:gravity="center"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Body -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/ai_agent_search_consent_body"
+        android:textSize="14sp"
+        android:textColor="?attr/glyphTextSecondary"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Allow Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnAllow"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="@string/ai_agent_search_consent_allow"
+        android:textAllCaps="false"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Deny Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDeny"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="@string/ai_agent_search_consent_deny"
+        android:textAllCaps="false"
+        style="@style/Widget.Material3.Button.TextButton" />
+
+</LinearLayout>

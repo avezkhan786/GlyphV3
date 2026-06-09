@@ -1,0 +1,246 @@
+# Swipe-to-Reply Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         ChatScreen                               │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                      MessageList                            │ │
+│  │  ┌──────────────────────────────────────────────────────┐  │ │
+│  │  │  SwipeableMessageBubble (wraps MessageBubble)        │  │ │
+│  │  │  ┌────────────────────────────────────────────────┐  │  │ │
+│  │  │  │  📱 Gesture Detection Layer                    │  │  │ │
+│  │  │  │   • detectHorizontalDragGestures               │  │  │ │
+│  │  │  │   • Elastic resistance (80dp → 120dp)          │  │  │ │
+│  │  │  │   • Haptic at threshold                        │  │  │ │
+│  │  │  │   • Spring snap-back animation                 │  │  │ │
+│  │  │  └────────────────────────────────────────────────┘  │  │ │
+│  │  │                        ↓                              │  │ │
+│  │  │  ┌────────────────────────────────────────────────┐  │  │ │
+│  │  │  │  💬 Reply Icon (behind bubble)                 │  │  │ │
+│  │  │  │   • Fade animation (alpha: 0 → 1)              │  │  │ │
+│  │  │  │   • Scale animation (0.7 → 1.1)                │  │  │ │
+│  │  │  │   • GPU-accelerated (graphicsLayer)            │  │  │ │
+│  │  │  └────────────────────────────────────────────────┘  │  │ │
+│  │  │                        ↓                              │  │ │
+│  │  │  ┌────────────────────────────────────────────────┐  │  │ │
+│  │  │  │  MessageBubble (actual content)                │  │  │ │
+│  │  │  │  ┌──────────────────────────────────────────┐  │  │  │ │
+│  │  │  │  │  QuotedReplyPreview (if reply)           │  │  │  │ │
+│  │  │  │  │   ┏━━━┓                                   │  │  │  │ │
+│  │  │  │  │   ┃░░░┃ You                              │  │  │  │ │
+│  │  │  │  │   ┃░░░┃ Original message text...         │  │  │  │ │
+│  │  │  │  │   ┗━━━┛                                   │  │  │  │ │
+│  │  │  │  └──────────────────────────────────────────┘  │  │  │ │
+│  │  │  │  ┌──────────────────────────────────────────┐  │  │  │ │
+│  │  │  │  │  Text/Media Content                      │  │  │  │ │
+│  │  │  │  │  This is my reply message                │  │  │  │ │
+│  │  │  │  │                            ✓✓ 10:30 AM   │  │  │  │ │
+│  │  │  │  └──────────────────────────────────────────┘  │  │  │ │
+│  │  │  └────────────────────────────────────────────────┘  │  │ │
+│  │  └──────────────────────────────────────────────────────┘  │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                     ChatInput                               │ │
+│  │  ┌──────────────────────────────────────────────────────┐  │ │
+│  │  │  AnimatedVisibility (slideInVertically/Out)          │  │ │
+│  │  │  ┌────────────────────────────────────────────────┐  │  │ │
+│  │  │  │  ReplyPreview (when replyToMessage != null)    │  │  │ │
+│  │  │  │  ┏━━━┓                                          │  │  │ │
+│  │  │  │  ┃░░░┃ Replying to them                        │  │  │ │
+│  │  │  │  ┃░░░┃ 📷 Photo                        ❌      │  │  │ │
+│  │  │  │  ┗━━━┛                                          │  │  │ │
+│  │  │  └────────────────────────────────────────────────┘  │  │ │
+│  │  │  ↕ Slide animation (250ms in, 200ms out)            │  │ │
+│  │  └──────────────────────────────────────────────────────┘  │ │
+│  │  ┌──────────────────────────────────────────────────────┐  │ │
+│  │  │  Input Container (pill shape)                        │  │ │
+│  │  │  [+] [ Message_____________ ] [😊] [🎤/📤]          │  │ │
+│  │  └──────────────────────────────────────────────────────┘  │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                       ChatViewModel                              │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │  ChatUiState                                                │ │
+│  │   • replyToMessage: Message? = null                        │ │
+│  │   • inputText: String                                      │ │
+│  │   • messages: List<ChatListItem>                           │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                                                                   │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │  User Actions                                               │ │
+│  │   • onReply(message) → set replyToMessage                  │ │
+│  │   • onCancelReply() → clear replyToMessage                 │ │
+│  │   • onSendMessage(text) → create with reply metadata       │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                      Message Data Model                          │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │  Message(                                                   │ │
+│  │    id: String,                                              │ │
+│  │    text: String,                                            │ │
+│  │    // ... existing fields                                   │ │
+│  │                                                              │ │
+│  │    // ✨ Reply metadata                                     │ │
+│  │    replyToMessageId: String? = null,                       │ │
+│  │    replyToText: String? = null,                            │ │
+│  │    replyToSenderId: String? = null,                        │ │
+│  │    replyToType: MessageType? = null                        │ │
+│  │  )                                                           │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                    Firebase Firestore                            │
+│  messages/{messageId}                                            │
+│   {                                                              │
+│     "id": "msg123",                                              │
+│     "text": "This is my reply",                                  │
+│     "replyToMessageId": "msg456",                               │
+│     "replyToText": "Original message text",                     │
+│     "replyToSenderId": "+1234567890",                           │
+│     "replyToType": "TEXT"                                        │
+│   }                                                              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Component Flow
+
+```
+User swipes right on message
+         ↓
+SwipeableMessageBubbleWrapper detects gesture
+         ↓
+Reply icon fades/scales in (0-80dp)
+         ↓
+[Haptic feedback at 80dp threshold]
+         ↓
+User releases (≥80dp)
+         ↓
+onReply() callback fires
+         ↓
+ViewModel updates: replyToMessage = swipedMessage
+         ↓
+ChatInput receives new state
+         ↓
+AnimatedVisibility slides ReplyPreview UP (250ms)
+         ↓
+User types message
+         ↓
+User clicks send button
+         ↓
+ViewModel creates Message with reply metadata
+         ↓
+replyToMessage cleared
+         ↓
+AnimatedVisibility slides ReplyPreview DOWN (200ms)
+         ↓
+Message rendered with QuotedReplyPreview inside bubble
+```
+
+## Animation Timeline
+
+```
+SWIPE GESTURE (0-120dp, continuous)
+├─ 0dp:    Icon alpha=0, scale=0.7
+├─ 40dp:   Icon alpha=0.5, scale=0.85
+├─ 80dp:   Icon alpha=1, scale=1.0 [HAPTIC] 🔔
+├─ 100dp:  Icon alpha=1, scale=1.1 (overshoot)
+└─ 120dp:  Max swipe (elastic resistance)
+
+RELEASE (spring animation, ~400ms)
+└─ Offset animates 120dp → 0dp (bouncy)
+
+REPLY PREVIEW (slide animation)
+├─ SHOW: slideInVertically + fadeIn (250ms)
+└─ HIDE: slideOutVertically + fadeOut (200ms)
+```
+
+## Data Flow
+
+```
+┌──────────┐
+│  Swipe   │──────┐
+└──────────┘      │
+                  ↓
+┌──────────┐   ┌─────────────┐   ┌──────────────┐
+│  onReply │──→│  ViewModel  │──→│   UiState    │
+└──────────┘   └─────────────┘   └──────────────┘
+                                          ↓
+┌──────────┐   ┌─────────────┐   ┌──────────────┐
+│ onSend   │──→│ sendMessage │──→│   Message    │
+└──────────┘   └─────────────┘   │  +metadata   │
+                                  └──────────────┘
+                                          ↓
+                                  ┌──────────────┐
+                                  │  Firestore   │
+                                  └──────────────┘
+```
+
+## Performance Optimizations
+
+```
+✅ GPU Acceleration
+   • graphicsLayer for icon animations
+   • translationX for swipe offset
+   
+✅ State Management
+   • remember for animatables
+   • derivedStateOf for computed values
+   
+✅ Gesture Optimization
+   • pointerInput key on isSelectionMode
+   • Prevents re-creation on every recompose
+   
+✅ No Recomposition Overhead
+   • Stable callbacks
+   • Isolated animation state
+   • LaunchedEffect for side effects
+```
+
+## File Structure
+
+```
+ChatScreen.kt
+├─ ChatScreen() [Entry point]
+├─ MessageList()
+├─ SwipeableMessageBubble() [Uses SwipeToReplyComponents]
+├─ MessageBubble()
+│  ├─ TextMessageBubble() + QuotedReplyPreview
+│  └─ MediaMessageBubble() + QuotedReplyPreview
+├─ ChatInput() + ReplyPreview
+└─ ... other composables
+
+SwipeToReplyComponents.kt
+└─ SwipeableMessageBubbleWrapper() [Gesture handler]
+
+QuotedReplyComponents.kt
+├─ QuotedReplyPreview() [In-bubble preview]
+├─ Message.hasReplyMetadata() [Helper]
+└─ Message.RenderQuotedPreviewIfExists() [Helper]
+
+Message.kt
+└─ Message data class [+4 reply fields]
+
+ChatViewModel.kt
+├─ ChatUiState [+replyToMessage field]
+└─ sendMessage() [Captures reply metadata]
+```
+
+## Testing Matrix
+
+| Action | Expected Behavior |
+|--------|-------------------|
+| Swipe 0-79dp | Icon fades in proportionally |
+| Swipe 80dp | Haptic fires, icon scale 1.1 |
+| Release < 80dp | Snaps back, no reply |
+| Release ≥ 80dp | Triggers reply, shows preview |
+| Click dismiss | Clears reply, preview slides out |
+| Send message | Saves reply metadata, clears state |
+| Render sent | Shows quoted preview in bubble |
+| Swipe in selection mode | Gesture disabled |
+| Long press | Triggers selection (unchanged) |

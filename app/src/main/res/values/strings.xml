@@ -1,0 +1,152 @@
+<resources>
+    <string name="app_name">Glyph-V3</string>
+
+    <!-- Chat settings / wallpapers -->
+    <string name="chat_settings_title">Chats</string>
+    <string name="chat_settings_wallpapers_title">Wallpapers</string>
+    <string name="chat_settings_wallpapers_subtitle">Choose a chat wallpaper for your current theme</string>
+    <string name="wallpapers_title">Wallpapers</string>
+    <string name="wallpaper_thumbnail">Wallpaper thumbnail</string>
+    <string name="action_apply">Apply</string>
+
+    <!-- Chat input -->
+    <string name="chat_input_attachment_desc">Attachment</string>
+    <string name="chat_input_hint">Message</string>
+    <string name="chat_input_emoji_desc">Emoji</string>
+    <string name="chat_input_camera_desc">Camera</string>
+    <string name="chat_input_send_desc">Send</string>
+    
+    <!-- Presence Status -->
+    <string name="status_online">Online</string>
+    <string name="status_online_in_chat">Online · in chat</string>
+    <string name="status_offline">offline</string>
+    <string name="last_seen_just_now">last seen just now</string>
+    <string name="last_seen_today_at">last seen today at %1$s</string>
+    <string name="last_seen_yesterday_at">last seen yesterday at %1$s</string>
+    <string name="last_seen_on">last seen %1$s</string>
+    
+    <plurals name="last_seen_minutes_ago">
+        <item quantity="one">last seen %1$d minute ago</item>
+        <item quantity="other">last seen %1$d minutes ago</item>
+    </plurals>
+    <string name="search_contacts_placeholder">Search contacts or phone number</string>
+
+    <!-- Invite flow -->
+    <string name="invite_dialog_title">Invite %1$s</string>
+    <string name="invite_send_sms">Send SMS</string>
+    <string name="invite_share">Share…</string>
+    <string name="invite_no_apps">No apps available to send or share an invite.</string>
+    <string name="invite_dialog_subtitle">They\'re not on Glyph yet. Send a quick invite?</string>
+    <string name="action_not_now">Not now</string>
+    <string name="invite_message">Hey — I\'m on Glyph! Join me on Glyph. Download: %1$s</string>
+    <string name="edited_timestamp">Edited · %1$s</string>
+    <string name="translated_show_original">Translated · Show original</string>
+    <string name="show_translation">Show translation</string>
+    <string name="translating">Translating…</string>
+    <string name="auto_translate">Auto-Translate</string>
+    <string name="auto_translate_enabled">Auto-translate enabled (%1$s)</string>
+    <string name="auto_translate_disabled">Auto-translate disabled</string>
+    <string name="select_language">Select language</string>
+    <string name="avatar_preview">Avatar Preview</string>
+
+    <!-- Voice / Video Call UI -->
+    <string name="call_status_connecting">Connecting &#8230;</string>
+    <string name="call_status_calling">Calling &#8230;</string>
+    <string name="call_status_ringing">Ringing &#8230;</string>
+    <string name="call_status_connected">Connected</string>
+    <string name="call_status_connected_duration">Connected &#183; %1$s</string>
+    <string name="calls_title">Calls</string>
+    <string name="calls_search">Search</string>
+    <string name="calls_more_options">More options</string>
+    <string name="calls_call">Call</string>
+    <string name="calls_schedule">Schedule</string>
+    <string name="calls_keypad">Keypad</string>
+    <string name="calls_favorites">Favorites</string>
+    <string name="calls_recent">Recent</string>
+    <string name="calls_new_call">Start a new call</string>
+    <string name="calls_redial">Redial</string>
+    <string name="calls_contact_avatar">Contact avatar</string>
+    <string name="calls_empty_title">Your call history will appear here</string>
+    <string name="calls_empty_subtitle">Start a voice or video call and recent calls will show up in realtime.</string>
+    <string name="calls_empty_search_title">No calls found</string>
+    <string name="calls_empty_search_subtitle">Try a different name or clear the search filter.</string>
+    <string name="calls_search_title">Search calls</string>
+    <string name="calls_search_hint">Search by contact name</string>
+    <string name="calls_menu_refresh">Refresh</string>
+    <string name="calls_menu_clear_search">Clear search</string>
+    <string name="calls_favorites_coming_soon">Favorites will appear here once starred contacts are supported.</string>
+    <string name="calls_favorites_add_people_or_groups">Add people or groups</string>
+    <string name="calls_favorites_info_line_one">Favorite your contacts or groups to instantly call them with one tap, just like speed dial.</string>
+    <string name="calls_favorites_info_line_two">You can edit favorites here or reorder how they appear on the Calls and Chats tabs.</string>
+    <string name="calls_favorites_added">Added to favorites</string>
+    <string name="calls_favorites_removed">Removed from favorites</string>
+    <string name="calls_favorites_edit">Edit favorites</string>
+    <string name="calls_favorites_reorder">Reorder favorite</string>
+    <string name="calls_favorites_remove">Remove favorite</string>
+    <string name="calls_voice_call_favorite">Voice call favorite</string>
+    <string name="calls_video_call_favorite">Video call favorite</string>
+    <string name="calls_message_favorite">Message favorite</string>
+    <string name="calls_remove_favorite">Remove favorite</string>
+    <string name="calls_voice_call">Voice call</string>
+    <string name="calls_video_call">Video call</string>
+    <string name="calls_message">Message</string>
+    <string name="calls_schedule_default_title">Scheduled call</string>
+    <string name="calls_no_calendar_app">No calendar app is available.</string>
+    <string name="calls_no_dialer_app">No dialer app is available.</string>
+    <string name="calls_start_call_with">Call %1$s</string>
+    <string name="calls_unknown_contact">Unknown</string>
+    <string-array name="calls_call_type_options">
+        <item>Voice call</item>
+        <item>Video call</item>
+    </string-array>
+    <string name="calls_another_call_active">Finish the current call before starting another one.</string>
+    <string name="calls_unable_to_start">Unable to start the call right now.</string>
+    <string name="calls_name_with_count">%1$s (%2$d)</string>
+    <string name="calls_select_contact_title">Select Contact</string>
+    <string name="calls_select_chat_contact_title">Select Contact</string>
+    <string name="calls_only_registered_contacts">Only Glyph contacts can be called.</string>
+    <string name="calls_selection_delete">Delete</string>
+    <string name="calls_selection_favorite">Add to favorites</string>
+    <string name="calls_selection_more">More options</string>
+    <string name="calls_delete_title">Delete call records?</string>
+    <string name="calls_delete_message">The selected call records will be permanently deleted.</string>
+    <string name="calls_delete_confirm">Delete</string>
+    <string name="calls_menu_select_all">Select all</string>
+    <string name="action_search">Search</string>
+    <string name="action_clear">Clear</string>
+
+    <!-- AI Agent -->
+    <string name="ai_agent_title">Glyph AI</string>
+    <string name="ai_mode_chat">Chat</string>
+    <string name="ai_mode_search">Search</string>
+    <string name="ai_mode_app">App Help</string>
+    <string name="ai_agent_input_hint">Ask Glyph AI anything…</string>
+    <string name="ai_agent_thinking">Thinking…</string>
+    <string name="ai_agent_sources">Sources</string>
+    <string name="ai_agent_clear_history">Clear conversation</string>
+    <string name="ai_agent_clear_confirm">Delete all AI conversation history?</string>
+    <string name="ai_agent_search_consent_title">Search Your Chats</string>
+    <string name="ai_agent_search_consent_body">Glyph AI will read your message history to find relevant results. Your data is processed securely and never shared. You can revoke access anytime in Settings.</string>
+    <string name="ai_agent_search_consent_allow">Allow</string>
+    <string name="ai_agent_search_consent_deny">Not Now</string>
+    <string name="ai_agent_empty_chat">Ask me anything! I can chat, search your messages, or help you with the app.</string>
+    <string name="ai_agent_copied">Copied to clipboard</string>
+    <string name="ai_agent_history_cleared">Conversation cleared</string>
+
+    <!-- Share sheet / ShareTargetActivity -->
+    <string name="share_send_to_title">Send to…</string>
+    <string name="share_registered_only_hint">This contact hasn\'t joined Glyph yet.</string>
+    <string name="contacts_permission_required">Permission is required to find your contacts.</string>
+    <string name="share_confirm_action">Send</string>
+    <string name="share_contact_selected">Selected contact</string>
+    <string name="share_selection_count">%1$d selected</string>
+    <string name="share_select_recipient_hint">Select at least one contact.</string>
+    <string name="share_sent_to_multiple">Shared with %1$d chats.</string>
+    <string name="share_sending_failed">Couldn\'t share to one or more chats.</string>
+    <string name="error_not_logged_in">Please sign in to continue.</string>
+    <string name="share_preview_loading">Loading preview…</string>
+    <string name="share_preview_unknown_title">Shared link</string>
+    <string name="share_recipients_placeholder">Select a contact</string>
+    <string name="share_send_fab_desc">Send shared content</string>
+    <string name="share_preview_close">Remove preview</string>
+</resources>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WhatsApp-style Chat Row Item - Flat design, NO cards -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="9dp">
+
+    <!-- Avatar Container with Online Indicator - 48dp as per WhatsApp -->
+    <FrameLayout
+        android:id="@+id/avatarContainer"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- Circular Profile Photo - 48dp -->
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivAvatar"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_avatar_circle"
+            android:contentDescription="@string/app_name"
+            android:scaleType="centerCrop"
+            app:shapeAppearanceOverlay="@style/CircularImageView"
+            tools:src="@drawable/ic_default_avatar" />
+
+        <!-- Avatar Initial Letter (shown when no image) -->
+        <TextView
+            android:id="@+id/tvAvatarInitial"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="J"
+            tools:visibility="visible" />
+
+        <!-- Online Indicator - positioned at bottom-end -->
+        <View
+            android:id="@+id/onlineIndicator"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_gravity="bottom|end"
+            android:background="@drawable/bg_online_indicator"
+            android:elevation="2dp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+    </FrameLayout>
+
+    <!-- Username - Medium weight, 16sp -->
+    <TextView
+        android:id="@+id/tvUsername"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="8dp"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:textColor="?android:attr/textColorPrimary"
+            android:textSize="16.5sp"
+            app:layout_constraintBottom_toTopOf="@+id/messageStatusContainer"
+            app:layout_constraintEnd_toStartOf="@+id/tvTimestamp"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintStart_toEndOf="@+id/avatarContainer"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_chainStyle="packed"
+            app:layout_constraintVertical_bias="0"
+            tools:text="John Doe" />
+
+    <!-- Timestamp - 12sp, aligned right -->
+    <TextView
+        android:id="@+id/tvTimestamp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="?attr/glyphTextTertiary"
+        android:textSize="12sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/tvUsername"
+        tools:text="10:45 AM" />
+
+    <!-- Message Status + Preview Container -->
+    <LinearLayout
+        android:id="@+id/messageStatusContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="8dp"
+        android:baselineAligned="true"
+        android:baselineAlignedChildIndex="2"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/badgeUnread"
+        app:layout_constraintStart_toStartOf="@+id/tvUsername"
+        app:layout_constraintTop_toBottomOf="@+id/tvUsername">
+
+        <!-- Message Status Icon (✓ sent, ✓✓ delivered, ✓✓ blue read) -->
+        <ImageView
+            android:id="@+id/ivMessageStatus"
+            android:layout_width="15dp"
+            android:layout_height="15dp"
+            android:layout_marginEnd="6dp"
+            android:visibility="gone"
+            app:tint="?attr/glyphTextSecondary"
+            tools:src="@drawable/ic_double_check"
+            tools:visibility="visible" />
+
+        <!-- Draft Label (shown for drafts) -->
+        <TextView
+            android:id="@+id/tvDraftLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            android:text="Draft:"
+            android:textColor="?attr/glyphTextSecondary"
+            android:textSize="13sp"
+            android:visibility="gone"
+            tools:visibility="gone" />
+
+        <!-- Last Message Preview - Single line with ellipsis -->
+        <TextView
+            android:id="@+id/tvLastMessage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="?attr/glyphTextSecondary"
+            android:textSize="14sp"
+            tools:text="Hey, are we still meeting today?" />
+
+    </LinearLayout>
+
+    <!-- Unread Badge - Circular, WhatsApp green, 20dp -->
+    <TextView
+        android:id="@+id/badgeUnread"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:background="@drawable/bg_whatsapp_unread_badge"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:textColor="@android:color/white"
+        android:textSize="11sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/messageStatusContainer"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/messageStatusContainer"
+        tools:text="3"
+        tools:visibility="visible" />
+
+    <!-- Divider at bottom (WhatsApp style - starts after avatar) -->
+    <View
+        android:id="@+id/divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="10dp"
+        android:alpha="0.08"
+        android:background="?attr/glyphDivider"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/avatarContainer"
+        app:layout_constraintHorizontal_bias="0"
+        android:layout_marginStart="16dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

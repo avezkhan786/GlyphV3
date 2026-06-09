@@ -1,0 +1,1091 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <!-- Wallpaper Image -->
+    <ImageView
+        android:id="@+id/ivChatWallpaper"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <!-- Google Maps Background (Compose) -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/mapBackgroundView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Wallpaper Dimming Overlay -->
+    <View
+        android:id="@+id/wallpaperDimmingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#000000"
+        android:alpha="0.0" />
+
+    <!-- AppBar with Custom Chat Header -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/glyphToolbarBackground"
+        android:stateListAnimator="@null"
+        app:elevation="0dp">
+
+        <FrameLayout
+            android:id="@+id/headerContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- Compose Header Container -->
+            <androidx.compose.ui.platform.ComposeView
+                android:id="@+id/composeHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top"
+                android:visibility="gone" />
+
+            <!-- Custom Toolbar with User Info (Legacy XML) -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/toolbarContainer"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:paddingEnd="4dp">
+
+            <!-- Back Arrow -->
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="41dp"
+                android:layout_height="41dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_arrow_back"
+                android:contentDescription="Back"
+                app:tint="?android:attr/textColorPrimary"
+                android:padding="4dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                android:layout_marginStart="4dp" />
+
+            <!-- Profile Picture -->
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/ivProfilePicture"
+                android:layout_width="41dp"
+                android:layout_height="41dp"
+                android:layout_marginStart="-6dp"
+                android:background="@drawable/bg_avatar_circle"
+                android:contentDescription="Profile Picture"
+                android:scaleType="centerCrop"
+                app:shapeAppearanceOverlay="@style/CircularImageView"
+                app:layout_constraintStart_toEndOf="@id/btnBack"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                tools:src="@drawable/ic_default_avatar" />
+
+            <TextView
+                android:id="@+id/tvProfilePictureInitial"
+                android:layout_width="41dp"
+                android:layout_height="41dp"
+                android:layout_marginStart="-6dp"
+                android:gravity="center"
+                android:text="?"
+                android:textColor="?android:attr/textColorPrimaryInverse"
+                android:textSize="18sp"
+                android:fontFamily="sans-serif-medium"
+                android:visibility="gone"
+                app:layout_constraintStart_toEndOf="@id/btnBack"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                tools:visibility="visible" />
+
+            <!-- User Name -->
+            <TextView
+                android:id="@+id/tvUserName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="8dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textSize="16sp"
+                android:fontFamily="sans-serif-medium"
+                app:layout_constraintStart_toEndOf="@id/ivProfilePicture"
+                app:layout_constraintEnd_toStartOf="@id/btnVideoCall"
+                app:layout_constraintTop_toTopOf="@id/ivProfilePicture"
+                app:layout_constraintBottom_toTopOf="@id/tvLastSeen"
+                app:layout_constraintVertical_chainStyle="packed"
+                tools:text="John Doe" />
+
+            <!-- Last Seen / Online Status -->
+            <TextView
+                android:id="@+id/tvLastSeen"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:scrollHorizontally="true"
+                android:textColor="?android:attr/textColorSecondary"
+                android:textSize="12sp"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="@id/tvUserName"
+                app:layout_constraintEnd_toStartOf="@id/btnVideoCall"
+                app:layout_constraintTop_toBottomOf="@id/tvUserName"
+                app:layout_constraintBottom_toBottomOf="@id/ivProfilePicture"
+                tools:text="online"
+                tools:visibility="visible" />
+
+            <!-- Video Call Button -->
+            <ImageButton
+                android:id="@+id/btnVideoCall"
+                android:layout_width="33dp"
+                android:layout_height="33dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_videocam"
+                android:contentDescription="Video Call"
+                android:padding="8dp"
+                app:tint="?attr/glyphScrollFabIcon"
+                app:layout_constraintEnd_toStartOf="@id/btnVoiceCall"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <!-- Voice Call Button -->
+            <ImageButton
+                android:id="@+id/btnVoiceCall"
+                android:layout_width="33dp"
+                android:layout_height="33dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_call"
+                android:contentDescription="Voice Call"
+                android:padding="8dp"
+                app:tint="?attr/glyphScrollFabIcon"
+                app:layout_constraintEnd_toStartOf="@id/btnMenu"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <!-- Menu Button -->
+            <ImageButton
+                android:id="@+id/btnMenu"
+                android:layout_width="33dp"
+                android:layout_height="33dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_more_vert"
+                android:contentDescription="Menu"
+                android:padding="8dp"
+                app:tint="?attr/glyphScrollFabIcon"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <include
+                android:id="@+id/selectionToolbar"
+                layout="@layout/layout_selection_toolbar"
+                android:visibility="gone" />
+
+        </FrameLayout>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Live Location Banner — OUTSIDE chatContentContainer so it stays visible in interactive mode -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/liveLocationBannerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:elevation="15dp"
+        android:visibility="gone"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <!-- Routing Info Banner — below live location banner, shows distance/ETA/duration during navigation -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/routingInfoBannerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:elevation="15dp"
+        android:visibility="gone"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <!-- Pinned Messages Banner — slides in below header, floats above chat content -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/pinnedMessageBannerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:elevation="12dp"
+        android:visibility="gone"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <!-- Content area with RecyclerView and Input -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/chatContentContainer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <!-- Messages RecyclerView -->
+
+        <!-- Empty Chat Overlay (Lottie + text) — shown when no messages -->
+        <FrameLayout
+            android:id="@+id/emptyChatOverlay"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:gravity="center"
+            app:layout_constraintBottom_toTopOf="@id/typingBarrier"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:paddingHorizontal="32dp">
+
+                <com.airbnb.lottie.LottieAnimationView
+                    android:id="@+id/lottieEmptyChat"
+                    android:layout_width="220dp"
+                    android:layout_height="220dp"
+                    app:lottie_fileName="start_chat.lottie"
+                    app:lottie_autoPlay="true"
+                    app:lottie_loop="true" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="No messages yet"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="?android:attr/textColorPrimary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Say hi and start the conversation 👋"
+                    android:textSize="14sp"
+                    android:textColor="?android:attr/textColorSecondary" />
+
+            </LinearLayout>
+        </FrameLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewMessages"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="invisible"
+            android:clickable="true"
+            android:focusable="true"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:nestedScrollingEnabled="false"
+            android:overScrollMode="ifContentScrolls"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:scrollbars="none"
+            app:layout_constraintBottom_toTopOf="@id/typingBarrier"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.0"
+            tools:listitem="@layout/item_message_outgoing" />
+
+        <View
+            android:id="@+id/quickReplyTouchShield"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            android:background="@android:color/transparent"
+            android:clickable="true"
+            android:focusable="false"
+            app:layout_constraintBottom_toBottomOf="@id/recyclerViewMessages"
+            app:layout_constraintEnd_toEndOf="@id/recyclerViewMessages"
+            app:layout_constraintStart_toStartOf="@id/recyclerViewMessages"
+            app:layout_constraintTop_toTopOf="@id/recyclerViewMessages" />
+
+        <View
+            android:id="@+id/messageOverlayFade"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:visibility="gone"
+            android:background="@drawable/bg_map_message_overlay_fade"
+            android:clickable="false"
+            android:focusable="false"
+            android:elevation="6dp"
+            app:layout_constraintStart_toStartOf="@id/recyclerViewMessages"
+            app:layout_constraintEnd_toEndOf="@id/recyclerViewMessages"
+            app:layout_constraintTop_toTopOf="@id/recyclerViewMessages" />
+
+        <androidx.constraintlayout.widget.Barrier
+            android:id="@+id/typingBarrier"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:barrierDirection="top"
+            app:constraint_referenced_ids="layoutTypingIndicator,layoutInput,layoutBlockedBanner" />
+
+        <!-- Typing Indicator -->
+        <LinearLayout
+            android:id="@+id/layoutTypingIndicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:layout_marginBottom="8dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_typing_indicator"
+            android:visibility="gone"
+            android:elevation="4dp"
+            app:layout_constraintBottom_toTopOf="@id/layoutInput"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <TextView
+                android:id="@+id/tvTyping"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="typing..."
+                android:textSize="12sp"
+                android:textColor="@color/glyph_text_secondary"
+                android:textStyle="italic"/>
+        </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/fabScrollToBottom"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginEnd="12dp"
+            android:layout_marginBottom="14dp"
+            android:visibility="invisible"
+            android:alpha="0"
+            android:scaleX="0.9"
+            android:scaleY="0.9"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="Scroll to bottom"
+            app:cardBackgroundColor="?attr/glyphScrollFabBackground"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="8dp"
+            app:cardUseCompatPadding="false"
+            app:strokeColor="?attr/glyphScrollFabBorder"
+            app:strokeWidth="1dp"
+            app:rippleColor="?attr/glyphRipple"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/typingBarrier">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/scrollFabContent"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@android:color/transparent">
+
+                <!-- Center icon for perfect circular state -->
+                <ImageView
+                    android:id="@+id/ivScrollFabIconCenter"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="Scroll down"
+                    android:src="@drawable/ic_double_arrow_down"
+                    app:tint="?attr/glyphScrollFabIcon"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <!-- Expanded content (icon + compact gap + label) -->
+                <ImageView
+                    android:id="@+id/ivScrollFabIconStart"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="12dp"
+                    android:alpha="0"
+                    android:visibility="gone"
+                    android:contentDescription="Scroll down"
+                    android:src="@drawable/ic_double_arrow_down"
+                    app:tint="?attr/glyphScrollFabIcon"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/tvScrollFabLabel"
+                    app:layout_constraintHorizontal_chainStyle="packed" />
+
+                <TextView
+                    android:id="@+id/tvScrollFabLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_marginEnd="12dp"
+                    android:alpha="0"
+                    android:visibility="gone"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="?attr/glyphTextSecondary"
+                    android:textSize="13sp"
+                    android:fontFamily="sans-serif-medium"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/ivScrollFabIconStart"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    tools:text="3 New messages" />
+
+                <TextView
+                    android:id="@+id/tvScrollFabUnreadBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="20dp"
+                    android:minWidth="20dp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginEnd="4dp"
+                    android:background="@drawable/bg_whatsapp_unread_badge"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:paddingStart="5dp"
+                    android:paddingEnd="5dp"
+                    android:textColor="?attr/glyphScrollFabIcon"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:text="3" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <include
+            android:id="@+id/layoutBlockedBanner"
+            layout="@layout/layout_blocked_banner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <!-- Interactive Map Button -->
+        <androidx.compose.ui.platform.ComposeView
+            android:id="@+id/interactiveMapButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:layout_constraintBottom_toTopOf="@id/layoutInput"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginBottom="8dp"
+            android:elevation="20dp"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:visibility="gone" />
+
+        <!-- Input Area - Fixed at bottom -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layoutInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/transparent"
+            android:elevation="0dp"
+            android:paddingStart="8dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="8dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <androidx.compose.ui.platform.ComposeView
+                android:id="@+id/composeInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <!-- Input pill (WhatsApp-like) -->
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/inputPill"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chat_input_themed"
+                android:minHeight="@dimen/chat_input_height"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:layout_marginEnd="3dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/btnSend"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <!-- Edit Preview - Inside Input Pill -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/editPreviewCard"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    android:alpha="0"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="4dp"
+                    app:cardBackgroundColor="?attr/glyphSurfaceVariant"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:cardPreventCornerOverlap="false"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toTopOf="@id/inputRow">
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="10dp">
+
+                        <!-- Accent Bar -->
+                        <View
+                            android:id="@+id/editAccentBar"
+                            android:layout_width="3dp"
+                            android:layout_height="0dp"
+                            android:background="?attr/colorPrimary"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                        <!-- Edit Content -->
+                        <LinearLayout
+                            android:id="@+id/editContent"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginEnd="8dp"
+                            android:orientation="vertical"
+                            app:layout_constraintStart_toEndOf="@id/editAccentBar"
+                            app:layout_constraintEnd_toStartOf="@id/btnCancelEdit"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent">
+
+                            <TextView
+                                android:id="@+id/tvEditLabel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Editing message"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvEditText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:ellipsize="end"
+                                android:maxLines="2"
+                                android:text=""
+                                android:textColor="?attr/glyphTextPrimary"
+                                android:textSize="13sp" />
+
+                        </LinearLayout>
+
+                        <!-- Cancel Button -->
+                        <ImageButton
+                            android:id="@+id/btnCancelEdit"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Cancel Edit"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_close"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:tint="?attr/glyphIconSecondary" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                <!-- Reply Preview - Inside Input Pill -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/replyPreviewCard"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    android:alpha="0"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="4dp"
+                    app:cardBackgroundColor="?attr/glyphSurfaceVariant"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:cardPreventCornerOverlap="false"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toTopOf="@id/inputRow">
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="10dp">
+
+                        <!-- Accent Bar -->
+                        <View
+                            android:id="@+id/replyAccentBar"
+                            android:layout_width="3dp"
+                            android:layout_height="0dp"
+                            android:background="?attr/colorPrimary"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                        <!-- Media Thumbnail Container (for single image/video or stacked collage) -->
+                        <FrameLayout
+                            android:id="@+id/replyThumbnailContainer"
+                            android:layout_width="wrap_content"
+                            android:layout_height="36dp"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginEnd="8dp"
+                            android:visibility="gone"
+                            app:layout_constraintStart_toEndOf="@id/replyAccentBar"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent">
+
+                            <!-- Single image thumbnail -->
+                            <com.google.android.material.imageview.ShapeableImageView
+                                android:id="@+id/ivReplyThumbnail"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:scaleType="centerCrop"
+                                android:visibility="gone"
+                                android:background="@android:color/transparent"
+                                app:shapeAppearanceOverlay="@style/RoundedCornerImageView" />
+
+                            <!-- Stacked collage thumbnails (up to 4) -->
+                            <com.google.android.material.imageview.ShapeableImageView
+                                android:id="@+id/ivReplyThumbnail1"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:layout_marginStart="0dp"
+                                android:scaleType="centerCrop"
+                                android:visibility="gone"
+                                android:background="@android:color/transparent"
+                                android:elevation="4dp"
+                                app:strokeColor="?attr/glyphSurfaceVariant"
+                                app:strokeWidth="1.5dp"
+                                app:shapeAppearanceOverlay="@style/RoundedCornerImageView" />
+
+                            <com.google.android.material.imageview.ShapeableImageView
+                                android:id="@+id/ivReplyThumbnail2"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:layout_marginStart="8dp"
+                                android:scaleType="centerCrop"
+                                android:visibility="gone"
+                                android:background="@android:color/transparent"
+                                android:elevation="3dp"
+                                app:strokeColor="?attr/glyphSurfaceVariant"
+                                app:strokeWidth="1.5dp"
+                                app:shapeAppearanceOverlay="@style/RoundedCornerImageView" />
+
+                            <com.google.android.material.imageview.ShapeableImageView
+                                android:id="@+id/ivReplyThumbnail3"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:layout_marginStart="16dp"
+                                android:scaleType="centerCrop"
+                                android:visibility="gone"
+                                android:background="@android:color/transparent"
+                                android:elevation="2dp"
+                                app:strokeColor="?attr/glyphSurfaceVariant"
+                                app:strokeWidth="1.5dp"
+                                app:shapeAppearanceOverlay="@style/RoundedCornerImageView" />
+
+                            <com.google.android.material.imageview.ShapeableImageView
+                                android:id="@+id/ivReplyThumbnail4"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:layout_marginStart="24dp"
+                                android:scaleType="centerCrop"
+                                android:visibility="gone"
+                                android:background="@android:color/transparent"
+                                android:elevation="1dp"
+                                app:strokeColor="?attr/glyphSurfaceVariant"
+                                app:strokeWidth="1.5dp"
+                                app:shapeAppearanceOverlay="@style/RoundedCornerImageView" />
+
+                        </FrameLayout>
+
+                        <!-- Reply Content -->
+                        <LinearLayout
+                            android:id="@+id/replyContent"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginEnd="8dp"
+                            android:orientation="vertical"
+                            app:layout_constraintStart_toEndOf="@id/replyThumbnailContainer"
+                            app:layout_constraintEnd_toStartOf="@id/btnCancelReply"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent">
+
+                            <TextView
+                                android:id="@+id/tvReplyUsername"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Replying to User"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvReplyText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:ellipsize="end"
+                                android:maxLines="2"
+                                android:text="Preview message text"
+                                android:textColor="?attr/glyphTextPrimary"
+                                android:textSize="13sp" />
+
+                        </LinearLayout>
+
+                        <!-- Cancel Button -->
+                        <ImageButton
+                            android:id="@+id/btnCancelReply"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Cancel Reply"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_close"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:tint="?attr/glyphIconSecondary" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/shareLinkPreviewCard"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="4dp"
+                    app:cardBackgroundColor="?attr/glyphSurfaceVariant"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:cardPreventCornerOverlap="false"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toTopOf="@id/inputRow">
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:padding="10dp">
+
+                        <View
+                            android:id="@+id/sharePreviewAccentBar"
+                            android:layout_width="3dp"
+                            android:layout_height="0dp"
+                            android:background="?attr/colorPrimary"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent" />
+
+                        <com.google.android.material.imageview.ShapeableImageView
+                            android:id="@+id/ivShareLinkPreviewThumbnail"
+                            android:layout_width="52dp"
+                            android:layout_height="52dp"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginEnd="10dp"
+                            android:background="?attr/glyphImagePlaceholder"
+                            android:scaleType="centerCrop"
+                            android:visibility="gone"
+                            app:layout_constraintStart_toEndOf="@id/sharePreviewAccentBar"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:shapeAppearanceOverlay="@style/RoundedCornerImageView" />
+
+                        <LinearLayout
+                            android:id="@+id/shareLinkPreviewContent"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="10dp"
+                            android:layout_marginEnd="8dp"
+                            android:orientation="vertical"
+                            app:layout_constraintStart_toEndOf="@id/ivShareLinkPreviewThumbnail"
+                            app:layout_constraintEnd_toStartOf="@id/btnDismissShareLinkPreview"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent">
+
+                            <TextView
+                                android:id="@+id/tvShareLinkPreviewTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:ellipsize="end"
+                                android:maxLines="2"
+                                android:textColor="?attr/glyphTextPrimary"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                tools:text="La trampa que concibió Irán" />
+
+                            <TextView
+                                android:id="@+id/tvShareLinkPreviewDomain"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="3dp"
+                                android:ellipsize="end"
+                                android:maxLines="1"
+                                android:textColor="?attr/colorPrimary"
+                                android:textSize="12sp"
+                                tools:text="youtube.com" />
+
+                            <TextView
+                                android:id="@+id/tvShareLinkPreviewUrl"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:ellipsize="end"
+                                android:maxLines="2"
+                                android:textColor="?attr/glyphTextSecondary"
+                                android:textSize="12sp"
+                                android:visibility="gone"
+                                tools:text="https://youtube.com/shorts/prTkG3IHIL0?si=n5qu-3xBsoUwum24" />
+                        </LinearLayout>
+
+                        <ImageButton
+                            android:id="@+id/btnDismissShareLinkPreview"
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/share_preview_close"
+                            android:scaleType="centerInside"
+                            android:src="@drawable/ic_close"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:tint="?attr/glyphIconSecondary" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+
+                </androidx.cardview.widget.CardView>
+
+                <!-- Input Row -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/inputRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                <ImageButton
+                    android:id="@+id/btnAdd"
+                    android:layout_width="48dp"
+                    android:layout_height="0dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Attach"
+                    android:padding="11dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_add_2"
+                    app:tint="?attr/glyphChatInputIcon"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <EditText
+                    android:id="@+id/etMessageInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="0dp"
+                    android:layout_marginEnd="0dp"
+                    android:background="@android:color/transparent"
+                    android:hint="Message"
+                    android:inputType="textCapSentences"
+                    android:maxLines="1"
+                    android:singleLine="true"
+                    android:scrollHorizontally="true"
+                    android:minHeight="@dimen/chat_input_height"
+                    android:gravity="center_vertical"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp"
+                    android:paddingEnd="4dp"
+                    android:textColor="?attr/glyphChatInputText"
+                    android:textColorHint="?attr/glyphChatInputHint"
+                    app:layout_constraintStart_toEndOf="@id/btnAdd"
+                    app:layout_constraintEnd_toStartOf="@id/rightIcons"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent" />
+
+                <!-- Right-side icons inside the pill (emoji + camera/AI) -->
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/rightIcons"
+                    android:layout_width="wrap_content"
+                    android:layout_height="0dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                    <ImageButton
+                        android:id="@+id/btnEmoji"
+                        android:layout_width="48dp"
+                        android:layout_height="match_parent"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Emoji"
+                        android:padding="11dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_emoji"
+                        app:tint="?attr/glyphChatInputIcon"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent" />
+
+                    <!-- Buzz Button — visible when input is empty, slides out when typing -->
+                    <ImageButton
+                        android:id="@+id/btnLightning"
+                        android:layout_width="48dp"
+                        android:layout_height="match_parent"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Buzz"
+                        android:padding="11dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_bolt"
+                        app:tint="?attr/glyphChatInputIcon"
+                        app:layout_constraintStart_toEndOf="@id/btnEmoji"
+                        app:layout_constraintEnd_toStartOf="@id/iconSlot"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent" />
+
+                    <!-- Stabilized slot for Camera/AI swap to prevent layout shifting -->
+                    <FrameLayout
+                        android:id="@+id/iconSlot"
+                        android:layout_width="48dp"
+                        android:layout_height="match_parent"
+                        app:layout_constraintStart_toEndOf="@id/btnLightning"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toBottomOf="parent">
+
+                        <ImageButton
+                            android:id="@+id/btnAiComposer"
+                            android:layout_width="48dp"
+                            android:layout_height="match_parent"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="AI Composer"
+                            android:padding="10dp"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_ai_composer"
+                            app:tint="?attr/glyphAiIcon"
+                            android:visibility="gone" />
+
+                        <ImageButton
+                            android:id="@+id/btnCamera"
+                            android:layout_width="48dp"
+                            android:layout_height="match_parent"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="Camera"
+                            android:padding="11dp"
+                            android:scaleType="fitCenter"
+                            android:src="@drawable/ic_camera"
+                            app:tint="?attr/glyphChatInputIcon" />
+
+                    </FrameLayout>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- Circular send/mic button -->
+            <FrameLayout
+                android:id="@+id/btnSend"
+                android:layout_width="@dimen/chat_send_button_size"
+                android:layout_height="@dimen/chat_send_button_size"
+                android:layout_marginStart="0dp"
+                android:background="@drawable/bg_chat_send_button"
+                android:contentDescription="Record Voice"
+                android:clickable="true"
+                android:focusable="true"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <ImageView
+                    android:id="@+id/ivSendIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:padding="14dp"
+                    android:contentDescription="@null"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_mic_custom"
+                    app:tint="?attr/glyphIconPrimary" />
+
+            </FrameLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Emoji/GIF/Sticker picker panel (replaces keyboard) -->
+    <com.glyph.glyph_v3.ui.chat.picker.EmojiPickerPanel
+        android:id="@+id/emojiPickerPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:visibility="gone"
+        android:background="?attr/colorSurface"
+        android:elevation="8dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <FrameLayout
+        android:id="@+id/attachmentMenuOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:clipChildren="false">
+
+        <include
+            android:id="@+id/layoutAttachmentMenu"
+            layout="@layout/layout_attachment_menu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:layout_marginBottom="16dp"
+            android:layout_gravity="bottom" />
+
+    </FrameLayout>
+
+    <!-- Voice Recorder Overlay (Highest Z-index) -->
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/voiceRecorderStub"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:elevation="100dp" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+
+

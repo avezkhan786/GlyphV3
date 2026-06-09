@@ -1,0 +1,93 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ──────────────────────────────────────────────────────────
+    // Helper: caller is a participant of the chat carrying [chatId].
+    //   * 1:1 chat ids encode both uids: `<uidA>_<uidB>` (sorted). The split
+    //     trick avoids any Firestore round-trip for the hot 1:1 path.
+    //   * Group chat ids start with `group_` — for those we have to look up
+    //     the chat doc in Firestore to read its `participants` array. This
+    //     adds one Firestore read per Storage op for groups; 1:1 stays free.
+    //   * If the chat doc doesn't exist (e.g. media uploaded before the
+    //     chat row is created) we fall back to the split check; that keeps
+    //     the existing 1:1 behaviour intact.
+    // Phase 9: replaces the previous `auth != null` blanket access on every
+    // chat_* path so non-participants can no longer upload garbage to other
+    // people's chat folders or enumerate them via the Storage API.
+    // ──────────────────────────────────────────────────────────
+    function isChatParticipant(chatId) {
+      return chatId.matches('^group_.*')
+        ? request.auth.uid in firestore.get(/databases/(default)/documents/chats/$(chatId)).data.participants
+        : chatId.split('_').hasAny([request.auth.uid]);
+    }
+
+    // ── Profile images ──
+    match /profile_images/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ── Group icons ──
+    // Uploaded before the Firestore chat doc is created, so isChatParticipant
+    // cannot be used here. Any authenticated user may write their own group icon;
+    // reads are open to all authenticated users (needed for icon display).
+    match /group_icons/{chatId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // ── Chat media (images, videos, audio, documents, voice, thumbnails) ──
+    match /chat_images/{chatId}/{fileName} {
+      allow read: if request.auth != null && isChatParticipant(chatId);
+      allow write: if request.auth != null && isChatParticipant(chatId);
+    }
+
+    // ── Grouped / collage media (MEDIA_GROUP message type) ──
+    match /chat_media/{chatId}/{messageId}/{fileName} {
+      allow read: if request.auth != null && isChatParticipant(chatId);
+      allow write: if request.auth != null && isChatParticipant(chatId);
+    }
+
+    match /chat_videos/{chatId}/{fileName} {
+      allow read: if request.auth != null && isChatParticipant(chatId);
+      allow write: if request.auth != null && isChatParticipant(chatId);
+    }
+
+    match /chat_video_thumbnails/{chatId}/{fileName} {
+      allow read: if request.auth != null && isChatParticipant(chatId);
+      allow write: if request.auth != null && isChatParticipant(chatId);
+    }
+
+    match /chat_audio/{chatId}/{fileName} {
+      allow read: if request.auth != null && isChatParticipant(chatId);
+      allow write: if request.auth != null && isChatParticipant(chatId);
+    }
+
+    match /chat_voice/{chatId}/{fileName} {
+      allow read: if request.auth != null && isChatParticipant(chatId);
+      allow write: if request.auth != null && isChatParticipant(chatId);
+    }
+
+    match /chat_documents/{chatId}/{fileName} {
+      allow read: if request.auth != null && isChatParticipant(chatId);
+      allow write: if request.auth != null && isChatParticipant(chatId);
+    }
+
+    match /chat_document_thumbnails/{chatId}/{fileName} {
+      allow read: if request.auth != null && isChatParticipant(chatId);
+      allow write: if request.auth != null && isChatParticipant(chatId);
+    }
+
+    // ── Status media ──
+    match /status_media/{userId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

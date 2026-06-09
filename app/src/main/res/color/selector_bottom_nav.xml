@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Label text should NOT change on selection — always use the same theme token -->
+    <item android:color="?attr/glyphNavItemInactive" android:state_checked="true" android:state_window_focused="true" />
+    <item android:color="?attr/glyphNavItemInactive" android:state_checked="false" android:state_window_focused="true" />
+    <!-- Fallback to the same token -->
+    <item android:color="?attr/glyphNavItemInactive" />
+</selector>

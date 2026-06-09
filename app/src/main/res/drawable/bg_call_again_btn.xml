@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WhatsApp-green circle for the "Call again" button on the unanswered call screen -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#FF25D366" />
+    <size android:width="72dp" android:height="72dp" />
+</shape>

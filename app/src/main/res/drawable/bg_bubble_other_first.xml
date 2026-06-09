@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Bubble Body (inset left side) -->
+    <item
+        android:left="8dp">
+        <shape android:shape="rectangle">
+            <solid android:color="?attr/glyphBubbleOther" />
+            <stroke
+              android:width="1.5dp"
+              android:color="?attr/glyphDivider" />
+            <corners
+                android:topLeftRadius="0dp"
+                android:topRightRadius="12dp"
+                android:bottomLeftRadius="12dp"
+                android:bottomRightRadius="12dp" />
+        </shape>
+    </item>
+
+    <!-- Tail (Top Left) -->
+    <item
+        android:drawable="@drawable/ic_tail_incoming"
+        android:width="15dp"
+        android:height="15dp"
+        android:gravity="top|left"
+        android:top="0dp"
+        android:left="0dp" />
+
+</layer-list>

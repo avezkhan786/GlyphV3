@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootGroupCall"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF1B1B1B"
+    android:clipChildren="false"
+    android:clipToPadding="false">
+
+    <!-- Adaptive video grid — fills entire screen, no scrolling -->
+    <com.glyph.glyph_v3.ui.calls.AdaptiveVideoGridLayout
+        android:id="@+id/videoGrid"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="true"
+        android:clipToPadding="true" />
+
+    <!-- Top scrim gradient -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="160dp"
+        android:layout_gravity="top"
+        android:background="@drawable/bg_call_top_scrim" />
+
+    <!-- Top bar -->
+    <LinearLayout
+        android:id="@+id/topBarGroupCall"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="8dp">
+
+        <FrameLayout
+            android:id="@+id/btnMinimizeGroup"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_call_minimize"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingHorizontal="10dp">
+
+            <TextView
+                android:id="@+id/tvGroupCallTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:shadowColor="#88000000"
+                android:shadowDx="0"
+                android:shadowDy="2"
+                android:shadowRadius="16"
+                android:text="Group Call"
+                android:textColor="#FFFFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvGroupCallTimer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:shadowColor="#88000000"
+                android:shadowDx="0"
+                android:shadowDy="1"
+                android:shadowRadius="10"
+                android:textColor="#E0FFFFFF"
+                android:textSize="14sp"
+                tools:text="0:47" />
+
+            <TextView
+                android:id="@+id/tvGroupCallParticipantCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:textColor="#C0FFFFFF"
+                android:textSize="12sp"
+                tools:text="3 participants" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/btnAddParticipantGroup"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_person_add"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Bottom control bar -->
+    <LinearLayout
+        android:id="@+id/bottomControlBarGroup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="18dp"
+        android:background="@drawable/bg_call_controls_bar"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="10dp">
+
+        <FrameLayout
+            android:id="@+id/btnCameraGroup"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/ivCameraIconGroup"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_videocam"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/btnSwitchCameraGroup"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_camera_switch"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/btnSpeakerGroup"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/ivSpeakerIconGroup"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_volume_up"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/btnMuteGroup"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_call_control_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/ivMuteIconGroup"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_mic_custom"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/btnEndCallGroup"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/bg_call_end_button"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="26dp"
+                android:layout_height="26dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:rotation="135"
+                android:src="@drawable/ic_call"
+                android:tint="#FFFFFFFF" />
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

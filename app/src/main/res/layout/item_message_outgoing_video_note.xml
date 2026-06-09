@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <!-- No bubble background — standalone circular video -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <include
+            layout="@layout/layout_forwarded_label"
+            android:layout_gravity="start" />
+
+        <FrameLayout
+            android:id="@+id/videoNoteContainer"
+            android:layout_width="252dp"
+            android:layout_height="252dp">
+
+            <!-- Circular thumbnail -->
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/ivThumbnail"
+                android:layout_width="240dp"
+                android:layout_height="240dp"
+                android:layout_gravity="center"
+                android:scaleType="centerCrop"
+                app:shapeAppearanceOverlay="@style/CircleImageView"
+                android:background="#33FFFFFF"
+                tools:src="@tools:sample/avatars" />
+
+            <!-- Circular PlayerView for inline playback (hidden by default) -->
+            <androidx.media3.ui.PlayerView
+                android:id="@+id/playerView"
+                android:layout_width="240dp"
+                android:layout_height="240dp"
+                android:layout_gravity="center"
+                android:visibility="gone"
+                app:use_controller="false"
+                app:resize_mode="zoom" />
+
+            <!-- Circle border ring (static) -->
+            <View
+                android:id="@+id/borderRing"
+                android:layout_width="240dp"
+                android:layout_height="240dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_video_note_ring" />
+
+            <!-- Playback progress ring — wraps flush outside the 240dp video circle -->
+            <com.glyph.glyph_v3.ui.chat.VideoNoteProgressRingView
+                android:id="@+id/playbackRing"
+                android:layout_width="252dp"
+                android:layout_height="252dp"
+                android:layout_gravity="center"
+                android:visibility="gone" />
+
+            <!-- Play button overlay -->
+            <ImageView
+                android:id="@+id/ivPlayButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_play_circle"
+                android:visibility="visible"
+                tools:visibility="visible" />
+
+            <!-- Upload progress indicator — bottom center, above duration -->
+            <com.glyph.glyph_v3.ui.chat.CircularProgressView
+                android:id="@+id/progressIndicator"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="38dp"
+                android:visibility="gone" />
+
+            <!-- Duration overlay at bottom center -->
+            <TextView
+                android:id="@+id/tvDuration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/bg_timestamp_overlay"
+                android:paddingStart="8dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="2dp"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:fontFamily="sans-serif-medium"
+                tools:text="0:04" />
+
+        </FrameLayout>
+
+        <!-- Timestamp + status below the circle -->
+        <LinearLayout
+            android:id="@+id/layoutTimestamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="2dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvTimestamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#80FFFFFF"
+                android:textSize="11sp"
+                tools:text="11:22 pm" />
+
+            <ImageView
+                android:id="@+id/ivStatus"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/ic_check"
+                app:tint="#80FFFFFF" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</FrameLayout>

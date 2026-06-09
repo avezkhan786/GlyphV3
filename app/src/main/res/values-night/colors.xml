@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Night mode overrides for hero and info gradients to be easy on the eyes -->
+    <color name="hero_gradient_start">#072024</color>
+    <color name="hero_gradient_center">#06171A</color>
+    <color name="hero_gradient_end">#041014</color>
+
+    <color name="info_section_start">#07151A</color>
+    <color name="info_section_end">#0A1F1C</color>
+    <color name="info_section_stroke">#2D2D2D</color>
+</resources>

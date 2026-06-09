@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <LinearLayout
+        android:id="@+id/messageBubble"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_message_incoming"
+        android:padding="0.5dp"
+        android:orientation="vertical"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <include layout="@layout/layout_group_sender_name" />
+
+        <include layout="@layout/layout_forwarded_label" />
+
+        <include
+            android:id="@+id/includeReplyPreview"
+            layout="@layout/item_message_reply_preview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"/>
+
+        <FrameLayout
+            android:id="@+id/mediaContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <!-- Collage View -->
+            <com.glyph.glyph_v3.ui.chat.CollageImageView
+                android:id="@+id/collageView"
+                android:layout_width="240dp"
+                android:layout_height="wrap_content"
+                android:clipToOutline="true" />
+
+            <!-- Progress Indicator (downloads) -->
+            <com.glyph.glyph_v3.ui.chat.CircularProgressView
+                android:id="@+id/progressIndicator"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvProgressText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_timestamp_overlay"
+                android:paddingStart="8dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="4dp"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <!-- File size overlay (bottom left) -->
+            <TextView
+                android:id="@+id/tvFileSize"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|start"
+                android:layout_marginStart="8dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_timestamp_overlay"
+                android:paddingStart="6dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="6dp"
+                android:paddingBottom="2dp"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp"
+                android:visibility="visible" />
+
+            <!-- Timestamp overlay (bottom right) -->
+            <TextView
+                android:id="@+id/tvTimestamp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_marginEnd="8dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_timestamp_overlay"
+                android:paddingStart="6dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="6dp"
+                android:paddingBottom="2dp"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:text="12:34 PM" />
+
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/btnForwardMessage"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="@drawable/bg_media_forward_button"
+        android:contentDescription="Forward"
+        android:elevation="4dp"
+        android:padding="7dp"
+        android:scaleType="center"
+        android:src="@drawable/ic_forwarded_action"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/messageBubble"
+        android:layout_marginStart="10dp"
+        app:layout_constraintStart_toEndOf="@id/messageBubble"
+        app:layout_constraintTop_toTopOf="@id/messageBubble"
+        app:layout_constraintVertical_bias="0.48"
+        app:tint="@android:color/white" />
+
+    <!-- Avatar (positioned absolute) -->
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/ivAvatar"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="8dp"
+        android:visibility="gone"
+        android:scaleType="centerCrop"
+        app:layout_constraintBottom_toBottomOf="@id/messageBubble"
+        app:layout_constraintStart_toStartOf="parent"
+        app:shapeAppearanceOverlay="@style/CircleImageView" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

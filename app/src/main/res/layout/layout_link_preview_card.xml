@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Heavy link-preview subtree, extracted out of the text bubble layouts so it is only inflated
+  on demand via a ViewStub (item_message_incoming_text / item_message_outgoing_text). Most text
+  messages have no link preview, so keeping this MaterialCardView + ShapeableImageView subtree
+  out of the per-row inflation removes ~8 views (two of them expensive Material widgets) from
+  every text-bubble create. The root id is supplied by the ViewStub's android:inflatedId
+  (linkPreviewCard); child ids are resolved via findViewById in ChatAdapter.bindLinkPreview.
+-->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:visibility="gone"
+    app:cardBackgroundColor="@android:color/transparent"
+    app:cardCornerRadius="0dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivLinkPreviewThumbnail"
+            android:layout_width="match_parent"
+            android:layout_height="168dp"
+            android:background="@android:color/transparent"
+            android:scaleType="centerCrop"
+            app:shapeAppearanceOverlay="@style/RoundedCornerPreviewThumbTop" />
+
+        <LinearLayout
+            android:id="@+id/linkPreviewTextContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipToPadding="false"
+            android:clipChildren="false"
+            android:orientation="vertical"
+            android:paddingStart="12dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="10dp">
+
+            <TextView
+                android:id="@+id/tvLinkPreviewTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:paddingStart="1dp"
+                android:paddingEnd="1dp"
+                android:textColor="?attr/glyphTextPrimary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                tools:text="La trampa que concibió Irán" />
+
+            <TextView
+                android:id="@+id/tvLinkPreviewDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:ellipsize="end"
+                android:includeFontPadding="true"
+                android:maxLines="2"
+                android:paddingStart="1dp"
+                android:paddingEnd="1dp"
+                android:textColor="?attr/glyphTextSecondary"
+                android:textSize="13sp"
+                android:visibility="gone"
+                tools:text="This is the link description extracted from the website." />
+
+            <TextView
+                android:id="@+id/tvLinkPreviewDomain"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:paddingStart="1dp"
+                android:paddingEnd="1dp"
+                android:textColor="?attr/glyphTextSecondary"
+                android:textSize="13sp"
+                tools:text="youtube.com" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvLinkPreviewUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/glyphTextPrimary"
+            android:textSize="14sp"
+            android:visibility="gone"
+            tools:text="https://youtube.com/shorts/prTkG3IHIL0?si=n5qu-3xBsoUwum24" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

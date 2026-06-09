@@ -1,0 +1,1741 @@
+kotlin version: 2.0.21
+error message: org.jetbrains.kotlin.codegen.CompilationException: Back-end (JVM) Internal error: Couldn't transform method node:
+archiveChats (Ljava/util/List;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;:
+  @Lorg/jetbrains/annotations/Nullable;() // invisible
+    // annotable parameter count: 3 (visible)
+    // annotable parameter count: 3 (invisible)
+    @Lorg/jetbrains/annotations/NotNull;() // invisible, parameter 0
+    @Lorg/jetbrains/annotations/NotNull;() // invisible, parameter 2
+    TRYCATCHBLOCK L0 L1 L2 java/lang/Throwable
+    TRYCATCHBLOCK L3 L4 L5 java/lang/Exception
+    TRYCATCHBLOCK L6 L7 L8 java/lang/Throwable
+    TRYCATCHBLOCK L9 L10 L8 java/lang/Throwable
+    TRYCATCHBLOCK L11 L12 L13 java/lang/Throwable
+    TRYCATCHBLOCK L14 L15 L13 java/lang/Throwable
+    TRYCATCHBLOCK L16 L7 L17 java/lang/Exception
+    TRYCATCHBLOCK L9 L12 L17 java/lang/Exception
+    TRYCATCHBLOCK L14 L18 L17 java/lang/Exception
+    TRYCATCHBLOCK L19 L20 L17 java/lang/Exception
+   L21
+    ALOAD 3
+    INSTANCEOF com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1
+    IFEQ L22
+    ALOAD 3
+    CHECKCAST com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1
+    ASTORE 32
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.label : I
+    LDC -2147483648
+    IAND
+    IFEQ L22
+    ALOAD 32
+    DUP
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.label : I
+    LDC -2147483648
+    ISUB
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.label : I
+    GOTO L23
+   L22
+    NEW com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1
+    DUP
+    ALOAD 0
+    ALOAD 3
+    INVOKESPECIAL com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.<init> (Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository;Lkotlin/coroutines/Continuation;)V
+    ASTORE 32
+   L23
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.result : Ljava/lang/Object;
+    ASTORE 31
+   L24
+    INVOKESTATIC kotlin/coroutines/intrinsics/IntrinsicsKt.getCOROUTINE_SUSPENDED ()Ljava/lang/Object;
+   L25
+    LINENUMBER 511 L25
+    ASTORE 33
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.label : I
+    TABLESWITCH
+      0: L26
+      1: L27
+      2: L28
+      3: L29
+      4: L30
+      default: L31
+   L26
+    ALOAD 31
+    INVOKESTATIC kotlin/ResultKt.throwOnFailure (Ljava/lang/Object;)V
+   L32
+   L33
+    LINENUMBER 513 L33
+    ALOAD 1
+    CHECKCAST java/lang/Iterable
+    ASTORE 4
+    NOP
+   L34
+    ICONST_0
+    ISTORE 5
+   L35
+    LINENUMBER 3944 L35
+    ALOAD 4
+    INVOKEINTERFACE java/lang/Iterable.iterator ()Ljava/util/Iterator; (itf)
+    ASTORE 6
+   L36
+    ALOAD 6
+    INVOKEINTERFACE java/util/Iterator.hasNext ()Z (itf)
+    IFEQ L37
+    ALOAD 6
+    INVOKEINTERFACE java/util/Iterator.next ()Ljava/lang/Object; (itf)
+    ASTORE 7
+   L38
+    ALOAD 7
+    CHECKCAST java/lang/String
+    ASTORE 8
+   L39
+    ICONST_0
+    ISTORE 9
+   L40
+   L41
+    LINENUMBER 514 L41
+    ALOAD 0
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository.chatDao : Lcom/glyph/glyph_v3/data/local/dao/ChatDao;
+    ALOAD 8
+    ILOAD 2
+    IFEQ L42
+    ICONST_1
+    GOTO L43
+   L42
+    ICONST_0
+   L43
+    ALOAD 32
+    ALOAD 32
+    ALOAD 0
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$0 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 1
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$1 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 6
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$2 : Ljava/lang/Object;
+    ALOAD 32
+    ILOAD 2
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.Z$0 : Z
+    ALOAD 32
+    ICONST_1
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.label : I
+    INVOKEINTERFACE com/glyph/glyph_v3/data/local/dao/ChatDao.updateArchivedStatus (Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object; (itf)
+   L44
+    DUP
+    ALOAD 33
+    IF_ACMPNE L45
+   L46
+    LINENUMBER 511 L46
+    ALOAD 33
+    ARETURN
+   L27
+    ICONST_0
+    ISTORE 5
+   L47
+    ICONST_0
+    ISTORE 9
+   L48
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.Z$0 : Z
+    ISTORE 2
+   L49
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$2 : Ljava/lang/Object;
+    CHECKCAST java/util/Iterator
+    ASTORE 6
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$1 : Ljava/lang/Object;
+    CHECKCAST java/util/List
+    ASTORE 1
+   L50
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$0 : Ljava/lang/Object;
+    CHECKCAST com/glyph/glyph_v3/data/repo/RealtimeMessageRepository
+    ASTORE 0
+   L51
+   L52
+    NOP
+    ALOAD 31
+    INVOKESTATIC kotlin/ResultKt.throwOnFailure (Ljava/lang/Object;)V
+    ALOAD 31
+   L45
+    LINENUMBER 515 L45
+    POP
+   L53
+    NOP
+    NOP
+    GOTO L54
+   L55
+   L56
+   L54
+   L57
+    LINENUMBER 3944 L57
+   L58
+    GOTO L36
+   L37
+    LINENUMBER 3945 L37
+    NOP
+    GOTO L59
+   L60
+   L61
+   L59
+   L62
+    LINENUMBER 518 L62
+    ILOAD 2
+    IFEQ L63
+   L64
+    LINENUMBER 519 L64
+   L65
+   L3
+    NOP
+   L66
+    LINENUMBER 520 L66
+    ALOAD 0
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository.context : Landroid/content/Context;
+    LDC "notification"
+    INVOKEVIRTUAL android/content/Context.getSystemService (Ljava/lang/String;)Ljava/lang/Object;
+    ASTORE 5
+   L67
+    ALOAD 5
+    INSTANCEOF android/app/NotificationManager
+    IFEQ L68
+    ALOAD 5
+    CHECKCAST android/app/NotificationManager
+    GOTO L69
+   L68
+    ACONST_NULL
+   L69
+   L70
+    ASTORE 4
+   L71
+   L72
+    LINENUMBER 523 L72
+    ALOAD 1
+    CHECKCAST java/lang/Iterable
+    ASTORE 5
+    NOP
+   L73
+    ICONST_0
+    ISTORE 6
+   L74
+    LINENUMBER 3946 L74
+    ALOAD 5
+    INVOKEINTERFACE java/lang/Iterable.iterator ()Ljava/util/Iterator; (itf)
+    ASTORE 7
+   L75
+    ALOAD 7
+    INVOKEINTERFACE java/util/Iterator.hasNext ()Z (itf)
+    IFEQ L76
+    ALOAD 7
+    INVOKEINTERFACE java/util/Iterator.next ()Ljava/lang/Object; (itf)
+    ASTORE 8
+   L77
+    ALOAD 8
+    CHECKCAST java/lang/String
+    ASTORE 9
+   L78
+    ICONST_0
+    ISTORE 10
+   L79
+    LINENUMBER 524 L79
+    ALOAD 9
+    INVOKEDYNAMIC makeConcatWithConstants(Ljava/lang/String;)Ljava/lang/String; [
+      // handle kind 0x6 : INVOKESTATIC
+      java/lang/invoke/StringConcatFactory.makeConcatWithConstants(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+      // arguments:
+      "chat_\u0001"
+    ]
+    ASTORE 11
+   L80
+    LINENUMBER 525 L80
+    GETSTATIC com/glyph/glyph_v3/data/service/ChatNotificationHelper.INSTANCE : Lcom/glyph/glyph_v3/data/service/ChatNotificationHelper;
+    ALOAD 9
+    INVOKEVIRTUAL com/glyph/glyph_v3/data/service/ChatNotificationHelper.notificationIdsForChat (Ljava/lang/String;)Lkotlin/Pair;
+    ASTORE 12
+    ALOAD 12
+    INVOKEVIRTUAL kotlin/Pair.component1 ()Ljava/lang/Object;
+    CHECKCAST java/lang/Number
+    INVOKEVIRTUAL java/lang/Number.intValue ()I
+    ISTORE 13
+   L81
+    ALOAD 12
+    INVOKEVIRTUAL kotlin/Pair.component2 ()Ljava/lang/Object;
+    CHECKCAST java/lang/Number
+    INVOKEVIRTUAL java/lang/Number.intValue ()I
+    ISTORE 14
+   L82
+    LINENUMBER 527 L82
+    ALOAD 4
+    IFNULL L83
+    ALOAD 4
+    ASTORE 15
+    ALOAD 15
+    CHECKCAST android/app/NotificationManager
+    ASTORE 16
+   L84
+    ICONST_0
+    ISTORE 17
+   L85
+    LINENUMBER 528 L85
+    ALOAD 16
+    ALOAD 11
+    ICONST_0
+    INVOKEVIRTUAL android/app/NotificationManager.cancel (Ljava/lang/String;I)V
+   L86
+    LINENUMBER 529 L86
+    ALOAD 16
+    ALOAD 11
+    ILOAD 13
+    INVOKEVIRTUAL android/app/NotificationManager.cancel (Ljava/lang/String;I)V
+   L87
+    LINENUMBER 530 L87
+    ALOAD 16
+    ALOAD 11
+    ILOAD 14
+    INVOKEVIRTUAL android/app/NotificationManager.cancel (Ljava/lang/String;I)V
+   L88
+    LINENUMBER 531 L88
+    ALOAD 16
+    ILOAD 13
+    INVOKEVIRTUAL android/app/NotificationManager.cancel (I)V
+   L89
+    LINENUMBER 532 L89
+    ALOAD 16
+    ILOAD 14
+    INVOKEVIRTUAL android/app/NotificationManager.cancel (I)V
+   L90
+    LINENUMBER 533 L90
+    GOTO L91
+   L91
+   L92
+    LINENUMBER 527 L92
+    ALOAD 15
+    GOTO L93
+   L93
+    CHECKCAST android/app/NotificationManager
+    GOTO L94
+   L83
+    LINENUMBER 527 L83
+    ACONST_NULL
+   L94
+    POP
+   L95
+    LINENUMBER 536 L95
+    ALOAD 0
+    ASTORE 15
+   L96
+   L0
+    NOP
+    GETSTATIC kotlin/Result.Companion : Lkotlin/Result$Companion;
+    POP
+    ALOAD 15
+    CHECKCAST com/glyph/glyph_v3/data/repo/RealtimeMessageRepository
+    ASTORE 16
+   L97
+    ICONST_0
+    ISTORE 17
+   L98
+    LINENUMBER 537 L98
+    GETSTATIC com/glyph/glyph_v3/data/service/UnreadMessageStore.INSTANCE : Lcom/glyph/glyph_v3/data/service/UnreadMessageStore;
+    ALOAD 9
+    INVOKEVIRTUAL com/glyph/glyph_v3/data/service/UnreadMessageStore.clearMessages (Ljava/lang/String;)V
+   L99
+    LINENUMBER 538 L99
+    GOTO L100
+   L100
+    GETSTATIC kotlin/Unit.INSTANCE : Lkotlin/Unit;
+   L101
+    LINENUMBER 536 L101
+    INVOKESTATIC kotlin/Result.constructor-impl (Ljava/lang/Object;)Ljava/lang/Object;
+    ASTORE 16
+   L1
+    GOTO L102
+   L2
+    ASTORE 17
+    GETSTATIC kotlin/Result.Companion : Lkotlin/Result$Companion;
+    POP
+    ALOAD 17
+    INVOKESTATIC kotlin/ResultKt.createFailure (Ljava/lang/Throwable;)Ljava/lang/Object;
+    INVOKESTATIC kotlin/Result.constructor-impl (Ljava/lang/Object;)Ljava/lang/Object;
+    ASTORE 16
+   L102
+    ALOAD 16
+    GOTO L103
+   L103
+    POP
+   L104
+    LINENUMBER 540 L104
+    LDC "RealtimeMessageRepo"
+    ALOAD 9
+    INVOKEDYNAMIC makeConcatWithConstants(Ljava/lang/String;)Ljava/lang/String; [
+      // handle kind 0x6 : INVOKESTATIC
+      java/lang/invoke/StringConcatFactory.makeConcatWithConstants(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+      // arguments:
+      "Canceled all notifications for archived chat: \u0001"
+    ]
+    INVOKESTATIC android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+    POP
+   L105
+    LINENUMBER 541 L105
+    NOP
+    GOTO L106
+   L107
+   L108
+   L106
+   L109
+    LINENUMBER 3946 L109
+   L110
+    GOTO L75
+   L76
+    LINENUMBER 3947 L76
+    NOP
+    GOTO L111
+   L112
+   L113
+   L111
+   L114
+    GETSTATIC kotlin/Unit.INSTANCE : Lkotlin/Unit;
+    ASTORE 4
+   L4
+    GOTO L115
+   L5
+   L116
+    LINENUMBER 542 L116
+    ASTORE 5
+   L117
+   L118
+    LINENUMBER 543 L118
+    LDC "RealtimeMessageRepo"
+    LDC "Error canceling notifications during archive"
+    ALOAD 5
+    CHECKCAST java/lang/Throwable
+    INVOKESTATIC android/util/Log.e (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
+    INVOKESTATIC kotlin/coroutines/jvm/internal/Boxing.boxInt (I)Ljava/lang/Integer;
+    ASTORE 4
+   L119
+   L115
+    ALOAD 4
+    POP
+   L63
+   L120
+   L121
+    LINENUMBER 549 L121
+    ALOAD 0
+    INVOKEVIRTUAL com/glyph/glyph_v3/data/repo/RealtimeMessageRepository.getCurrentUserId ()Ljava/lang/String;
+    ASTORE 4
+   L122
+   L123
+    LINENUMBER 550 L123
+    ALOAD 4
+    CHECKCAST java/lang/CharSequence
+    ASTORE 5
+    NOP
+   L124
+    NOP
+    ALOAD 5
+    IFNULL L125
+    ALOAD 5
+    INVOKESTATIC kotlin/text/StringsKt.isBlank (Ljava/lang/CharSequence;)Z
+    IFEQ L126
+   L125
+    ICONST_1
+    GOTO L127
+   L126
+    ICONST_0
+   L127
+    NOP
+    GOTO L128
+   L129
+   L130
+   L128
+   L131
+    LINENUMBER 550 L131
+    IFNE L132
+    ALOAD 1
+    INVOKEINTERFACE java/util/List.isEmpty ()Z (itf)
+    IFEQ L133
+   L132
+   L134
+    LINENUMBER 551 L134
+    LDC "RealtimeMessageRepo"
+    ALOAD 4
+    ALOAD 1
+    INVOKEINTERFACE java/util/List.size ()I (itf)
+    INVOKEDYNAMIC makeConcatWithConstants(Ljava/lang/String;I)Ljava/lang/String; [
+      // handle kind 0x6 : INVOKESTATIC
+      java/lang/invoke/StringConcatFactory.makeConcatWithConstants(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+      // arguments:
+      "Cannot sync archive status: uid=\u0001, chatIds=\u0001"
+    ]
+    INVOKESTATIC android/util/Log.w (Ljava/lang/String;Ljava/lang/String;)I
+    POP
+   L135
+    LINENUMBER 552 L135
+    GETSTATIC kotlin/Unit.INSTANCE : Lkotlin/Unit;
+    ARETURN
+   L136
+   L133
+   L137
+   L138
+    LINENUMBER 555 L138
+   L139
+   L16
+    NOP
+   L140
+    LINENUMBER 556 L140
+    ALOAD 0
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository.firestore : Lcom/google/firebase/firestore/FirebaseFirestore;
+    INVOKEVIRTUAL com/google/firebase/firestore/FirebaseFirestore.batch ()Lcom/google/firebase/firestore/WriteBatch;
+    ASTORE 6
+   L141
+    ALOAD 6
+    LDC "batch(...)"
+    INVOKESTATIC kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue (Ljava/lang/Object;Ljava/lang/String;)V
+    ALOAD 6
+   L142
+    CHECKCAST com/google/firebase/firestore/WriteBatch
+    ASTORE 5
+   L143
+   L144
+    LINENUMBER 557 L144
+    ALOAD 0
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository.firestore : Lcom/google/firebase/firestore/FirebaseFirestore;
+    LDC "users"
+    INVOKEVIRTUAL com/google/firebase/firestore/FirebaseFirestore.collection (Ljava/lang/String;)Lcom/google/firebase/firestore/CollectionReference;
+    ALOAD 4
+    INVOKEVIRTUAL com/google/firebase/firestore/CollectionReference.document (Ljava/lang/String;)Lcom/google/firebase/firestore/DocumentReference;
+    LDC "archived_chats"
+    INVOKEVIRTUAL com/google/firebase/firestore/DocumentReference.collection (Ljava/lang/String;)Lcom/google/firebase/firestore/CollectionReference;
+    ASTORE 7
+   L145
+    ALOAD 7
+    LDC "collection(...)"
+    INVOKESTATIC kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue (Ljava/lang/Object;Ljava/lang/String;)V
+    ALOAD 7
+   L146
+    CHECKCAST com/google/firebase/firestore/CollectionReference
+    ASTORE 6
+   L147
+   L148
+    LINENUMBER 559 L148
+    ALOAD 1
+    CHECKCAST java/lang/Iterable
+    ASTORE 7
+    NOP
+   L149
+    ICONST_0
+    ISTORE 8
+   L150
+    LINENUMBER 3948 L150
+    ALOAD 7
+    INVOKEINTERFACE java/lang/Iterable.iterator ()Ljava/util/Iterator; (itf)
+    ASTORE 9
+   L151
+    ALOAD 9
+    INVOKEINTERFACE java/util/Iterator.hasNext ()Z (itf)
+    IFEQ L152
+    ALOAD 9
+    INVOKEINTERFACE java/util/Iterator.next ()Ljava/lang/Object; (itf)
+    ASTORE 10
+   L153
+    ALOAD 10
+    CHECKCAST java/lang/String
+    ASTORE 11
+   L154
+    ICONST_0
+    ISTORE 12
+   L155
+    LINENUMBER 560 L155
+    ICONST_1
+    ANEWARRAY java/lang/String
+    ASTORE 13
+   L156
+    ALOAD 13
+    ICONST_0
+    ALOAD 11
+    AASTORE
+    ALOAD 13
+   L157
+    INVOKESTATIC kotlin/collections/SetsKt.linkedSetOf ([Ljava/lang/Object;)Ljava/util/LinkedHashSet;
+    ASTORE 14
+   L158
+    LINENUMBER 561 L158
+    ALOAD 0
+    ASTORE 15
+    NOP
+   L159
+   L160
+   L6
+    NOP
+    GETSTATIC kotlin/Result.Companion : Lkotlin/Result$Companion;
+    POP
+    ALOAD 15
+    CHECKCAST com/glyph/glyph_v3/data/repo/RealtimeMessageRepository
+    ASTORE 16
+   L161
+    LINENUMBER 3949 L161
+   L162
+    ICONST_0
+    ISTORE 17
+   L163
+    LINENUMBER 561 L163
+    ALOAD 16
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository.chatDao : Lcom/glyph/glyph_v3/data/local/dao/ChatDao;
+    ALOAD 11
+    ALOAD 32
+    ALOAD 32
+    ALOAD 0
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$0 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 1
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$1 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 4
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$2 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 5
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$3 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 6
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$4 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 9
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$5 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 11
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$6 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 14
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$7 : Ljava/lang/Object;
+    ALOAD 32
+    ILOAD 2
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.Z$0 : Z
+    ALOAD 32
+    ICONST_2
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.label : I
+    INVOKEINTERFACE com/glyph/glyph_v3/data/local/dao/ChatDao.getChatById (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object; (itf)
+   L7
+    DUP
+    ALOAD 33
+    IF_ACMPNE L164
+   L165
+    LINENUMBER 511 L165
+    ALOAD 33
+    ARETURN
+   L28
+    ICONST_0
+    ISTORE 8
+   L166
+    ICONST_0
+    ISTORE 12
+   L167
+    ICONST_0
+    ISTORE 17
+   L168
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.Z$0 : Z
+    ISTORE 2
+   L169
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$7 : Ljava/lang/Object;
+    CHECKCAST java/util/LinkedHashSet
+    ASTORE 14
+   L170
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$6 : Ljava/lang/Object;
+    CHECKCAST java/lang/String
+    ASTORE 11
+   L171
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$5 : Ljava/lang/Object;
+    CHECKCAST java/util/Iterator
+    ASTORE 9
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$4 : Ljava/lang/Object;
+    CHECKCAST com/google/firebase/firestore/CollectionReference
+    ASTORE 6
+   L172
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$3 : Ljava/lang/Object;
+    CHECKCAST com/google/firebase/firestore/WriteBatch
+    ASTORE 5
+   L173
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$2 : Ljava/lang/Object;
+    CHECKCAST java/lang/String
+    ASTORE 4
+   L174
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$1 : Ljava/lang/Object;
+    CHECKCAST java/util/List
+    ASTORE 1
+   L175
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$0 : Ljava/lang/Object;
+    CHECKCAST com/glyph/glyph_v3/data/repo/RealtimeMessageRepository
+    ASTORE 0
+   L176
+   L9
+    NOP
+    ALOAD 31
+    INVOKESTATIC kotlin/ResultKt.throwOnFailure (Ljava/lang/Object;)V
+    ALOAD 31
+   L164
+    LINENUMBER 561 L164
+    CHECKCAST com/glyph/glyph_v3/data/local/entity/LocalChat
+    NOP
+    GOTO L177
+   L177
+   L178
+    LINENUMBER 561 L178
+    INVOKESTATIC kotlin/Result.constructor-impl (Ljava/lang/Object;)Ljava/lang/Object;
+    ASTORE 16
+   L10
+    GOTO L179
+   L8
+    ASTORE 17
+    GETSTATIC kotlin/Result.Companion : Lkotlin/Result$Companion;
+    POP
+    ALOAD 17
+    INVOKESTATIC kotlin/ResultKt.createFailure (Ljava/lang/Throwable;)Ljava/lang/Object;
+    INVOKESTATIC kotlin/Result.constructor-impl (Ljava/lang/Object;)Ljava/lang/Object;
+    ASTORE 16
+   L179
+    ALOAD 16
+    NOP
+    GOTO L180
+   L180
+    ASTORE 15
+   L181
+    LINENUMBER 561 L181
+    NOP
+   L182
+    NOP
+    ALOAD 15
+    INVOKESTATIC kotlin/Result.isFailure-impl (Ljava/lang/Object;)Z
+    IFEQ L183
+    ACONST_NULL
+    GOTO L184
+   L183
+    ALOAD 15
+   L184
+    NOP
+    GOTO L185
+   L185
+    LINENUMBER 561 L185
+    CHECKCAST com/glyph/glyph_v3/data/local/entity/LocalChat
+    ASTORE 13
+   L186
+    LINENUMBER 562 L186
+    ALOAD 0
+    ALOAD 11
+    ALOAD 4
+    INVOKESPECIAL com/glyph/glyph_v3/data/repo/RealtimeMessageRepository.deriveOtherUserIdFromChatId (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+    ASTORE 15
+   L187
+    LINENUMBER 563 L187
+    ALOAD 13
+    IFNULL L188
+    ALOAD 13
+    INVOKEVIRTUAL com/glyph/glyph_v3/data/local/entity/LocalChat.getOtherUserId ()Ljava/lang/String;
+    ASTORE 17
+   L189
+    ALOAD 17
+    IFNULL L188
+    ALOAD 17
+    ASTORE 18
+    NOP
+   L190
+    NOP
+    ALOAD 18
+    CHECKCAST java/lang/String
+    ASTORE 19
+   L191
+    LINENUMBER 3949 L191
+   L192
+    ICONST_0
+    ISTORE 20
+   L193
+    NOP
+   L194
+    LINENUMBER 563 L194
+    ALOAD 19
+    CHECKCAST java/lang/CharSequence
+    INVOKESTATIC kotlin/text/StringsKt.isBlank (Ljava/lang/CharSequence;)Z
+    IFNE L195
+    ICONST_1
+    GOTO L196
+   L195
+    ICONST_0
+   L196
+    GOTO L197
+   L197
+    LINENUMBER 563 L197
+    NOP
+    GOTO L198
+   L198
+    INVOKESTATIC kotlin/coroutines/jvm/internal/Boxing.boxBoolean (Z)Ljava/lang/Boolean;
+   L199
+    LINENUMBER 563 L199
+    CHECKCAST java/lang/Boolean
+    INVOKEVIRTUAL java/lang/Boolean.booleanValue ()Z
+    IFEQ L200
+    ALOAD 18
+    GOTO L201
+   L200
+    ACONST_NULL
+   L201
+    NOP
+    GOTO L202
+   L202
+    LINENUMBER 563 L202
+    CHECKCAST java/lang/String
+    ASTORE 21
+   L203
+    ALOAD 21
+    IFNULL L188
+    ALOAD 21
+    GOTO L204
+   L188
+    NOP
+    ALOAD 15
+   L204
+    ASTORE 16
+   L205
+    LINENUMBER 564 L205
+    NOP
+   L206
+    ALOAD 16
+    CHECKCAST java/lang/CharSequence
+    INVOKESTATIC kotlin/text/StringsKt.isBlank (Ljava/lang/CharSequence;)Z
+    IFNE L207
+    ICONST_1
+    GOTO L208
+   L207
+    ICONST_0
+   L208
+    NOP
+    GOTO L209
+   L209
+    LINENUMBER 564 L209
+    IFEQ L210
+   L211
+    LINENUMBER 565 L211
+    ALOAD 14
+    ALOAD 4
+    ALOAD 16
+    INVOKEDYNAMIC makeConcatWithConstants(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String; [
+      // handle kind 0x6 : INVOKESTATIC
+      java/lang/invoke/StringConcatFactory.makeConcatWithConstants(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+      // arguments:
+      "\u0001_\u0001"
+    ]
+    INVOKEVIRTUAL java/util/LinkedHashSet.add (Ljava/lang/Object;)Z
+    POP
+   L212
+    LINENUMBER 566 L212
+    ALOAD 14
+    ALOAD 16
+    ALOAD 4
+    INVOKEDYNAMIC makeConcatWithConstants(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String; [
+      // handle kind 0x6 : INVOKESTATIC
+      java/lang/invoke/StringConcatFactory.makeConcatWithConstants(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+      // arguments:
+      "\u0001_\u0001"
+    ]
+    INVOKEVIRTUAL java/util/LinkedHashSet.add (Ljava/lang/Object;)Z
+    POP
+   L213
+    LINENUMBER 567 L213
+    ALOAD 14
+    ICONST_2
+    ANEWARRAY java/lang/String
+    ASTORE 17
+   L214
+    ALOAD 17
+    ICONST_0
+    ALOAD 4
+    AASTORE
+    ALOAD 17
+    ICONST_1
+    ALOAD 16
+    AASTORE
+    ALOAD 17
+   L215
+    INVOKESTATIC kotlin/collections/CollectionsKt.listOf ([Ljava/lang/Object;)Ljava/util/List;
+    CHECKCAST java/lang/Iterable
+    INVOKESTATIC kotlin/collections/CollectionsKt.sorted (Ljava/lang/Iterable;)Ljava/util/List;
+    CHECKCAST java/lang/Iterable
+    LDC "_"
+    CHECKCAST java/lang/CharSequence
+    ACONST_NULL
+    ACONST_NULL
+    ICONST_0
+    ACONST_NULL
+    ACONST_NULL
+    BIPUSH 62
+    ACONST_NULL
+    INVOKESTATIC kotlin/collections/CollectionsKt.joinToString$default (Ljava/lang/Iterable;Ljava/lang/CharSequence;Ljava/lang/CharSequence;Ljava/lang/CharSequence;ILjava/lang/CharSequence;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/lang/String;
+    INVOKEVIRTUAL java/util/LinkedHashSet.add (Ljava/lang/Object;)Z
+    POP
+   L210
+    LINENUMBER 570 L210
+    LDC "RealtimeMessageRepo"
+    ALOAD 11
+    ILOAD 2
+    IFEQ L216
+    ICONST_1
+    GOTO L217
+   L216
+    ICONST_0
+   L217
+    ALOAD 14
+    INVOKEVIRTUAL java/util/LinkedHashSet.size ()I
+    INVOKEDYNAMIC makeConcatWithConstants(Ljava/lang/String;ZI)Ljava/lang/String; [
+      // handle kind 0x6 : INVOKESTATIC
+      java/lang/invoke/StringConcatFactory.makeConcatWithConstants(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+      // arguments:
+      "Syncing archive status for chatId=\u0001, isArchived=\u0001, variants=\u0001"
+    ]
+    INVOKESTATIC android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+    POP
+   L218
+    LINENUMBER 572 L218
+    ALOAD 14
+    CHECKCAST java/lang/Iterable
+    ASTORE 17
+    NOP
+   L219
+    ICONST_0
+    ISTORE 21
+   L220
+    LINENUMBER 3950 L220
+    ALOAD 17
+    INVOKEINTERFACE java/lang/Iterable.iterator ()Ljava/util/Iterator; (itf)
+    ASTORE 18
+   L221
+    ALOAD 18
+    INVOKEINTERFACE java/util/Iterator.hasNext ()Z (itf)
+    IFEQ L222
+    ALOAD 18
+    INVOKEINTERFACE java/util/Iterator.next ()Ljava/lang/Object; (itf)
+    ASTORE 19
+   L223
+    ALOAD 19
+    CHECKCAST java/lang/String
+    ASTORE 20
+   L224
+    ICONST_0
+    ISTORE 22
+   L225
+    LINENUMBER 573 L225
+    ALOAD 6
+    ALOAD 20
+    INVOKEVIRTUAL com/google/firebase/firestore/CollectionReference.document (Ljava/lang/String;)Lcom/google/firebase/firestore/DocumentReference;
+    DUP
+    LDC "document(...)"
+    INVOKESTATIC kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue (Ljava/lang/Object;Ljava/lang/String;)V
+    CHECKCAST com/google/firebase/firestore/DocumentReference
+    ASTORE 23
+   L226
+    LINENUMBER 574 L226
+    ILOAD 2
+    IFEQ L227
+   L228
+    LINENUMBER 575 L228
+    ALOAD 5
+   L229
+    LINENUMBER 576 L229
+    ALOAD 23
+   L230
+    LINENUMBER 578 L230
+    ICONST_4
+    ANEWARRAY kotlin/Pair
+    ASTORE 24
+    ALOAD 24
+    ICONST_0
+    LDC "archived"
+    ICONST_1
+    INVOKESTATIC kotlin/coroutines/jvm/internal/Boxing.boxBoolean (Z)Ljava/lang/Boolean;
+    INVOKESTATIC kotlin/TuplesKt.to (Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/Pair;
+    AASTORE
+    ALOAD 24
+    ICONST_1
+   L231
+    LINENUMBER 579 L231
+    LDC "chatId"
+    ALOAD 11
+    INVOKESTATIC kotlin/TuplesKt.to (Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/Pair;
+    AASTORE
+   L232
+    LINENUMBER 578 L232
+    ALOAD 24
+    ICONST_2
+   L233
+    LINENUMBER 580 L233
+    LDC "otherUserId"
+    ALOAD 16
+    INVOKESTATIC kotlin/TuplesKt.to (Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/Pair;
+    AASTORE
+   L234
+    LINENUMBER 578 L234
+    ALOAD 24
+    ICONST_3
+   L235
+    LINENUMBER 581 L235
+    LDC "updatedAt"
+    INVOKESTATIC com/google/firebase/firestore/FieldValue.serverTimestamp ()Lcom/google/firebase/firestore/FieldValue;
+    INVOKESTATIC kotlin/TuplesKt.to (Ljava/lang/Object;Ljava/lang/Object;)Lkotlin/Pair;
+    AASTORE
+   L236
+    LINENUMBER 578 L236
+    ALOAD 24
+   L237
+    LINENUMBER 577 L237
+    INVOKESTATIC kotlin/collections/MapsKt.mapOf ([Lkotlin/Pair;)Ljava/util/Map;
+   L238
+    LINENUMBER 583 L238
+    INVOKESTATIC com/google/firebase/firestore/SetOptions.merge ()Lcom/google/firebase/firestore/SetOptions;
+   L239
+    LINENUMBER 575 L239
+    INVOKEVIRTUAL com/google/firebase/firestore/WriteBatch.set (Lcom/google/firebase/firestore/DocumentReference;Ljava/lang/Object;Lcom/google/firebase/firestore/SetOptions;)Lcom/google/firebase/firestore/WriteBatch;
+    GOTO L240
+   L227
+    LINENUMBER 588 L227
+    ALOAD 5
+    ALOAD 23
+    INVOKEVIRTUAL com/google/firebase/firestore/WriteBatch.delete (Lcom/google/firebase/firestore/DocumentReference;)Lcom/google/firebase/firestore/WriteBatch;
+   L240
+    POP
+   L241
+    LINENUMBER 590 L241
+    NOP
+    GOTO L242
+   L242
+   L243
+    LINENUMBER 3950 L243
+   L244
+    GOTO L221
+   L222
+    LINENUMBER 3951 L222
+    NOP
+    GOTO L245
+   L245
+   L246
+    LINENUMBER 592 L246
+    ILOAD 2
+    IFNE L247
+   L248
+    LINENUMBER 593 L248
+    ALOAD 0
+    ASTORE 21
+    NOP
+   L249
+   L250
+   L11
+    NOP
+    GETSTATIC kotlin/Result.Companion : Lkotlin/Result$Companion;
+    POP
+    ALOAD 21
+    CHECKCAST com/glyph/glyph_v3/data/repo/RealtimeMessageRepository
+    ASTORE 18
+   L251
+    ICONST_0
+    ISTORE 19
+   L252
+    LINENUMBER 594 L252
+    ALOAD 6
+    LDC "chatId"
+    ALOAD 11
+    INVOKEVIRTUAL com/google/firebase/firestore/CollectionReference.whereEqualTo (Ljava/lang/String;Ljava/lang/Object;)Lcom/google/firebase/firestore/Query;
+    INVOKEVIRTUAL com/google/firebase/firestore/Query.get ()Lcom/google/android/gms/tasks/Task;
+    ASTORE 20
+   L253
+    ALOAD 20
+    LDC "get(...)"
+    INVOKESTATIC kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue (Ljava/lang/Object;Ljava/lang/String;)V
+    ALOAD 20
+   L254
+    CHECKCAST com/google/android/gms/tasks/Task
+    ALOAD 32
+    ALOAD 32
+    ALOAD 0
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$0 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 1
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$1 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 4
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$2 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 5
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$3 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 6
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$4 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 9
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$5 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 11
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$6 : Ljava/lang/Object;
+    ALOAD 32
+    ALOAD 14
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$7 : Ljava/lang/Object;
+    ALOAD 32
+    ILOAD 2
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.Z$0 : Z
+    ALOAD 32
+    ICONST_3
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.label : I
+    INVOKESTATIC kotlinx/coroutines/tasks/TasksKt.await (Lcom/google/android/gms/tasks/Task;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+   L12
+    DUP
+    ALOAD 33
+    IF_ACMPNE L255
+   L256
+    LINENUMBER 511 L256
+    ALOAD 33
+    ARETURN
+   L29
+    ICONST_0
+    ISTORE 8
+   L257
+    ICONST_0
+    ISTORE 12
+   L258
+    ICONST_0
+    ISTORE 19
+   L259
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.Z$0 : Z
+    ISTORE 2
+   L260
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$7 : Ljava/lang/Object;
+    CHECKCAST java/util/LinkedHashSet
+    ASTORE 14
+   L261
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$6 : Ljava/lang/Object;
+    CHECKCAST java/lang/String
+    ASTORE 11
+   L262
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$5 : Ljava/lang/Object;
+    CHECKCAST java/util/Iterator
+    ASTORE 9
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$4 : Ljava/lang/Object;
+    CHECKCAST com/google/firebase/firestore/CollectionReference
+    ASTORE 6
+   L263
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$3 : Ljava/lang/Object;
+    CHECKCAST com/google/firebase/firestore/WriteBatch
+    ASTORE 5
+   L264
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$2 : Ljava/lang/Object;
+    CHECKCAST java/lang/String
+    ASTORE 4
+   L265
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$1 : Ljava/lang/Object;
+    CHECKCAST java/util/List
+    ASTORE 1
+   L266
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$0 : Ljava/lang/Object;
+    CHECKCAST com/glyph/glyph_v3/data/repo/RealtimeMessageRepository
+    ASTORE 0
+   L267
+   L14
+    NOP
+    ALOAD 31
+    INVOKESTATIC kotlin/ResultKt.throwOnFailure (Ljava/lang/Object;)V
+    ALOAD 31
+   L255
+    LINENUMBER 594 L255
+    CHECKCAST com/google/firebase/firestore/QuerySnapshot
+    NOP
+    GOTO L268
+   L268
+   L269
+    LINENUMBER 593 L269
+    INVOKESTATIC kotlin/Result.constructor-impl (Ljava/lang/Object;)Ljava/lang/Object;
+    ASTORE 18
+   L15
+    GOTO L270
+   L13
+    ASTORE 19
+    GETSTATIC kotlin/Result.Companion : Lkotlin/Result$Companion;
+    POP
+    ALOAD 19
+    INVOKESTATIC kotlin/ResultKt.createFailure (Ljava/lang/Throwable;)Ljava/lang/Object;
+    INVOKESTATIC kotlin/Result.constructor-impl (Ljava/lang/Object;)Ljava/lang/Object;
+    ASTORE 18
+   L270
+    ALOAD 18
+    NOP
+    GOTO L271
+   L271
+    ASTORE 21
+   L272
+    LINENUMBER 595 L272
+    NOP
+   L273
+    NOP
+    ALOAD 21
+    INVOKESTATIC kotlin/Result.isFailure-impl (Ljava/lang/Object;)Z
+    IFEQ L274
+    ACONST_NULL
+    GOTO L275
+   L274
+    ALOAD 21
+   L275
+    NOP
+    GOTO L276
+   L276
+    LINENUMBER 595 L276
+    CHECKCAST com/google/firebase/firestore/QuerySnapshot
+   L277
+    LINENUMBER 593 L277
+    ASTORE 17
+   L278
+    LINENUMBER 597 L278
+   L279
+    LINENUMBER 599 L279
+   L280
+    LINENUMBER 598 L280
+   L281
+    LINENUMBER 597 L281
+    ALOAD 17
+    IFNULL L282
+    ALOAD 17
+    INVOKEVIRTUAL com/google/firebase/firestore/QuerySnapshot.getDocuments ()Ljava/util/List;
+    ASTORE 21
+   L283
+    LINENUMBER 598 L283
+    ALOAD 21
+    IFNULL L282
+   L284
+    LINENUMBER 597 L284
+    ALOAD 21
+    CHECKCAST java/lang/Iterable
+    ASTORE 19
+   L285
+    LINENUMBER 598 L285
+    NOP
+   L286
+    ICONST_0
+    ISTORE 20
+   L287
+    LINENUMBER 3952 L287
+    ALOAD 19
+    ASTORE 22
+    NEW java/util/ArrayList
+    DUP
+    ALOAD 19
+    BIPUSH 10
+    INVOKESTATIC kotlin/collections/CollectionsKt.collectionSizeOrDefault (Ljava/lang/Iterable;I)I
+    INVOKESPECIAL java/util/ArrayList.<init> (I)V
+    CHECKCAST java/util/Collection
+    ASTORE 23
+   L288
+    ICONST_0
+    ISTORE 24
+   L289
+    LINENUMBER 3953 L289
+    ALOAD 22
+    INVOKEINTERFACE java/lang/Iterable.iterator ()Ljava/util/Iterator; (itf)
+    ASTORE 25
+   L290
+    ALOAD 25
+    INVOKEINTERFACE java/util/Iterator.hasNext ()Z (itf)
+    IFEQ L291
+    ALOAD 25
+    INVOKEINTERFACE java/util/Iterator.next ()Ljava/lang/Object; (itf)
+    ASTORE 26
+   L292
+    LINENUMBER 3954 L292
+    ALOAD 23
+    ALOAD 26
+    CHECKCAST com/google/firebase/firestore/DocumentSnapshot
+    ASTORE 27
+    ASTORE 28
+   L293
+    ICONST_0
+    ISTORE 29
+   L294
+    LINENUMBER 598 L294
+    ALOAD 27
+    INVOKEVIRTUAL com/google/firebase/firestore/DocumentSnapshot.getReference ()Lcom/google/firebase/firestore/DocumentReference;
+    NOP
+    GOTO L295
+   L295
+    ASTORE 30
+    ALOAD 28
+    ALOAD 30
+   L296
+    LINENUMBER 3954 L296
+    INVOKEINTERFACE java/util/Collection.add (Ljava/lang/Object;)Z (itf)
+    POP
+   L297
+    GOTO L290
+   L291
+    LINENUMBER 3955 L291
+    ALOAD 23
+   L298
+    CHECKCAST java/util/List
+   L299
+    LINENUMBER 3952 L299
+    NOP
+    GOTO L300
+   L300
+   L301
+    LINENUMBER 598 L301
+    ASTORE 18
+   L302
+    LINENUMBER 599 L302
+    ALOAD 18
+    IFNULL L282
+   L303
+    LINENUMBER 597 L303
+    ALOAD 18
+    CHECKCAST java/lang/Iterable
+    ASTORE 19
+   L304
+    LINENUMBER 599 L304
+    NOP
+   L305
+    ICONST_0
+    ISTORE 20
+   L306
+    LINENUMBER 3956 L306
+    ALOAD 19
+    INVOKEINTERFACE java/lang/Iterable.iterator ()Ljava/util/Iterator; (itf)
+    ASTORE 22
+   L307
+    ALOAD 22
+    INVOKEINTERFACE java/util/Iterator.hasNext ()Z (itf)
+    IFEQ L308
+    ALOAD 22
+    INVOKEINTERFACE java/util/Iterator.next ()Ljava/lang/Object; (itf)
+    ASTORE 23
+   L309
+    ALOAD 23
+    CHECKCAST com/google/firebase/firestore/DocumentReference
+    ASTORE 24
+   L310
+    ICONST_0
+    ISTORE 25
+   L311
+    LINENUMBER 600 L311
+    ALOAD 5
+    ALOAD 24
+    INVOKEVIRTUAL com/google/firebase/firestore/WriteBatch.delete (Lcom/google/firebase/firestore/DocumentReference;)Lcom/google/firebase/firestore/WriteBatch;
+    POP
+   L312
+    LINENUMBER 601 L312
+    NOP
+    GOTO L313
+   L313
+   L314
+    LINENUMBER 3956 L314
+   L315
+    GOTO L307
+   L308
+    LINENUMBER 3957 L308
+    NOP
+    GOTO L316
+   L316
+    GETSTATIC kotlin/Unit.INSTANCE : Lkotlin/Unit;
+    GOTO L317
+   L282
+    LINENUMBER 597 L282
+    NOP
+    ACONST_NULL
+   L317
+    POP
+   L318
+    LINENUMBER 604 L318
+    LDC "RealtimeMessageRepo"
+   L319
+    LINENUMBER 605 L319
+    ALOAD 11
+    ALOAD 14
+    INVOKEVIRTUAL java/util/LinkedHashSet.size ()I
+    ALOAD 17
+    IFNULL L320
+    ALOAD 17
+    INVOKEVIRTUAL com/google/firebase/firestore/QuerySnapshot.size ()I
+    ISTORE 21
+   L321
+    ILOAD 21
+    POP
+    ILOAD 21
+    GOTO L322
+   L320
+    NOP
+    ICONST_0
+   L322
+    INVOKEDYNAMIC makeConcatWithConstants(Ljava/lang/String;II)Ljava/lang/String; [
+      // handle kind 0x6 : INVOKESTATIC
+      java/lang/invoke/StringConcatFactory.makeConcatWithConstants(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+      // arguments:
+      "Unarchive cleanup for chatId=\u0001 updatedById=\u0001 updatedByQuery=\u0001"
+    ]
+   L323
+    LINENUMBER 603 L323
+    INVOKESTATIC android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+   L324
+    POP
+   L247
+    LINENUMBER 608 L247
+    NOP
+    NOP
+    GOTO L325
+   L326
+   L327
+   L325
+   L328
+    LINENUMBER 3948 L328
+   L329
+    GOTO L151
+   L152
+    LINENUMBER 3958 L152
+    NOP
+    GOTO L330
+   L331
+   L332
+   L330
+   L333
+    LINENUMBER 610 L333
+    ALOAD 5
+    INVOKEVIRTUAL com/google/firebase/firestore/WriteBatch.commit ()Lcom/google/android/gms/tasks/Task;
+    ASTORE 7
+   L334
+    ALOAD 7
+    LDC "commit(...)"
+    INVOKESTATIC kotlin/jvm/internal/Intrinsics.checkNotNullExpressionValue (Ljava/lang/Object;Ljava/lang/String;)V
+    ALOAD 7
+   L335
+    CHECKCAST com/google/android/gms/tasks/Task
+    ALOAD 32
+    ALOAD 32
+    ALOAD 1
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$0 : Ljava/lang/Object;
+    ALOAD 32
+    ACONST_NULL
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$1 : Ljava/lang/Object;
+    ALOAD 32
+    ACONST_NULL
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$2 : Ljava/lang/Object;
+    ALOAD 32
+    ACONST_NULL
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$3 : Ljava/lang/Object;
+    ALOAD 32
+    ACONST_NULL
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$4 : Ljava/lang/Object;
+    ALOAD 32
+    ACONST_NULL
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$5 : Ljava/lang/Object;
+    ALOAD 32
+    ACONST_NULL
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$6 : Ljava/lang/Object;
+    ALOAD 32
+    ACONST_NULL
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$7 : Ljava/lang/Object;
+    ALOAD 32
+    ICONST_4
+    PUTFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.label : I
+    INVOKESTATIC kotlinx/coroutines/tasks/TasksKt.await (Lcom/google/android/gms/tasks/Task;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+   L18
+    DUP
+    ALOAD 33
+    IF_ACMPNE L336
+   L337
+    LINENUMBER 511 L337
+    ALOAD 33
+    ARETURN
+   L30
+    ALOAD 32
+    GETFIELD com/glyph/glyph_v3/data/repo/RealtimeMessageRepository$archiveChats$1.L$0 : Ljava/lang/Object;
+    CHECKCAST java/util/List
+    ASTORE 1
+   L338
+   L19
+    NOP
+    ALOAD 31
+    INVOKESTATIC kotlin/ResultKt.throwOnFailure (Ljava/lang/Object;)V
+    ALOAD 31
+   L336
+    LINENUMBER 611 L336
+    POP
+   L339
+    LDC "RealtimeMessageRepo"
+    ALOAD 1
+    INVOKEINTERFACE java/util/List.size ()I (itf)
+    INVOKEDYNAMIC makeConcatWithConstants(I)Ljava/lang/String; [
+      // handle kind 0x6 : INVOKESTATIC
+      java/lang/invoke/StringConcatFactory.makeConcatWithConstants(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;
+      // arguments:
+      "Successfully synced \u0001 chats archive status to Firestore"
+    ]
+    INVOKESTATIC android/util/Log.d (Ljava/lang/String;Ljava/lang/String;)I
+   L340
+    ISTORE 5
+   L20
+    GOTO L341
+   L17
+   L342
+    LINENUMBER 612 L342
+    ASTORE 6
+   L343
+   L344
+    LINENUMBER 613 L344
+    LDC "RealtimeMessageRepo"
+    LDC "CRITICAL: Failed to sync archived_chats to Firestore - notifications may still show!"
+    ALOAD 6
+    CHECKCAST java/lang/Throwable
+    INVOKESTATIC android/util/Log.e (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
+    POP
+   L345
+    LINENUMBER 615 L345
+    ALOAD 6
+    ATHROW
+   L346
+   L341
+   L347
+    LINENUMBER 617 L347
+    NOP
+    GETSTATIC kotlin/Unit.INSTANCE : Lkotlin/Unit;
+    ARETURN
+   L348
+   L349
+   L31
+    LINENUMBER 511 L31
+    NEW java/lang/IllegalStateException
+    DUP
+    LDC "call to 'resume' before 'invoke' with coroutine"
+    INVOKESPECIAL java/lang/IllegalStateException.<init> (Ljava/lang/String;)V
+    ATHROW
+    RETURN
+   L350
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L32 L27 0
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L51 L55 0
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L56 L60 0
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L61 L107 0
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L108 L112 0
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L113 L129 0
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L130 L132 0
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L136 L28 0
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L176 L29 0
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L267 L326 0
+    LOCALVARIABLE this Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L327 L152 0
+    LOCALVARIABLE chatIds Ljava/util/List; L32 L27 1
+    LOCALVARIABLE chatIds Ljava/util/List; L50 L55 1
+    LOCALVARIABLE chatIds Ljava/util/List; L56 L60 1
+    LOCALVARIABLE chatIds Ljava/util/List; L61 L107 1
+    LOCALVARIABLE chatIds Ljava/util/List; L108 L112 1
+    LOCALVARIABLE chatIds Ljava/util/List; L113 L129 1
+    LOCALVARIABLE chatIds Ljava/util/List; L130 L135 1
+    LOCALVARIABLE chatIds Ljava/util/List; L136 L28 1
+    LOCALVARIABLE chatIds Ljava/util/List; L175 L29 1
+    LOCALVARIABLE chatIds Ljava/util/List; L266 L30 1
+    LOCALVARIABLE chatIds Ljava/util/List; L338 L340 1
+    LOCALVARIABLE isArchived Z L32 L27 2
+    LOCALVARIABLE isArchived Z L49 L55 2
+    LOCALVARIABLE isArchived Z L56 L60 2
+    LOCALVARIABLE isArchived Z L61 L107 2
+    LOCALVARIABLE isArchived Z L108 L112 2
+    LOCALVARIABLE isArchived Z L113 L129 2
+    LOCALVARIABLE isArchived Z L130 L132 2
+    LOCALVARIABLE isArchived Z L136 L28 2
+    LOCALVARIABLE isArchived Z L169 L29 2
+    LOCALVARIABLE isArchived Z L260 L326 2
+    LOCALVARIABLE isArchived Z L327 L152 2
+    LOCALVARIABLE $this$forEach\1 Ljava/lang/Iterable; L34 L36 4
+    LOCALVARIABLE notificationManager Landroid/app/NotificationManager; L71 L114 4
+    LOCALVARIABLE uid Ljava/lang/String; L122 L129 4
+    LOCALVARIABLE uid Ljava/lang/String; L130 L135 4
+    LOCALVARIABLE uid Ljava/lang/String; L136 L28 4
+    LOCALVARIABLE uid Ljava/lang/String; L174 L29 4
+    LOCALVARIABLE uid Ljava/lang/String; L265 L326 4
+    LOCALVARIABLE uid Ljava/lang/String; L327 L152 4
+    LOCALVARIABLE $this$forEach\3 Ljava/lang/Iterable; L73 L75 5
+    LOCALVARIABLE e Ljava/lang/Exception; L117 L119 5
+    LOCALVARIABLE batch Lcom/google/firebase/firestore/WriteBatch; L143 L28 5
+    LOCALVARIABLE batch Lcom/google/firebase/firestore/WriteBatch; L173 L29 5
+    LOCALVARIABLE batch Lcom/google/firebase/firestore/WriteBatch; L264 L326 5
+    LOCALVARIABLE batch Lcom/google/firebase/firestore/WriteBatch; L327 L331 5
+    LOCALVARIABLE batch Lcom/google/firebase/firestore/WriteBatch; L332 L334 5
+    LOCALVARIABLE col Lcom/google/firebase/firestore/CollectionReference; L147 L28 6
+    LOCALVARIABLE col Lcom/google/firebase/firestore/CollectionReference; L172 L29 6
+    LOCALVARIABLE col Lcom/google/firebase/firestore/CollectionReference; L263 L326 6
+    LOCALVARIABLE col Lcom/google/firebase/firestore/CollectionReference; L327 L152 6
+    LOCALVARIABLE e Ljava/lang/Exception; L343 L346 6
+    LOCALVARIABLE element\1 Ljava/lang/Object; L38 L39 7
+    LOCALVARIABLE $this$forEach\7 Ljava/lang/Iterable; L149 L151 7
+    LOCALVARIABLE id\2 Ljava/lang/String; L39 L42 8
+    LOCALVARIABLE element\3 Ljava/lang/Object; L77 L78 8
+    LOCALVARIABLE chatId\4 Ljava/lang/String; L78 L108 9
+    LOCALVARIABLE element\7 Ljava/lang/Object; L153 L154 10
+    LOCALVARIABLE notificationTag\4 Ljava/lang/String; L80 L88 11
+    LOCALVARIABLE chatId\8 Ljava/lang/String; L154 L28 11
+    LOCALVARIABLE chatId\8 Ljava/lang/String; L171 L29 11
+    LOCALVARIABLE chatId\8 Ljava/lang/String; L262 L321 11
+    LOCALVARIABLE msgId\4 I L81 L89 13
+    LOCALVARIABLE local\8 Lcom/glyph/glyph_v3/data/local/entity/LocalChat; L186 L189 13
+    LOCALVARIABLE summaryId\4 I L82 L90 14
+    LOCALVARIABLE idsToSync\8 Ljava/util/LinkedHashSet; L158 L28 14
+    LOCALVARIABLE idsToSync\8 Ljava/util/LinkedHashSet; L170 L29 14
+    LOCALVARIABLE idsToSync\8 Ljava/util/LinkedHashSet; L261 L321 14
+    LOCALVARIABLE parsedOtherUserId\8 Ljava/lang/String; L187 L188 15
+    LOCALVARIABLE parsedOtherUserId\8 Ljava/lang/String; L188 L204 15
+    LOCALVARIABLE $this$archiveChats_u24lambda_u2415_u24lambda_u2413\5 Landroid/app/NotificationManager; L84 L91 16
+    LOCALVARIABLE $this$archiveChats_u24lambda_u2422_u24lambda_u2416\9 Lcom/glyph/glyph_v3/data/repo/RealtimeMessageRepository; L161 L7 16
+    LOCALVARIABLE otherUserId\8 Ljava/lang/String; L205 L222 16
+    LOCALVARIABLE $this$forEach\11 Ljava/lang/Iterable; L219 L221 17
+    LOCALVARIABLE linkedDocs\8 Lcom/google/firebase/firestore/QuerySnapshot; L278 L321 17
+    LOCALVARIABLE it\10 Ljava/lang/String; L191 L195 19
+    LOCALVARIABLE element\11 Ljava/lang/Object; L223 L224 19
+    LOCALVARIABLE $this$map\14 Ljava/lang/Iterable; L285 L288 19
+    LOCALVARIABLE $this$forEach\17 Ljava/lang/Iterable; L304 L307 19
+    LOCALVARIABLE id\12 Ljava/lang/String; L224 L226 20
+    LOCALVARIABLE $this$mapTo\15 Ljava/lang/Iterable; L288 L290 22
+    LOCALVARIABLE ref\12 Lcom/google/firebase/firestore/DocumentReference; L226 L230 23
+    LOCALVARIABLE ref\12 Lcom/google/firebase/firestore/DocumentReference; L227 L240 23
+    LOCALVARIABLE destination\15 Ljava/util/Collection; L288 L298 23
+    LOCALVARIABLE element\17 Ljava/lang/Object; L309 L315 23
+    LOCALVARIABLE linkedRef\18 Lcom/google/firebase/firestore/DocumentReference; L310 L313 24
+    LOCALVARIABLE item\15 Ljava/lang/Object; L292 L297 26
+    LOCALVARIABLE it\16 Lcom/google/firebase/firestore/DocumentSnapshot; L293 L295 27
+    LOCALVARIABLE $i$a$-forEach-RealtimeMessageRepository$archiveChats$2\2\3944\0 I L40 L27 9
+    LOCALVARIABLE $i$f$forEach\1\513 I L35 L27 5
+    LOCALVARIABLE $i$a$-apply-RealtimeMessageRepository$archiveChats$3$1\5\527\4 I L85 L91 17
+    LOCALVARIABLE $i$a$-runCatching-RealtimeMessageRepository$archiveChats$3$2\6\536\4 I L98 L100 17
+    LOCALVARIABLE $i$a$-forEach-RealtimeMessageRepository$archiveChats$3\4\3946\0 I L79 L108 10
+    LOCALVARIABLE $i$f$forEach\3\523 I L74 L113 6
+    LOCALVARIABLE $i$a$-runCatching-RealtimeMessageRepository$archiveChats$4$local$1\9\561\8 I L163 L28 17
+    LOCALVARIABLE $i$a$-takeIf-RealtimeMessageRepository$archiveChats$4$otherUserId$1\10\563\8 I L193 L198 20
+    LOCALVARIABLE $i$a$-forEach-RealtimeMessageRepository$archiveChats$4$1\12\3950\8 I L225 L242 22
+    LOCALVARIABLE $i$f$forEach\11\572 I L220 L245 21
+    LOCALVARIABLE $i$a$-runCatching-RealtimeMessageRepository$archiveChats$4$linkedDocs$1\13\593\8 I L252 L29 19
+    LOCALVARIABLE $i$a$-map-RealtimeMessageRepository$archiveChats$4$2\16\3954\8 I L294 L295 29
+    LOCALVARIABLE $i$f$mapTo\15\3952 I L289 L298 24
+    LOCALVARIABLE $i$f$map\14\598 I L287 L300 20
+    LOCALVARIABLE $i$a$-forEach-RealtimeMessageRepository$archiveChats$4$3\18\3956\8 I L311 L313 25
+    LOCALVARIABLE $i$f$forEach\17\599 I L306 L316 20
+    LOCALVARIABLE $i$a$-forEach-RealtimeMessageRepository$archiveChats$4\8\3948\0 I L155 L28 12
+    LOCALVARIABLE $i$f$forEach\7\559 I L150 L28 8
+    LOCALVARIABLE $completion Lkotlin/coroutines/Continuation; L21 L350 3
+    LOCALVARIABLE $continuation Lkotlin/coroutines/Continuation; L23 L349 32
+    LOCALVARIABLE $result Ljava/lang/Object; L24 L349 31
+    LOCALVARIABLE $i$a$-forEach-RealtimeMessageRepository$archiveChats$2\2\3944\0 I L48 L56 9
+    LOCALVARIABLE $i$f$forEach\1\513 I L47 L61 5
+    LOCALVARIABLE $i$a$-runCatching-RealtimeMessageRepository$archiveChats$4$local$1\9\561\8 I L168 L177 17
+    LOCALVARIABLE $i$a$-forEach-RealtimeMessageRepository$archiveChats$4\8\3948\0 I L167 L29 12
+    LOCALVARIABLE $i$f$forEach\7\559 I L166 L29 8
+    LOCALVARIABLE $i$a$-runCatching-RealtimeMessageRepository$archiveChats$4$linkedDocs$1\13\593\8 I L259 L268 19
+    LOCALVARIABLE $i$a$-forEach-RealtimeMessageRepository$archiveChats$4\8\3948\0 I L258 L327 12
+    LOCALVARIABLE $i$f$forEach\7\559 I L257 L332 8
+    MAXSTACK = 10
+    MAXLOCALS = 34
+
+File is unknown
+The root cause java.lang.OutOfMemoryError was thrown at: java.base/java.util.IdentityHashMap.resize(IdentityHashMap.java:476)
+	at org.jetbrains.kotlin.codegen.TransformationMethodVisitor.visitEnd(TransformationMethodVisitor.kt:89)
+	at org.jetbrains.org.objectweb.asm.tree.MethodNode.accept(MethodNode.java:772)
+	at org.jetbrains.kotlin.backend.jvm.codegen.CoroutineCodegenKt.acceptWithStateMachine(CoroutineCodegen.kt:76)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generateMethod(ClassCodegen.kt:440)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generate(ClassCodegen.kt:168)
+	at org.jetbrains.kotlin.backend.jvm.FileCodegen.lower(JvmPhases.kt:39)
+	at org.jetbrains.kotlin.backend.common.phaser.PhaseFactoriesKt.createFilePhase$lambda$4(PhaseFactories.kt:71)
+	at org.jetbrains.kotlin.backend.common.phaser.PhaseBuildersKt$createSimpleNamedCompilerPhase$1.phaseBody(PhaseBuilders.kt:69)
+	at org.jetbrains.kotlin.backend.common.phaser.SimpleNamedCompilerPhase.phaseBody(CompilerPhase.kt:226)
+	at org.jetbrains.kotlin.backend.common.phaser.AbstractNamedCompilerPhase.invoke(CompilerPhase.kt:113)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invokeSequential(performByIrFile.kt:62)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invoke(performByIrFile.kt:52)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invoke(performByIrFile.kt:38)
+	at org.jetbrains.kotlin.backend.common.phaser.NamedCompilerPhase.phaseBody(CompilerPhase.kt:166)
+	at org.jetbrains.kotlin.backend.common.phaser.AbstractNamedCompilerPhase.invoke(CompilerPhase.kt:113)
+	at org.jetbrains.kotlin.backend.common.phaser.CompositePhase.invoke(PhaseBuilders.kt:27)
+	at org.jetbrains.kotlin.backend.common.phaser.CompositePhase.invoke(PhaseBuilders.kt:14)
+	at org.jetbrains.kotlin.backend.common.phaser.NamedCompilerPhase.phaseBody(CompilerPhase.kt:166)
+	at org.jetbrains.kotlin.backend.common.phaser.AbstractNamedCompilerPhase.invoke(CompilerPhase.kt:113)
+	at org.jetbrains.kotlin.backend.common.phaser.CompilerPhaseKt.invokeToplevel(CompilerPhase.kt:62)
+	at org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory.invokeCodegen(JvmIrCodegenFactory.kt:371)
+	at org.jetbrains.kotlin.codegen.CodegenFactory.generateModule(CodegenFactory.kt:47)
+	at org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory.generateModuleInFrontendIRMode(JvmIrCodegenFactory.kt:433)
+	at org.jetbrains.kotlin.cli.jvm.compiler.pipeline.JvmCompilerPipelineKt.generateCodeFromIr(jvmCompilerPipeline.kt:246)
+	at org.jetbrains.kotlin.cli.jvm.compiler.pipeline.JvmCompilerPipelineKt.compileModulesUsingFrontendIrAndLightTree(jvmCompilerPipeline.kt:142)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecute(K2JVMCompiler.kt:148)
+	at org.jetbrains.kotlin.cli.jvm.K2JVMCompiler.doExecute(K2JVMCompiler.kt:43)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.execImpl(CLICompiler.kt:103)
+	at org.jetbrains.kotlin.cli.common.CLICompiler.execImpl(CLICompiler.kt:49)
+	at org.jetbrains.kotlin.cli.common.CLITool.exec(CLITool.kt:101)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunner.runCompiler(IncrementalJvmCompilerRunner.kt:464)
+	at org.jetbrains.kotlin.incremental.IncrementalJvmCompilerRunner.runCompiler(IncrementalJvmCompilerRunner.kt:73)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.doCompile(IncrementalCompilerRunner.kt:506)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileImpl(IncrementalCompilerRunner.kt:423)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:301)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:129)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:675)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:92)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1660)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(UnicastServerRef.java:360)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:200)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Transport.java:197)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:712)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Transport.java:196)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(TCPTransport.java:587)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(TCPTransport.java:828)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(TCPTransport.java:705)
+	at java.base/java.security.AccessController.doPrivileged(AccessController.java:399)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(TCPTransport.java:704)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:842)
+Caused by: java.lang.OutOfMemoryError: GC overhead limit exceeded
+	at java.base/java.util.IdentityHashMap.resize(IdentityHashMap.java:476)
+	at java.base/java.util.IdentityHashMap.put(IdentityHashMap.java:445)
+	at org.jetbrains.kotlin.utils.SmartIdentityTable.set(SmartIdentityTable.kt:62)
+	at org.jetbrains.kotlin.utils.SmartIdentityTable.getOrCreate(SmartIdentityTable.kt:79)
+	at org.jetbrains.kotlin.codegen.inline.MaxStackFrameSizeAndLocalsCalculator.getLabelWrapper(MaxStackFrameSizeAndLocalsCalculator.java:453)
+	at org.jetbrains.kotlin.codegen.inline.MaxStackFrameSizeAndLocalsCalculator.processLabel(MaxStackFrameSizeAndLocalsCalculator.java:240)
+	at org.jetbrains.kotlin.codegen.inline.MaxStackFrameSizeAndLocalsCalculator.visitLabel(MaxStackFrameSizeAndLocalsCalculator.java:235)
+	at org.jetbrains.org.objectweb.asm.MethodVisitor.visitLabel(MethodVisitor.java:489)
+	at org.jetbrains.org.objectweb.asm.MethodVisitor.visitLabel(MethodVisitor.java:489)
+	at org.jetbrains.org.objectweb.asm.MethodVisitor.visitLabel(MethodVisitor.java:489)
+	at org.jetbrains.org.objectweb.asm.tree.LabelNode.accept(LabelNode.java:68)
+	at org.jetbrains.org.objectweb.asm.tree.InsnList.accept(InsnList.java:144)
+	at org.jetbrains.org.objectweb.asm.tree.MethodNode.accept(MethodNode.java:751)
+	at org.jetbrains.kotlin.codegen.TransformationMethodVisitor.visitEnd(TransformationMethodVisitor.kt:70)
+	at org.jetbrains.org.objectweb.asm.tree.MethodNode.accept(MethodNode.java:772)
+	at org.jetbrains.kotlin.backend.jvm.codegen.CoroutineCodegenKt.acceptWithStateMachine(CoroutineCodegen.kt:76)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generateMethod(ClassCodegen.kt:440)
+	at org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen.generate(ClassCodegen.kt:168)
+	at org.jetbrains.kotlin.backend.jvm.FileCodegen.lower(JvmPhases.kt:39)
+	at org.jetbrains.kotlin.backend.common.phaser.PhaseFactoriesKt.createFilePhase$lambda$4(PhaseFactories.kt:71)
+	at org.jetbrains.kotlin.backend.common.phaser.PhaseFactoriesKt$$Lambda$167/0x0000015cc2122fc0.invoke(Unknown Source)
+	at org.jetbrains.kotlin.backend.common.phaser.PhaseBuildersKt$createSimpleNamedCompilerPhase$1.phaseBody(PhaseBuilders.kt:69)
+	at org.jetbrains.kotlin.backend.common.phaser.SimpleNamedCompilerPhase.phaseBody(CompilerPhase.kt:226)
+	at org.jetbrains.kotlin.backend.common.phaser.AbstractNamedCompilerPhase.invoke(CompilerPhase.kt:113)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invokeSequential(performByIrFile.kt:62)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invoke(performByIrFile.kt:52)
+	at org.jetbrains.kotlin.backend.common.phaser.PerformByIrFilePhase.invoke(performByIrFile.kt:38)
+	at org.jetbrains.kotlin.backend.common.phaser.NamedCompilerPhase.phaseBody(CompilerPhase.kt:166)
+	at org.jetbrains.kotlin.backend.common.phaser.AbstractNamedCompilerPhase.invoke(CompilerPhase.kt:113)
+	at org.jetbrains.kotlin.backend.common.phaser.CompositePhase.invoke(PhaseBuilders.kt:27)
+	at org.jetbrains.kotlin.backend.common.phaser.CompositePhase.invoke(PhaseBuilders.kt:14)
+	at org.jetbrains.kotlin.backend.common.phaser.NamedCompilerPhase.phaseBody(CompilerPhase.kt:166)
+
+

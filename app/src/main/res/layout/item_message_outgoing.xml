@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="0dp"
+    android:paddingBottom="0dp">
+
+    <!-- Text/Audio Message Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:cardBackgroundColor="?attr/glyphBubbleOwn"
+        app:cardCornerRadius="22dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="0dp"
+        app:cardPreventCornerOverlap="false"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.glyph.glyph_v3.ui.chat.MessageBubbleLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <!-- Content Container (Child 0) -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <include layout="@layout/layout_forwarded_label" />
+
+                <!-- Replaced LinearLayout with ComposeView for Voice Message -->
+                <com.glyph.glyph_v3.ui.chat.VoiceMessageView
+                    android:id="@+id/voiceMessageView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tvMessage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:textColor="?attr/glyphBubbleOwnText"
+                    android:textSize="15sp"
+                    tools:text="I'm good, thanks! How about you?" />
+            </LinearLayout>
+
+            <!-- Metadata Container (Child 1) -->
+            <LinearLayout
+                android:id="@+id/llMetadata"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvTimestamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:paddingBottom="2dp"
+                    android:paddingEnd="2dp"
+                    android:textColor="?attr/glyphBubbleTimestamp"
+                    android:alpha="0.7"
+                    android:textSize="11sp"
+                    tools:text="10:31 AM" />
+
+                <ImageView
+                    android:id="@+id/ivStatus"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="4dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_double_check"
+                    app:tint="?attr/glyphBubbleOwnText"
+                    android:alpha="0.7" />
+            </LinearLayout>
+
+        </com.glyph.glyph_v3.ui.chat.MessageBubbleLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

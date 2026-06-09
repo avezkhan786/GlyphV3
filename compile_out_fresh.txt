@@ -1,0 +1,121 @@
+﻿To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :app
+WARNING: The option setting 'android.usesSdkInManifest.disallowed=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.sdk.defaultTargetSdkToCompileSdkIfUnset=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.enableAppCompileTimeRClass=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.builtInKotlin=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.newDsl=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.r8.optimizedResourceShrinking=false' is deprecated.
+The current default is 'true'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The option setting 'android.defaults.buildfeatures.resvalues=true' is deprecated.
+The current default is 'false'.
+It will be removed in version 10.0 of the Android Gradle plugin.
+WARNING: The property android.dependency.excludeLibraryComponentsFromConstraints improves project import performance for very large projects. It should be enabled to improve performance.
+To suppress this warning, add android.generateSyncIssueWhenLibraryConstraintsAreEnabled=false to gradle.properties
+WARNING: The property android.dependency.excludeLibraryComponentsFromConstraints improves project import performance for very large projects. It should be enabled to improve performance.
+To suppress this warning, add android.generateSyncIssueWhenLibraryConstraintsAreEnabled=false to gradle.properties
+WARNING: The property android.dependency.excludeLibraryComponentsFromConstraints improves project import performance for very large projects. It should be enabled to improve performance.
+To suppress this warning, add android.generateSyncIssueWhenLibraryConstraintsAreEnabled=false to gradle.properties
+WARNING: The property android.dependency.excludeLibraryComponentsFromConstraints improves project import performance for very large projects. It should be enabled to improve performance.
+To suppress this warning, add android.generateSyncIssueWhenLibraryConstraintsAreEnabled=false to gradle.properties
+
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:dataBindingMergeDependencyArtifactsDebug UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:processDebugNavigationResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:dataBindingGenBaseClassesDebug UP-TO-DATE
+> Task :app:generateDebugBuildConfig UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:compileDebugNavigationResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+
+> Task :app:processDebugMainManifest
+C:\Users\avezk\AndroidStudioProjects\GlyphV3\app\src\main\AndroidManifest.xml:28:5-88 Warning:
+	Element uses-permission#android.permission.FOREGROUND_SERVICE_PHONE_CALL at AndroidManifest.xml:28:5-88 duplicated with element declared at AndroidManifest.xml:23:5-88
+C:\Users\avezk\AndroidStudioProjects\GlyphV3\app\src\main\AndroidManifest.xml:40:5-75 Warning:
+	Element uses-permission#android.permission.MANAGE_OWN_CALLS at AndroidManifest.xml:40:5-75 duplicated with element declared at AndroidManifest.xml:25:5-75
+
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:processDebugResources
+> Task :app:kspDebugKotlin
+> Task :app:compileDebugKotlin
+.\gradlew.bat : e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/
+src/main/java/com/glyph/glyph_v3/ui/groups/GroupInfoActivity.kt:1589:19 
+Unresolved reference 'LocalDensity'.
+At line:1 char:1
++ .\gradlew.bat :app:compileDebugKotlin --no-daemon --console=plain *>& ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (e: file:///C:/U...'LocalDensit 
+   y'.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/co
+m/glyph/glyph_v3/ui/groups/GroupInfoActivity.kt:1598:35 Unresolved 
+reference 'OnApplyWindowInsetsListener'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/co
+m/glyph/glyph_v3/ui/groups/GroupInfoActivity.kt:1598:65 Cannot infer type 
+for this parameter. Specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/co
+m/glyph/glyph_v3/ui/groups/GroupInfoActivity.kt:1598:68 Cannot infer type 
+for this parameter. Specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/co
+m/glyph/glyph_v3/ui/groups/GroupInfoActivity.kt:1599:36 Unresolved 
+reference 'getInsets'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/co
+m/glyph/glyph_v3/ui/groups/GroupInfoActivity.kt:1600:36 Unresolved 
+reference 'getInsets'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/co
+m/glyph/glyph_v3/ui/groups/GroupInfoActivity.kt:1646:9 Cannot infer type 
+for this parameter. Specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/co
+m/glyph/glyph_v3/ui/groups/GroupInfoActivity.kt:1646:9 Not enough 
+information to infer type argument for 'T'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/co
+m/glyph/glyph_v3/ui/groups/GroupInfoActivity.kt:1646:23 Cannot infer type 
+for this parameter. Specify it explicitly.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/app/src/main/java/co
+m/glyph/glyph_v3/ui/groups/GroupInfoActivity.kt:1646:46 Unresolved 
+reference 'toDp'.
+
+> Task :app:compileDebugKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.Gra
+dleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by 
+Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 4m 58s
+21 actionable tasks: 6 executed, 15 up-to-date

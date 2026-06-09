@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Card dimensions -->
+    <dimen name="card_stroke_width_default">1dp</dimen>
+    <dimen name="card_stroke_width_active">2dp</dimen>
+    <dimen name="card_elevation_default">2dp</dimen>
+    <dimen name="card_elevation_active">4dp</dimen>
+
+    <!-- Chat input -->
+    <dimen name="chat_input_height">52dp</dimen>
+    <dimen name="chat_input_corner_radius">26dp</dimen>
+    <dimen name="chat_input_card_padding">8dp</dimen>
+    <dimen name="chat_send_button_size">52dp</dimen>
+
+    <!-- Wallpapers -->
+    <dimen name="wallpaper_grid_spacing">12dp</dimen>
+
+    <!-- Override Material BottomNavigationView internal heights -->
+    <dimen name="design_bottom_navigation_height">60dp</dimen>
+    <dimen name="m3_bottom_nav_min_height">60dp</dimen>
+    <dimen name="m3_bottom_nav_item_padding_top">4dp</dimen>
+    <dimen name="m3_bottom_nav_item_padding_bottom">2dp</dimen>
+    <dimen name="m3_bottom_nav_item_active_indicator_height">32dp</dimen>
+    <dimen name="m3_bottom_nav_item_active_indicator_width">52dp</dimen>
+    <dimen name="design_bottom_navigation_margin">0dp</dimen>
+    <dimen name="design_bottom_navigation_label_padding">2dp</dimen>
+    <dimen name="calls_search_field_horizontal_padding">24dp</dimen>
+    <dimen name="calls_search_field_vertical_padding">18dp</dimen>
+</resources>

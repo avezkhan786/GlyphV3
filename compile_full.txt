@@ -1,0 +1,115 @@
+﻿> Task :app:clean
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:generateDebugResValues
+> Task :app:dataBindingMergeDependencyArtifactsDebug
+> Task :app:generateDebugResources
+> Task :app:processDebugGoogleServices
+> Task :app:mergeDebugResources
+> Task :app:packageDebugResources
+> Task :app:processDebugNavigationResources
+> Task :app:generateDebugBuildConfig
+> Task :app:compileDebugNavigationResources
+> Task :app:mapDebugSourceSetPaths
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:parseDebugLocalResources
+> Task :app:checkDebugAarMetadata
+> Task :app:processDebugMainManifest
+> Task :app:dataBindingGenBaseClassesDebug
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:processDebugResources
+> Task :app:kaptGenerateStubsDebugKotlin
+w: Kapt currently doesn't support language version 2.0+. Falling back to 1.9.
+
+> Task :app:kaptDebugKotlin
+
+> Task :app:compileDebugKotlin FAILED
+.\gradlew.bat : e: file:///C:/Users/avezk/AndroidStudioPro
+jects/GlyphV3/app/src/main/java/com/glyph/glyph_v3/ui/chat
+/ChatAdapter.kt:174:37 Unresolved reference 'MEDIA_GROUP'.
+At line:1 char:1
++ .\gradlew.bat clean :app:compileDebugKotlin 
+--console=plain 2>&1 | Ou ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo          : NotSpecified: (e: file:///C 
+   :/U... 'MEDIA_GROUP'.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/ChatAdapter.kt:
+183:37 Unresolved reference 'MEDIA_GROUP'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/ChatAdapter.kt:
+274:16 Unresolved reference 
+'IncomingMediaGroupViewHolder'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/ChatAdapter.kt:
+274:55 Unresolved reference 'clearMediaState'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/ChatAdapter.kt:
+275:16 Unresolved reference 
+'OutgoingMediaGroupViewHolder'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/ChatAdapter.kt:
+275:55 Unresolved reference 'clearMediaState'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/ChatAdapter.kt:
+1097:37 Unresolved reference 'MEDIA_GROUP'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/ChatAdapter.kt:
+1097:59 Unresolved reference 'mediaItems'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/ChatAdapter.kt:
+1097:80 Unresolved reference 'mediaItems'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/MessageDetailsA
+ctivity.kt:169:64 Unresolved reference 'MEDIA_GROUP'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/MessageDetailsA
+ctivity.kt:169:87 Unresolved reference 
+'getMediaItemsList'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/MessageDetailsA
+ctivity.kt:169:122 Unresolved reference 'displayUrl'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/MessageDetailsA
+ctivity.kt:173:64 Unresolved reference 'MEDIA_GROUP'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/MessageDetailsA
+ctivity.kt:173:87 Unresolved reference 
+'getMediaItemsList'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/MessageDetailsA
+ctivity.kt:173:122 Unresolved reference 'thumbnailUrl'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/OptimizedMessag
+eComponents.kt:636:33 Unresolved reference 'MEDIA_GROUP'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/QuotedReplyComp
+onents.kt:83:37 Unresolved reference 'MEDIA_GROUP'.
+e: file:///C:/Users/avezk/AndroidStudioProjects/GlyphV3/ap
+p/src/main/java/com/glyph/glyph_v3/ui/chat/input/PreviewCo
+mponents.kt:137:37 Unresolved reference 'MEDIA_GROUP'.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.
+compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotli
+nCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log 
+output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 50s
+23 actionable tasks: 23 executed
