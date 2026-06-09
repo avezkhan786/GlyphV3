@@ -13,4 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
-*.json
+# Google Cloud service account key
+app/inspiration/gen-lang-client-0353323259-aea43c7e1533.json
