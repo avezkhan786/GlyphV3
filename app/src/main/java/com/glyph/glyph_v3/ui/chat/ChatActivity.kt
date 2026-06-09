@@ -8920,6 +8920,8 @@ class ChatActivity : AppCompatActivity(),
     }
 
     private fun updateSharedLinkPreviewUi() {
+        if (isDestroyed || isFinishing) return
+
         val preview = pendingSharedLinkPreview
         val currentText = binding.etMessageInput.text?.toString().orEmpty()
         val currentUrl = LinkPreviewResolver.extractFirstUrl(currentText)
