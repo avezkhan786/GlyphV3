@@ -132,6 +132,14 @@ class ShareTargetActivity : AppCompatActivity() {
         }
         binding.appBarLayout.requestApplyInsets()
 
+        // Push shareBottomBar above the navigation bar
+        ViewCompat.setOnApplyWindowInsetsListener(binding.shareBottomBar) { v, insets ->
+            val bottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            v.updatePadding(bottom = bottom)
+            insets
+        }
+        binding.shareBottomBar.requestApplyInsets()
+
         setupRecyclerView()
         setupSearchView()
         setupShareFooter()
