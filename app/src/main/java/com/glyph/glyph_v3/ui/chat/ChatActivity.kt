@@ -308,6 +308,7 @@ class ChatActivity : AppCompatActivity(),
     private val composeHeaderLastSeenMarqueeEnabledState = mutableStateOf(false)
     private var startupLastSeenRevealCompleted = false
     private var startupLastSeenRevealJob: Job? = null
+    private var presenceEmissionCount = 0
     private val messageTextState = mutableStateOf("")
     private val userNameState = mutableStateOf("")
     private val userAvatarState = mutableStateOf("")
@@ -500,7 +501,6 @@ class ChatActivity : AppCompatActivity(),
         private const val ACTIVE_SCROLL_LIST_COMMIT_DEFER_MESSAGE_DELTA = 12
         private const val ACTIVE_SCROLL_FLOW_DEFER_MESSAGE_DELTA = 120
         private const val DEFERRED_STARTUP_UNLOCK_DELAY_MS = 1200L
-        private const val STARTUP_LAST_SEEN_REVEAL_DELAY_MS = 360L
         private const val STARTUP_LAST_SEEN_MARQUEE_DELAY_MS = 2000
         private const val GROUP_PRESENCE_EMPTY_FALLBACK_GRACE_MS = 1500L
         private const val CHAT_AVATAR_SIZE_DP = 40f
@@ -10607,7 +10607,15 @@ class ChatActivity : AppCompatActivity(),
         if (startupLastSeenRevealJob?.isActive == true) return
 
         startupLastSeenRevealJob = lifecycleScope.launch {
-            delay(STARTUP_LAST_SEEN_REVEAL_DELAY_MS)
+            // Wait for at least 2 presence emissions: the first is RTDB's
+            // locally-cached (stale) value; the second is server-confirmed.
+            // This prevents displaying an outdated "last seen" timestamp.
+            val startedWaitingAt = System.currentTimeMillis()
+            val maxWaitMs = 3000L
+            while (presenceEmissionCount < 2 && (System.currentTimeMillis() - startedWaitingAt) < maxWaitMs) {
+                delay(50)
+                if (isFinishing || isDestroyed || startupLastSeenRevealCompleted) return@launch
+            }
             if (isFinishing || isDestroyed || startupLastSeenRevealCompleted) return@launch
             if (!isStartupHeaderWorkSettledForLastSeenReveal()) return@launch
 
@@ -10695,6 +10703,7 @@ class ChatActivity : AppCompatActivity(),
         otherUserPrivacyAmIContact = PrivacySettingsRepository
             .canViewerSeeCached(userId, myUid, "contacts")
             ?: false
+        presenceEmissionCount = 0
         updateHeaderStatus()
 
         // Observe the other user's privacy settings so we can gate last seen / online
@@ -10725,6 +10734,7 @@ class ChatActivity : AppCompatActivity(),
             try {
                 PresenceManager.observeUserPresence(userId).collectLatest { presence ->
                     lastPresenceStatus = presence
+                    presenceEmissionCount++
                     updateHeaderStatus()
                 }
             } catch (e: Exception) {
