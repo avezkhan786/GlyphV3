@@ -83,8 +83,16 @@ class MainActivity : AppCompatActivity() {
         // Keep cold start focused on the visible Chats tab; adjacent tabs are created lazily.
         binding.mainViewPager.offscreenPageLimit = 1
         
-        // ViewPager2 is constrained above the bottom navigation bar in the layout,
-        // so no manual bottom padding is needed — the constraint handles it.
+        // Pad ViewPager2 above the bottom nav by 8dp.
+        // Uses a layout listener so the padding stays correct when the bottom nav
+        // changes size (e.g. after system insets are applied).
+        val gapPx = (8 * resources.displayMetrics.density).toInt()
+        binding.bottomNavigation.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
+            if (bottom != oldBottom) {
+                val navHeight = bottom - binding.bottomNavigation.top
+                binding.mainViewPager.setPadding(0, 0, 0, navHeight + gapPx)
+            }
+        }
 
         // Sync ViewPager2 with Bottom Navigation
         binding.mainViewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
