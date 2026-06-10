@@ -83,16 +83,18 @@ class MainActivity : AppCompatActivity() {
         // Keep cold start focused on the visible Chats tab; adjacent tabs are created lazily.
         binding.mainViewPager.offscreenPageLimit = 1
         
-        // Pad ViewPager2 above the bottom nav by 8dp.
-        // Uses a layout listener so the padding stays correct when the bottom nav
-        // changes size (e.g. after system insets are applied).
-        val gapPx = (8 * resources.displayMetrics.density).toInt()
-        binding.bottomNavigation.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
-            if (bottom != oldBottom) {
-                val navHeight = bottom - binding.bottomNavigation.top
-                binding.mainViewPager.setPadding(0, 0, 0, navHeight + gapPx)
-            }
+        // Pad ViewPager2 so content sits 13dp above the bottom nav bar.
+        // Uses the root insets to account for the system navigation bar.
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val systemBottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+            val navContentDp = 60
+            val gapDp = 13
+            val density = resources.displayMetrics.density
+            val totalPadding = ((navContentDp + gapDp) * density).toInt() + systemBottom
+            binding.mainViewPager.setPadding(0, 0, 0, totalPadding)
+            insets
         }
+        ViewCompat.requestApplyInsets(binding.root)
 
         // Sync ViewPager2 with Bottom Navigation
         binding.mainViewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
@@ -127,10 +129,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
-        
-        // Bottom-navigation insets (safe-area margin) are handled inside
-        // GlyphBottomNavigationView.onAttachedToWindow – no extra listener needed here.
-
         
         askNotificationPermission()
         
