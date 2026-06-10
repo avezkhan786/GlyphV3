@@ -101,7 +101,14 @@ class SettingsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
+        // Apply status bar inset so the profile card doesn't overlap with the status bar
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val topInset = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            v.updatePadding(top = topInset)
+            insets
+        }
+
         loadUserData(forceRefresh = false)
         warmPrivacySettingsCache()
         setupClickListeners()
