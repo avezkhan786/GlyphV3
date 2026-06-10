@@ -57,6 +57,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Immutable
@@ -74,6 +76,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -1440,20 +1443,22 @@ private fun Avatar(
         }
 
         if (isSelected) {
-             Box(
+            val glyphTheme = LocalGlyphTheme.current
+            Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .size(22.dp)
+                    .shadow(3.dp, CircleShape)
                     .border(2.dp, Color.White, CircleShape)
                     .clip(CircleShape)
-                    .background(Color(0xFF008069)), // WhatsApp Green
+                    .background(glyphTheme.actionPrimary),
                 contentAlignment = Alignment.Center
             ) {
-                 Icon(
-                    painter = painterResource(id = R.drawable.ic_check),
+                Icon(
+                    imageVector = Icons.Default.Check,
                     contentDescription = "Selected",
                     tint = Color.White,
-                    modifier = Modifier.size(12.dp)
+                    modifier = Modifier.size(13.dp)
                 )
             }
         } else {
