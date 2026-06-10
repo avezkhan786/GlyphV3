@@ -84,12 +84,12 @@ class MainActivity : AppCompatActivity() {
         binding.mainViewPager.offscreenPageLimit = 1
         
         // Pad ViewPager2 so content ends 13dp above the bottom nav.
-        // Using post ensures the bottom nav has been measured (its height
-        // includes the system navigation bar inset).
-        binding.bottomNavigation.post {
-            val gapPx = (13 * resources.displayMetrics.density).toInt()
-            val navHeight = binding.bottomNavigation.height
-            if (navHeight > 0) {
+        // Uses a layout listener on the bottom nav to stay in sync when
+        // GlyphBottomNavigationView adjusts its height for system insets.
+        val gapPx = (13 * resources.displayMetrics.density).toInt()
+        binding.bottomNavigation.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
+            if (bottom != oldBottom) {
+                val navHeight = bottom - binding.bottomNavigation.top
                 binding.mainViewPager.setPadding(0, 0, 0, navHeight + gapPx)
             }
         }
