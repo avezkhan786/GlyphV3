@@ -427,15 +427,18 @@ fun ChatListScreen(
                         ),
                         modifier = Modifier
                     )
-
-                    ChatListSearchBar(
-                        searchQuery = searchQuery,
-                        onSearchQueryChange = {
-                            searchQuery = it
-                            onSearchQueryChanged(it)
-                        }
-                    )
                 }
+
+                // Search bar is always rendered (outside the mode conditional)
+                // to maintain consistent layout height and prevent content shift
+                // when entering selection or archived mode.
+                ChatListSearchBar(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = {
+                        searchQuery = it
+                        onSearchQueryChanged(it)
+                    }
+                )
             }
         },
         floatingActionButton = {
