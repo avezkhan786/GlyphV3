@@ -88,15 +88,21 @@ class StatusFragment : Fragment() {
         else -> false
     }
 
-    /** Hide/show bottom nav for immersive creation screens. */
+    /** Hide bottom nav and remove padding for immersive creation screens. */
     private fun setFullScreen(fullScreen: Boolean) {
         val act = activity ?: return
         val bottomNav = act.findViewById<View>(R.id.bottom_navigation) ?: return
-        bottomNav.visibility = if (fullScreen) View.GONE else View.VISIBLE
-        // Padding is handled by MainActivity's WindowInsets listener —
-        // just trigger a recalculation after the visibility change.
-        val root = act.findViewById<View>(android.R.id.content)
-        root?.let { androidx.core.view.ViewCompat.requestApplyInsets(it) }
+        val viewPager = act.findViewById<ViewPager2>(R.id.main_view_pager) ?: return
+        if (fullScreen) {
+            bottomNav.visibility = View.GONE
+            viewPager.setPadding(0, 0, 0, 0)
+        } else {
+            bottomNav.visibility = View.VISIBLE
+            // Restore padding: nav height + 13dp gap (same formula as MainActivity)
+            val gapPx = (13 * resources.displayMetrics.density).toInt()
+            val navHeight = bottomNav.height
+            viewPager.setPadding(0, 0, 0, if (navHeight > 0) navHeight + gapPx else gapPx)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
