@@ -131,6 +131,8 @@ class ChatFragment : Fragment() {
     }
     
     private fun updateHeaderInfo() {
+        if (!isAdded) return
+
         // Set user name
         binding.tvUserName.text = otherUsername.ifEmpty { "Unknown" }
         
