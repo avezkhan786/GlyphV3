@@ -504,16 +504,20 @@ fun ChatListScreen(
                             item(key = "header") { ArchivedInfoBanner() }
                         }
                         // ── Pinned Glyph AI entry ────────────────────
-                        if (!isArchivedMode && !isSelectionMode) {
+                        // Always rendered (even in selection mode) to prevent list shifting.
+                        // Click is a no-op during selection mode since Glyph AI cannot be selected.
+                        if (!isArchivedMode) {
                             item(key = AiAgentConstants.AI_AGENT_CHAT_ID, contentType = "ai_agent") {
                                 AiAgentRow(
                                     onClick = {
-                                        val aiChat = Chat(
-                                            id = AiAgentConstants.AI_AGENT_CHAT_ID,
-                                            participants = listOf(currentUserId ?: "", AiAgentConstants.AI_AGENT_USER_ID),
-                                            otherUsername = AiAgentConstants.AI_AGENT_USERNAME
-                                        )
-                                        onChatClick(aiChat)
+                                        if (!isSelectionMode) {
+                                            val aiChat = Chat(
+                                                id = AiAgentConstants.AI_AGENT_CHAT_ID,
+                                                participants = listOf(currentUserId ?: "", AiAgentConstants.AI_AGENT_USER_ID),
+                                                otherUsername = AiAgentConstants.AI_AGENT_USERNAME
+                                            )
+                                            onChatClick(aiChat)
+                                        }
                                     }
                                 )
                             }
