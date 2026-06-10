@@ -40,6 +40,7 @@ import com.glyph.glyph_v3.data.local.AppDatabase
 import com.glyph.glyph_v3.data.models.Chat
 import com.glyph.glyph_v3.data.preferences.ChatSettingsDataStore
 import com.glyph.glyph_v3.data.repo.AvatarVisibilityRepository
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.data.repo.RealtimeMessageRepository
 import com.glyph.glyph_v3.data.service.DraftMessageStore
@@ -81,7 +82,14 @@ class LockedChatsActivity : AppCompatActivity() {
                     onBackClick = { finish() },
                     onChatClick = { chat ->
                         val otherUserId = if (chat.isGroup) "" else (chat.participants.firstOrNull { it != repository.currentUserId } ?: "")
-                        val displayName = if (chat.isGroup) chat.groupName.ifBlank { "Group" } else chat.otherUsername
+                        val displayName = if (chat.isGroup) {
+                            chat.groupName.ifBlank { "Group" }
+                        } else {
+                            ContactDisplayNameResolver.getDisplayName(
+                                otherUserId = otherUserId,
+                                remoteProfileName = chat.otherUsername
+                            )
+                        }
                         val displayAvatar = if (chat.isGroup) chat.groupIconUrl else chat.otherUserAvatar
                         startActivity(
                             ChatActivity.newIntent(this, chat.id, otherUserId, displayName, displayAvatar)
@@ -92,7 +100,14 @@ class LockedChatsActivity : AppCompatActivity() {
                         try {
                             ProfilePreviewDialog.newInstance(
                                 userId = otherUserId,
-                                userName = if (chat.isGroup) chat.groupName.ifBlank { "Group" } else chat.otherUsername,
+                                userName = if (chat.isGroup) {
+                                    chat.groupName.ifBlank { "Group" }
+                                } else {
+                                    ContactDisplayNameResolver.getDisplayName(
+                                        otherUserId = otherUserId,
+                                        remoteProfileName = chat.otherUsername
+                                    )
+                                },
                                 userAvatar = if (chat.isGroup) chat.groupIconUrl else chat.otherUserAvatar,
                                 chatId = chat.id,
                                 startX = rect.left,
@@ -209,7 +224,11 @@ private fun LockedChatsScreen(
                 val resolved = users.asSequence()
                     .filter { it.id in missingSenderIds }
                     .mapNotNull { user ->
-                        val name = user.username.ifBlank { user.phoneNumber }
+                        val name = ContactDisplayNameResolver.getDisplayName(
+                            otherUserId = user.id,
+                            remoteProfileName = user.username,
+                            remotePhoneNumber = user.phoneNumber
+                        )
                         if (name.isBlank()) null else user.id to name
                     }
                     .toMap()
@@ -472,11 +491,18 @@ private fun LockedChatRow(
     val textPrimary = glyphTheme.textPrimary
     val textSecondary = glyphTheme.textSecondary
     val context = LocalContext.current
-    val displayName = if (chat.isGroup) chat.groupName.ifBlank { "Group" } else chat.otherUsername.ifBlank { "Unknown" }
-    val displayAvatar = if (chat.isGroup) chat.groupIconUrl else chat.otherUserAvatar
     val otherUserId = remember(chat.participants, currentUserId) {
         chat.participants.firstOrNull { it != currentUserId && it.isNotEmpty() } ?: ""
     }
+    val displayName = if (chat.isGroup) {
+        chat.groupName.ifBlank { "Group" }
+    } else {
+        ContactDisplayNameResolver.getDisplayName(
+            otherUserId = otherUserId,
+            remoteProfileName = chat.otherUsername
+        )
+    }
+    val displayAvatar = if (chat.isGroup) chat.groupIconUrl else chat.otherUserAvatar
     val avatarVisibilityState by remember(otherUserId) {
         AvatarVisibilityRepository.observeProfilePhotoVisibility(otherUserId)
     }.collectAsState()

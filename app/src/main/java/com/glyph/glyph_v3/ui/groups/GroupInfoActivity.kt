@@ -97,6 +97,7 @@ import coil.request.ImageRequest
 import com.glyph.glyph_v3.GlyphApplication
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.models.User
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.preferences.ChatSettingsDataStore
 import com.glyph.glyph_v3.ui.chat.contactinfo.AdvancedChatPrivacyActivity
 import com.glyph.glyph_v3.ui.chat.contactinfo.ChatNotificationsActivity
@@ -426,7 +427,12 @@ private fun GroupInfoScreen(
             Column {
                 val creatorName = remember(state.members, state.createdBy) {
                     state.members.firstOrNull { it.user.id == state.createdBy }?.let { row ->
-                        if (row.isSelf) "You" else row.user.username.ifBlank { row.user.phoneNumber.ifBlank { "Someone" } }
+                        if (row.isSelf) "You" else ContactDisplayNameResolver.getDisplayName(
+                            otherUserId = row.user.id,
+                            remoteProfileName = row.user.username,
+                            remotePhoneNumber = row.user.phoneNumber,
+                            fallback = "Someone"
+                        )
                     } ?: "You"
                 }
                 val createdMeta = remember(creatorName, state.createdAt) {
@@ -2040,7 +2046,11 @@ private fun AddMemberContactRow(user: User, selected: Boolean, onClick: () -> Un
         UserAvatar(user = user, size = 48.dp)
         Spacer(modifier = Modifier.width(16.dp))
         Text(
-            text = user.username.ifBlank { user.phoneNumber.ifBlank { "Unknown" } },
+            text = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = user.id,
+                remoteProfileName = user.username,
+                remotePhoneNumber = user.phoneNumber
+            ),
             color = GroupWaTextPrimary,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold,
@@ -2093,7 +2103,11 @@ private fun MemberRowItem(
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = if (row.isSelf) "You" else row.user.username.ifBlank { row.user.phoneNumber.ifBlank { "Unknown" } },
+                text = if (row.isSelf) "You" else ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = row.user.id,
+                    remoteProfileName = row.user.username,
+                    remotePhoneNumber = row.user.phoneNumber
+                ),
                 color = GroupWaTextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
@@ -2187,7 +2201,12 @@ private fun MemberActionsDialog(
         containerColor = glyphTheme.backgroundElevated,
         titleContentColor = glyphTheme.textPrimary,
         title = {
-            Text(row.user.username.ifBlank { row.user.phoneNumber.ifBlank { "Member" } })
+            Text(ContactDisplayNameResolver.getDisplayName(
+                otherUserId = row.user.id,
+                remoteProfileName = row.user.username,
+                remotePhoneNumber = row.user.phoneNumber,
+                fallback = "Member"
+            ))
         },
         text = {
             Column {

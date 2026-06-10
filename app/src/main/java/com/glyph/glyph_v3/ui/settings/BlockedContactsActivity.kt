@@ -19,6 +19,7 @@ import com.bumptech.glide.Glide
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.repo.BlockRepository
 import com.glyph.glyph_v3.data.repo.BlockedUserInfo
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,8 +126,13 @@ class BlockedContactsActivity : AppCompatActivity() {
     }
 
     private fun showUnblockDialog(user: BlockedUserInfo) {
+        val displayName = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = user.userId,
+            remoteProfileName = user.username,
+            remotePhoneNumber = user.phoneNumber
+        )
         AlertDialog.Builder(this)
-            .setTitle("Unblock ${user.username.ifEmpty { user.phoneNumber }}?")
+            .setTitle("Unblock $displayName?")
             .setMessage("This contact will be able to send you messages and see your online status again.")
             .setPositiveButton("Unblock") { _, _ ->
                 lifecycleScope.launch {
@@ -134,7 +140,7 @@ class BlockedContactsActivity : AppCompatActivity() {
                         BlockRepository.unblockUser(user.userId)
                         Toast.makeText(
                             this@BlockedContactsActivity,
-                            "${user.username.ifEmpty { "User" }} unblocked",
+                            "$displayName unblocked",
                             Toast.LENGTH_SHORT
                         ).show()
                         loadBlockedContacts() // Refresh list
@@ -224,7 +230,11 @@ private class BlockedContactsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val user = getItem(position)
-        holder.name.text = user.username.ifEmpty { "Unknown" }
+        holder.name.text = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = user.userId,
+            remoteProfileName = user.username,
+            remotePhoneNumber = user.phoneNumber
+        )
         holder.phone.text = user.phoneNumber
 
         if (user.profileImageUrl.isNotEmpty()) {

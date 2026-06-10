@@ -46,6 +46,7 @@ import com.glyph.glyph_v3.data.models.UserStatusGroup
 import com.glyph.glyph_v3.data.repo.StatusRepository
 import com.glyph.glyph_v3.ui.theme.glyphTheme
 import com.glyph.glyph_v3.utils.ThemeManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import androidx.compose.ui.res.colorResource
 import kotlin.math.roundToInt
 
@@ -386,7 +387,10 @@ private fun ContactStatusRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = group.username.ifEmpty { "Unknown" },
+                text = ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = group.userId,
+                    remoteProfileName = group.username
+                ),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,

@@ -130,6 +130,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -217,6 +218,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import com.glyph.glyph_v3.ui.chat.expressive.RomanticAnimationMode
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 
 @Suppress("DEPRECATION")
 class ChatActivity : AppCompatActivity(), 
@@ -1372,7 +1374,9 @@ class ChatActivity : AppCompatActivity(),
             updateHeaderInfo()
             ensureLocalChatExists()
         }
-        
+
+        observeContactCacheUpdates()
+
         fetchCurrentUserInfo()
 
         if (shouldRestoreMapBackgroundOnOpen()) {
@@ -4384,10 +4388,18 @@ class ChatActivity : AppCompatActivity(),
         val otherId = otherUserId ?: return
         firebaseRepository.getUser(otherId) { user ->
             if (user != null) {
-                otherUsername = user.username
                 otherUserPhone = user.phoneNumber
                 otherUserAvatar = user.profileImageUrl
                 updateRegisteredUsersCache()
+                // Cache phone number and resolve display name with device contact priority
+                if (user.phoneNumber.isNotBlank()) {
+                    ContactDisplayNameResolver.cacheUserPhone(user.id, user.phoneNumber)
+                }
+                otherUsername = ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = otherId,
+                    remoteProfileName = user.username,
+                    remotePhoneNumber = user.phoneNumber
+                )
                 // Update header with fetched info
                 runOnUiThread {
                     if (isFinishing || isDestroyed) return@runOnUiThread
@@ -4397,6 +4409,33 @@ class ChatActivity : AppCompatActivity(),
                 }
             }
             ensureLocalChatExists()
+        }
+    }
+
+    private fun observeContactCacheUpdates() {
+        lifecycleScope.launch {
+            ContactDisplayNameResolver.cacheVersion
+                .drop(1) // Skip initial emission (0L) to avoid racing with fetchOtherUserInfo
+                .collect { _ ->
+                // When device contacts change, re-resolve the header display name
+                if (isFinishing || isDestroyed) return@collect
+                if (!isGroupChat && otherUserId != null) {
+                    val resolvedName = ContactDisplayNameResolver.getDisplayName(
+                        otherUserId = otherUserId,
+                        remoteProfileName = otherUsername,
+                        remotePhoneNumber = otherUserPhone
+                    )
+                    if (resolvedName != otherUsername && resolvedName.isNotBlank()) {
+                        otherUsername = resolvedName
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) return@runOnUiThread
+                            userNameState.value = otherUsername
+                            binding.tvUserName.text = otherUsername
+                            chatAdapter.otherUsername = otherUsername
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -4838,14 +4877,24 @@ class ChatActivity : AppCompatActivity(),
         stillMissing.forEach { uid ->
             firestore.collection("users").document(uid).get()
                 .addOnSuccessListener { doc ->
-                    val name = doc.getString("username")?.takeIf { it.isNotBlank() }
+                    val remoteName = doc.getString("username")?.takeIf { it.isNotBlank() }
                         ?: doc.getString("displayName")?.takeIf { it.isNotBlank() }
-                        ?: doc.getString("phoneNumber")
+                    val phoneNumber = doc.getString("phoneNumber")
+                    // Cache phone number for future contact name resolution
+                    if (!phoneNumber.isNullOrBlank()) {
+                        ContactDisplayNameResolver.cacheUserPhone(uid, phoneNumber)
+                    }
+                    // Resolve with device contact priority: Device contact → Remote name → Phone number
+                    val resolvedName = ContactDisplayNameResolver.getDisplayName(
+                        otherUserId = uid,
+                        remoteProfileName = remoteName,
+                        remotePhoneNumber = phoneNumber
+                    )
                     val avatarUrl = doc.getString("profileImageUrl")?.takeIf { it.isNotBlank() }
                         ?: doc.getString("profileImageFullUrl")?.takeIf { it.isNotBlank() }
-                    if (!name.isNullOrBlank()) {
-                        groupSenderNamesCache[uid] = name
-                        groupParticipantNamesCache.putIfAbsent(uid, name)
+                    if (resolvedName.isNotBlank()) {
+                        groupSenderNamesCache[uid] = resolvedName
+                        groupParticipantNamesCache.putIfAbsent(uid, resolvedName)
                         runOnUiThread { chatAdapter.refreshGroupSenderNames() }
                     }
                     if (!avatarUrl.isNullOrBlank()) {
@@ -5209,6 +5258,7 @@ class ChatActivity : AppCompatActivity(),
                 otherUsername = otherUsername,
                 currentUserAvatar = currentUserAvatar.takeIf { it.isNotBlank() },
                 otherUserAvatar = userAvatarState.value.takeIf { it.isNotBlank() },
+                isGroupChat = isGroupChat,
                 onRemoveOwn = {
                     if (uid != null && message.reactions.containsKey(uid)) {
                         lifecycleScope.launch {

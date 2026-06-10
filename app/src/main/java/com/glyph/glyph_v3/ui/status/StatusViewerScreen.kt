@@ -100,6 +100,7 @@ import com.glyph.glyph_v3.ui.chat.picker.KeyboardHeightProvider
 import com.glyph.glyph_v3.ui.chat.state.TextInputState
 import com.glyph.glyph_v3.ui.theme.glyphTheme
 import com.glyph.glyph_v3.utils.ThemeManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import androidx.fragment.app.FragmentActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -646,7 +647,11 @@ fun StatusViewerScreen(
 
                     VoiceStatusPlayerCard(
                         ownerAvatarUrl = ownerAvatarUrl,
-                        ownerName = if (isMine) "My status" else ownerName,
+                        ownerName = if (isMine) "My status" else
+                            ContactDisplayNameResolver.getDisplayName(
+                                otherUserId = ownerUserId,
+                                remoteProfileName = ownerName
+                            ),
                         playbackFraction = voicePlaybackProgress,
                         isPlaying = voiceIsPlaying,
                         displaySeconds = displaySecs,
@@ -719,7 +724,11 @@ fun StatusViewerScreen(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (isMine) "My status" else ownerName,
+                    text = if (isMine) "My status" else
+                        ContactDisplayNameResolver.getDisplayName(
+                            otherUserId = ownerUserId,
+                            remoteProfileName = ownerName
+                        ),
                     color = Color.White,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold

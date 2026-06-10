@@ -7,6 +7,7 @@ import androidx.core.app.Person
 import androidx.core.graphics.drawable.IconCompat
 import androidx.core.content.FileProvider
 import com.glyph.glyph_v3.data.media.MediaStorageManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import java.io.File
 
 object ChatNotificationUpdater {
@@ -28,11 +29,17 @@ object ChatNotificationUpdater {
                 .takeIf { it.isNotBlank() }
                 ?.let { com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalAvatarPath(it) }
 
+            // Resolve sender display name with device contact priority
+            val resolvedSenderName = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = meta.otherUserId,
+                remoteProfileName = meta.otherUsername
+            )
+
             // Load avatar with fallback (blocking Glide call, already on background thread from worker)
             val avatarBitmap = ChatNotificationHelper.loadAvatarWithFallback(
                 context = context.applicationContext,
                 url = cachedAvatarPath ?: meta.otherUserAvatarUrl,
-                name = meta.otherUsername
+                name = resolvedSenderName
             )
 
             val unreadMessages = UnreadMessageStore.getMessages(chatId)
@@ -40,7 +47,7 @@ object ChatNotificationUpdater {
 
             val styleMessages = unreadMessages.map { msg ->
                 val person = Person.Builder()
-                    .setName(msg.senderName)
+                    .setName(resolvedSenderName)
                     .build()
 
                 val styleMsg = NotificationCompat.MessagingStyle.Message(
@@ -62,7 +69,7 @@ object ChatNotificationUpdater {
                 context = context,
                 chatId = chatId,
                 otherUserId = meta.otherUserId,
-                senderName = meta.otherUsername,
+                senderName = resolvedSenderName,
                 avatarBitmap = avatarBitmap,
                 messages = styleMessages,
                 silent = true  // Refreshes are always silent

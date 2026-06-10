@@ -35,6 +35,7 @@ import coil.request.ImageRequest
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.models.ViewerInfo
 import com.glyph.glyph_v3.ui.theme.glyphTheme
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -172,7 +173,11 @@ private fun ViewerRow(info: ViewerInfo) {
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = info.user.username.ifEmpty { info.user.phoneNumber },
+                text = ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = info.user.id,
+                    remoteProfileName = info.user.username,
+                    remotePhoneNumber = info.user.phoneNumber
+                ),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = theme.textPrimary,

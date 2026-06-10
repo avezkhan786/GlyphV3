@@ -69,6 +69,7 @@ import android.view.Gravity
 import android.view.ViewGroup
 import com.glyph.glyph_v3.data.local.AppDatabase
 import com.glyph.glyph_v3.data.repo.RealtimeMessageRepository
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.ui.chat.ChatActivity
 import com.glyph.glyph_v3.utils.PhoneNumberUtil
 import com.google.firebase.auth.FirebaseAuth
@@ -430,7 +431,11 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun setupUI() {
-        tvCallerName.text = callerName
+        tvCallerName.text = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = CallManager.callData.value?.callerId,
+            remoteProfileName = callerName,
+            remotePhoneNumber = callerPhone
+        )
         val resolvedCallerInfo = formatCallerPhoneForDisplay(callerPhone).ifBlank { "Unknown number" }
         tvCallerInfo.text = resolvedCallerInfo
         tvCallerInfo.visibility = View.VISIBLE
@@ -478,6 +483,11 @@ class IncomingCallActivity : AppCompatActivity() {
             if (resolvedPhone.isBlank()) return@launch
 
             callerPhone = resolvedPhone
+            // Cache phone number for contact name resolution
+            val cid = callData?.callerId.orEmpty()
+            if (cid.isNotBlank()) {
+                ContactDisplayNameResolver.cacheUserPhone(cid, callerPhone)
+            }
             launch(Dispatchers.Main) {
                 tvCallerInfo.text = formatCallerPhoneForDisplay(resolvedPhone)
             }
@@ -1165,7 +1175,11 @@ class IncomingCallActivity : AppCompatActivity() {
         val intent = Intent(this, ActiveCallActivity::class.java).apply {
             putExtra(ActiveCallActivity.EXTRA_CALL_ID, callId)
             putExtra(ActiveCallActivity.EXTRA_CALL_TYPE, callType.name)
-            putExtra(ActiveCallActivity.EXTRA_CONTACT_NAME, callerName)
+            putExtra(ActiveCallActivity.EXTRA_CONTACT_NAME, ContactDisplayNameResolver.getDisplayName(
+                otherUserId = CallManager.callData.value?.callerId,
+                remoteProfileName = callerName,
+                remotePhoneNumber = callerPhone
+            ))
             putExtra(ActiveCallActivity.EXTRA_CONTACT_AVATAR, callerAvatar)
         }
         startActivity(intent)
@@ -1399,9 +1413,13 @@ class IncomingCallActivity : AppCompatActivity() {
         }
 
         val callData = CallManager.callData.value
-        tvName.text = callerName.ifBlank {
-            callData?.callerName ?: callData?.receiverName ?: ""
-        }
+        tvName.text = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = callData?.callerId,
+            remoteProfileName = callerName.ifBlank {
+                callData?.callerName ?: callData?.receiverName ?: ""
+            },
+            remotePhoneNumber = callerPhone
+        )
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -1838,12 +1856,17 @@ class IncomingCallActivity : AppCompatActivity() {
             val repo = RealtimeMessageRepository(
                 db.messageDao(), db.chatDao(), db.deletedMessageDao(), applicationContext
             )
+            val resolvedCallerName = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = callerId,
+                remoteProfileName = callerName,
+                remotePhoneNumber = callerPhone
+            )
             runCatching {
                 repo.sendMessage(
                     chatId = chatId,
                     text = message,
                     otherUserId = callerId,
-                    otherUsername = callerName,
+                    otherUsername = resolvedCallerName,
                     otherUserAvatar = callerAvatar
                 )
             }
@@ -1868,11 +1891,16 @@ class IncomingCallActivity : AppCompatActivity() {
                 declineCall()
                 if (!callerId.isNullOrBlank()) {
                     val chatId = listOf(myUid, callerId).sorted().joinToString("_")
+                    val resolvedCallerName = ContactDisplayNameResolver.getDisplayName(
+                        otherUserId = callerId,
+                        remoteProfileName = callerName,
+                        remotePhoneNumber = callerPhone
+                    )
                     val intent = ChatActivity.newIntent(
                         context = this@IncomingCallActivity,
                         chatId = chatId,
                         otherUserId = callerId,
-                        otherUsername = callerName,
+                        otherUsername = resolvedCallerName,
                         otherUserAvatar = callerAvatar
                     ).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

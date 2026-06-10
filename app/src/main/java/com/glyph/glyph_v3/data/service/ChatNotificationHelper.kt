@@ -30,6 +30,7 @@ import com.glyph.glyph_v3.R
 import androidx.core.content.FileProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.glyph.glyph_v3.data.local.AppDatabase
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import java.io.File
 import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
@@ -249,6 +250,13 @@ object ChatNotificationHelper {
             }
         }
 
+        // Resolve sender name with device contact priority
+        val resolvedSenderName = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = otherUserId,
+            remoteProfileName = senderName
+        )
+        val effectiveSenderName = if (resolvedSenderName.isNotBlank()) resolvedSenderName else senderName
+
         if (isArchived) {
 
             // Ensure we don't keep rebuilding notifications from cached unread store.
@@ -424,7 +432,7 @@ object ChatNotificationHelper {
         // and the expanded MessagingStyle conversation avatar on all Android versions.
         val senderIcon = circularAvatarBitmap?.let { IconCompat.createWithBitmap(it) }
         val senderPerson = Person.Builder()
-            .setName(senderName)
+            .setName(effectiveSenderName)
             .setKey(otherUserId)
             .apply { if (senderIcon != null) setIcon(senderIcon) }
             .build()

@@ -11,6 +11,7 @@ import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.bumptech.glide.signature.ObjectKey
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.cache.AvatarCacheManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.databinding.ItemCallsHeaderActionBinding
 import com.glyph.glyph_v3.databinding.ItemCallsHeaderFavoriteBinding
 import java.io.File
@@ -91,8 +92,12 @@ class CallsHeaderAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(target: FavoriteCallTarget) {
-            binding.tvLabel.text = target.displayName
-            binding.tvAvatarInitial.text = target.displayName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+            val resolvedName = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = target.userId,
+                remoteProfileName = target.displayName
+            )
+            binding.tvLabel.text = resolvedName
+            binding.tvAvatarInitial.text = resolvedName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
 
             val localAvatarPath = AvatarCacheManager.getLocalAvatarPath(target.userId)
             when {

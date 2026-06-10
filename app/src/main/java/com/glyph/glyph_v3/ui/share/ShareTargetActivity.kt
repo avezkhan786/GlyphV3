@@ -39,6 +39,7 @@ import com.glyph.glyph_v3.ui.login.LoginActivity
 import com.glyph.glyph_v3.ui.users.ContactListItem
 import com.glyph.glyph_v3.utils.PhoneNumberUtil
 import com.glyph.glyph_v3.utils.ThemeManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -568,7 +569,11 @@ class ShareTargetActivity : AppCompatActivity() {
             context = this,
             chatId = chatId,
             otherUserId = otherUserId,
-            otherUsername = user.username,
+            otherUsername = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = user.id,
+                remoteProfileName = user.username,
+                remotePhoneNumber = user.phoneNumber
+            ),
             otherUserAvatar = user.profileImageUrl
         ).apply {
             if (includeSharedPayload && !sharedText.isNullOrEmpty()) {
@@ -779,7 +784,11 @@ class ShareTargetActivity : AppCompatActivity() {
         return ChatTarget(
             chatId = chatId,
             otherUserId = otherUserId,
-            otherUsername = user.username,
+            otherUsername = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = user.id,
+                remoteProfileName = user.username,
+                remotePhoneNumber = user.phoneNumber
+            ),
             otherUserAvatar = user.profileImageUrl
         )
     }

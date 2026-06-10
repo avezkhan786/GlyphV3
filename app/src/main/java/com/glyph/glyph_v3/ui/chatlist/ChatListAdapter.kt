@@ -13,6 +13,7 @@ import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.models.Chat
 import com.glyph.glyph_v3.databinding.ItemChatListBinding
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.google.android.material.color.MaterialColors
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -71,9 +72,17 @@ class ChatListAdapter(
 
         fun bind(chat: Chat) {
             val context = binding.root.context
-            
-            // Username
-            val displayName = if (chat.isGroup) chat.groupName.ifBlank { "Group" } else chat.otherUsername.ifBlank { "Unknown" }
+
+            // Username — resolve with device contact name priority
+            val displayName = if (chat.isGroup) {
+                chat.groupName.ifBlank { "Group" }
+            } else {
+                val otherUserId = chat.participants.firstOrNull { it != currentUserId } ?: ""
+                ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = otherUserId,
+                    remoteProfileName = chat.otherUsername
+                )
+            }
             val displayAvatar = if (chat.isGroup) chat.groupIconUrl else chat.otherUserAvatar
             binding.tvUsername.text = displayName
             

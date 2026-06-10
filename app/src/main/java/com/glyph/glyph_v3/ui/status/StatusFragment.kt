@@ -98,9 +98,16 @@ class StatusFragment : Fragment() {
             viewPager.setPadding(0, 0, 0, 0)
         } else {
             bottomNav.visibility = View.VISIBLE
-            // Trigger a layout pass so MainActivity's layout listener
-            // recalculates the correct ViewPager2 padding.
-            bottomNav.requestLayout()
+            // Directly restore ViewPager padding after the bottom nav is laid out,
+            // instead of relying on a layout listener that may not fire reliably.
+            bottomNav.post {
+                if (!isAdded || activity == null) return@post
+                val gapPx = (13 * act.resources.displayMetrics.density).toInt()
+                val navHeight = bottomNav.height
+                if (navHeight > 0) {
+                    viewPager.setPadding(0, 0, 0, navHeight + gapPx)
+                }
+            }
         }
     }
 

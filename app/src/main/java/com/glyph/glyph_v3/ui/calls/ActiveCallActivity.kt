@@ -44,6 +44,7 @@ import com.glyph.glyph_v3.data.models.OutgoingCallUiStatus
 import com.glyph.glyph_v3.data.models.VideoUpgradeRequestState
 import com.glyph.glyph_v3.data.repo.CallSignalingRepository
 import com.glyph.glyph_v3.data.service.CallNotificationHelper
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.webrtc.CallManager
 import com.glyph.glyph_v3.data.webrtc.GroupCallManager
 import com.glyph.glyph_v3.utils.CallLockScreenHelper
@@ -238,9 +239,16 @@ class ActiveCallActivity : AppCompatActivity() {
         // Fill from CallManager data or intent extras
         val callData = CallManager.callData.value
         val receiverId = callData?.receiverId.orEmpty()
-        val name = contactName.ifEmpty { callData?.receiverName ?: callData?.callerName ?: "" }
+        val peerId = callData?.let { cd ->
+            val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+            if (cd.callerId == myUid) cd.receiverId else cd.callerId
+        }.orEmpty()
+        val resolvedName = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = peerId,
+            remoteProfileName = contactName.ifEmpty { callData?.receiverName ?: callData?.callerName ?: "" }
+        )
         val avatar = contactAvatar.ifEmpty { callData?.receiverAvatar ?: callData?.callerAvatar ?: "" }
-        tvName.text = name
+        tvName.text = resolvedName
 
         if (avatar.isNotEmpty()) {
             Glide.with(this)
@@ -339,10 +347,17 @@ class ActiveCallActivity : AppCompatActivity() {
 
         val callData = CallManager.callData.value
         val receiverId = callData?.receiverId.orEmpty()
-        val name = contactName.ifEmpty { callData?.receiverName ?: callData?.callerName ?: "" }
+        val peerId = callData?.let { cd ->
+            val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+            if (cd.callerId == myUid) cd.receiverId else cd.callerId
+        }.orEmpty()
+        val resolvedName = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = peerId,
+            remoteProfileName = contactName.ifEmpty { callData?.receiverName ?: callData?.callerName ?: "" }
+        )
         val avatar = contactAvatar.ifEmpty { callData?.receiverAvatar ?: callData?.callerAvatar ?: "" }
 
-        tvName.text = name
+        tvName.text = resolvedName
         if (avatar.isNotEmpty()) {
             Glide.with(this)
                 .load(avatar)
@@ -1068,7 +1083,10 @@ class ActiveCallActivity : AppCompatActivity() {
                             upgradeState == VideoUpgradeRequestState.PENDING &&
                             upgradeRequesterId.isNotBlank() &&
                             upgradeRequesterId != FirebaseAuth.getInstance().currentUser?.uid.orEmpty() &&
-                            !localVideoEnabled -> "$contactName wants to enable video. Tap camera to join"
+                            !localVideoEnabled -> "${ContactDisplayNameResolver.getDisplayName(
+                                otherUserId = upgradeRequesterId,
+                                remoteProfileName = contactName
+                            )} wants to enable video. Tap camera to join"
                         callState == CallState.CONNECTED &&
                             upgradeState == VideoUpgradeRequestState.PENDING &&
                             localVideoEnabled &&

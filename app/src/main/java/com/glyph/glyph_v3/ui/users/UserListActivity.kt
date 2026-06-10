@@ -25,6 +25,7 @@ import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.databinding.ActivityUserListBinding
 import com.glyph.glyph_v3.ui.chat.ChatActivity
 import com.glyph.glyph_v3.utils.PhoneNumberUtil
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 
 class UserListActivity : AppCompatActivity() {
     companion object {
@@ -423,7 +424,11 @@ class UserListActivity : AppCompatActivity() {
             this,
             chatId,
             otherUserId,
-            user.username,
+            ContactDisplayNameResolver.getDisplayName(
+                otherUserId = user.id,
+                remoteProfileName = user.username,
+                remotePhoneNumber = user.phoneNumber
+            ),
             user.profileImageUrl
         )
         startActivity(intent)
@@ -435,7 +440,11 @@ class UserListActivity : AppCompatActivity() {
             RESULT_OK,
             Intent().apply {
                 putExtra(EXTRA_SELECTED_USER_ID, user.id)
-                putExtra(EXTRA_SELECTED_USER_NAME, user.username)
+                putExtra(EXTRA_SELECTED_USER_NAME, ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = user.id,
+                    remoteProfileName = user.username,
+                    remotePhoneNumber = user.phoneNumber
+                ))
                 putExtra(EXTRA_SELECTED_USER_AVATAR, user.profileImageUrl)
             }
         )

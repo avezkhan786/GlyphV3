@@ -27,6 +27,7 @@ import com.glyph.glyph_v3.util.StartupTrace
 import com.glyph.glyph_v3.util.MediaCompressor
 import com.glyph.glyph_v3.util.MediaEstimationUtil
 import com.glyph.glyph_v3.ui.share.LinkPreviewResolver
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -258,7 +259,11 @@ class RealtimeMessageRepository(
         val actorLabel = if (actorUserId == currentUserId) {
             "You"
         } else {
-            chat.otherUsername.ifBlank { "Someone" }
+            ContactDisplayNameResolver.getDisplayName(
+                otherUserId = actorUserId,
+                remoteProfileName = chat.otherUsername,
+                fallback = "Someone"
+            )
         }
         return "$actorLabel reacted $emoji to ${buildReactionTargetPreviewText(message)}"
     }

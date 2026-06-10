@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CircleCrop
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
@@ -48,6 +49,7 @@ class ReactionDetailsSheet : BottomSheetDialogFragment() {
     private var reactionsMap: Map<String, String> = emptyMap()
     private var currentUserId: String? = null
     private var otherUsername: String = ""
+    private var isGroupChat: Boolean = false
     private var currentUserAvatar: String? = null
     private var otherUserAvatar: String? = null
 
@@ -70,6 +72,7 @@ class ReactionDetailsSheet : BottomSheetDialogFragment() {
         otherUsername: String,
         currentUserAvatar: String?,
         otherUserAvatar: String?,
+        isGroupChat: Boolean = false,
         onRemoveOwn: () -> Unit,
         onAddNew: () -> Unit,
         onChangeOwn: () -> Unit
@@ -79,6 +82,7 @@ class ReactionDetailsSheet : BottomSheetDialogFragment() {
         this.otherUsername = otherUsername
         this.currentUserAvatar = currentUserAvatar
         this.otherUserAvatar = otherUserAvatar
+        this.isGroupChat = isGroupChat
         this.onRemoveOwn = onRemoveOwn
         this.onAddNew = onAddNew
         this.onChangeOwn = onChangeOwn
@@ -393,9 +397,20 @@ class ReactionDetailsSheet : BottomSheetDialogFragment() {
     private fun buildUserRows(): List<UserRow> {
         val all = reactionsMap.entries.map { (uid, emoji) ->
             val isMe = uid == currentUserId
+            // Resolve each reactor's display name individually using device contact priority.
+            // Falls back to the chat's otherUsername for 1:1 chats or "User" for groups.
+            val displayName = if (isMe) {
+                "You"
+            } else {
+                ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = uid,
+                    remoteProfileName = otherUsername.takeIf { it.isNotBlank() && !isGroupChat },
+                    fallback = "User"
+                )
+            }
             UserRow(
                 uid = uid,
-                displayName = if (isMe) "You" else otherUsername.ifBlank { "User" },
+                displayName = displayName,
                 emoji = emoji,
                 isMe = isMe
             )
@@ -531,6 +546,7 @@ class ReactionDetailsSheet : BottomSheetDialogFragment() {
             otherUsername: String,
             currentUserAvatar: String?,
             otherUserAvatar: String?,
+            isGroupChat: Boolean = false,
             onRemoveOwn: () -> Unit,
             onAddNew: () -> Unit,
             onChangeOwn: () -> Unit
@@ -542,6 +558,7 @@ class ReactionDetailsSheet : BottomSheetDialogFragment() {
                     otherUsername,
                     currentUserAvatar,
                     otherUserAvatar,
+                    isGroupChat,
                     onRemoveOwn, onAddNew, onChangeOwn
                 )
                 .show(fm, TAG)

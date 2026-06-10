@@ -12,6 +12,7 @@ import com.glyph.glyph_v3.data.models.UserStatusGroup
 import com.glyph.glyph_v3.data.models.ViewerInfo
 import com.glyph.glyph_v3.data.repo.BlockRepository
 import com.glyph.glyph_v3.util.VideoThumbnailUtil
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
@@ -541,15 +542,25 @@ object StatusRepository {
             firestore.collection(USERS_COLLECTION).document(userId).get()
                 .addOnSuccessListener { doc ->
                     val user = doc.toObject(User::class.java)
-                    val username = user?.username ?: doc.getString("username") ?: ""
+                    val remoteUsername = user?.username ?: doc.getString("username") ?: ""
+                    val phoneNumber = user?.phoneNumber ?: doc.getString("phoneNumber") ?: ""
                     val profileImageUrl = user?.profileImageUrl ?: doc.getString("profileImageUrl") ?: ""
                     contactProfileRequestsInFlight.remove(userId)
-                    cacheUser(userId, user, username, profileImageUrl)
+                    cacheUser(userId, user, remoteUsername, profileImageUrl)
+                    // Resolve display name with device contact priority
+                    if (phoneNumber.isNotBlank()) {
+                        ContactDisplayNameResolver.cacheUserPhone(userId, phoneNumber)
+                    }
+                    val resolvedUsername = ContactDisplayNameResolver.getDisplayName(
+                        otherUserId = userId,
+                        remoteProfileName = remoteUsername,
+                        remotePhoneNumber = phoneNumber
+                    )
                     val current = _contactStatuses.value.toMutableList()
                     val idx = current.indexOfFirst { it.userId == userId }
                     if (idx >= 0) {
                         val updatedGroup = current[idx].copy(
-                            username = username,
+                            username = resolvedUsername,
                             profileImageUrl = profileImageUrl
                         )
                         if (updatedGroup != current[idx]) {
@@ -680,7 +691,16 @@ object StatusRepository {
         if (!ready) return false
 
         val cachedProfile = contactProfileCache[status.userId]
-        val fallbackName = ownerName.ifBlank { cachedProfile?.username ?: status.userId }
+        // Cache phone for contact lookup and resolve display name with device contact priority
+        cachedProfile?.phoneNumber?.takeIf { it.isNotBlank() }?.let {
+            ContactDisplayNameResolver.cacheUserPhone(status.userId, it)
+        }
+        val resolvedName = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = status.userId,
+            remoteProfileName = ownerName.ifBlank { cachedProfile?.username },
+            remotePhoneNumber = cachedProfile?.phoneNumber
+        )
+        val fallbackName = resolvedName.ifBlank { status.userId }
         val fallbackAvatar = cachedProfile?.profileImageUrl.orEmpty()
 
         val currentGroups = _contactStatuses.value.toMutableList()

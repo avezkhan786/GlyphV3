@@ -103,6 +103,7 @@ import com.glyph.glyph_v3.ui.chat.forward.ForwardMessageCache
 import com.glyph.glyph_v3.ui.chat.forward.ForwardSelectionActivity
 import com.glyph.glyph_v3.ui.media.MediaViewerActivity
 import com.glyph.glyph_v3.ui.media.VideoPlayerActivity
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -7014,7 +7015,11 @@ class ChatAdapter(
                         val chatId = if (uid < registeredId) "${uid}_$registeredId" else "${registeredId}_$uid"
                         val chatIntent = ChatActivity.newIntent(
                             context, chatId, registeredId,
-                            registeredUser.username.ifBlank { msg.contactName ?: "Contact" },
+                            ContactDisplayNameResolver.getDisplayName(
+                                otherUserId = registeredUser.id,
+                                remoteProfileName = registeredUser.username.ifBlank { msg.contactName ?: "Contact" },
+                                remotePhoneNumber = msg.contactPhone
+                            ),
                             registeredUser.profileImageUrl
                         )
                         context.startActivity(chatIntent)
@@ -7147,7 +7152,11 @@ class ChatAdapter(
                         val chatId = if (uid < registeredId) "${uid}_$registeredId" else "${registeredId}_$uid"
                         val chatIntent = ChatActivity.newIntent(
                             context, chatId, registeredId,
-                            registeredUser.username.ifBlank { msg.contactName ?: "Contact" },
+                            ContactDisplayNameResolver.getDisplayName(
+                                otherUserId = registeredUser.id,
+                                remoteProfileName = registeredUser.username.ifBlank { msg.contactName ?: "Contact" },
+                                remotePhoneNumber = msg.contactPhone
+                            ),
                             registeredUser.profileImageUrl
                         )
                         context.startActivity(chatIntent)

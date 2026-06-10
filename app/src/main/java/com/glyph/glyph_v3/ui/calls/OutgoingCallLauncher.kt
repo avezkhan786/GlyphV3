@@ -3,6 +3,7 @@ package com.glyph.glyph_v3.ui.calls
 import android.content.Context
 import com.glyph.glyph_v3.data.models.CallState
 import com.glyph.glyph_v3.data.models.CallType
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.webrtc.CallManager
 
 enum class OutgoingCallLaunchResult {
@@ -22,10 +23,15 @@ object OutgoingCallLauncher {
             return OutgoingCallLaunchResult.ANOTHER_CALL_ACTIVE
         }
 
+        val resolvedDisplayName = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = target.userId,
+            remoteProfileName = target.displayName
+        )
+
         CallManager.startOutgoingCall(
             context = context,
             receiverId = target.userId,
-            receiverName = target.displayName,
+            receiverName = resolvedDisplayName,
             receiverAvatar = target.avatarUrl,
             callType = callType
         )
@@ -37,7 +43,7 @@ object OutgoingCallLauncher {
                 context = context,
                 callId = callData.callId,
                 callType = callType,
-                contactName = target.displayName,
+                contactName = resolvedDisplayName,
                 contactAvatar = target.avatarUrl
             )
         )

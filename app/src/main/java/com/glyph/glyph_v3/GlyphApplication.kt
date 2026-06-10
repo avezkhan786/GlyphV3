@@ -11,6 +11,7 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.bumptech.glide.Glide
 import com.glyph.glyph_v3.data.cache.AvatarCacheManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.cache.MessagePreviewCacheManager
 import com.glyph.glyph_v3.data.cache.StatusCacheCleanupWorker
 import com.glyph.glyph_v3.data.cache.StatusCacheManager
@@ -213,6 +214,9 @@ class GlyphApplication : Application() {
             kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                 com.glyph.glyph_v3.utils.ChatWallpaperManager.preload(this@GlyphApplication)
             }
+
+            // Initialize contact name resolver for WhatsApp-style display names
+            ContactDisplayNameResolver.init(this)
 
             // Track whether the app has a visible Activity (used for notification alerting behavior)
             AppVisibilityTracker.init(this)

@@ -98,6 +98,7 @@ import com.glyph.glyph_v3.data.models.MediaType
 import com.glyph.glyph_v3.data.models.MessageType
 import com.glyph.glyph_v3.data.models.StatusType
 import com.glyph.glyph_v3.data.models.User
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.data.repo.RealtimeMessageRepository
 import com.glyph.glyph_v3.data.repo.StatusRepository
@@ -585,7 +586,10 @@ class ForwardSelectionActivity : ComponentActivity() {
             section = section,
             chatId = id,
             userId = otherUserId,
-            title = otherUsername.ifBlank { "Unknown" },
+            title = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = otherUserId,
+                remoteProfileName = otherUsername
+            ),
             subtitle = lastMessage.ifBlank { "Tap to forward" },
             avatarUrl = otherUserAvatar
         )
@@ -598,7 +602,11 @@ class ForwardSelectionActivity : ComponentActivity() {
             section = ForwardSection.CONTACTS,
             chatId = buildChatId(currentUserId, id),
             userId = id,
-            title = username.ifBlank { phoneNumber.ifBlank { "Unknown" } },
+            title = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = id,
+                remoteProfileName = username,
+                remotePhoneNumber = phoneNumber
+            ),
             subtitle = phoneNumber.ifBlank { "Available on Glyph" },
             avatarUrl = profileImageUrl.ifBlank { profileImageFullUrl }
         )

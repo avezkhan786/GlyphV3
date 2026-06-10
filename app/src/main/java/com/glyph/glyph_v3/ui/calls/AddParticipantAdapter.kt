@@ -10,6 +10,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.models.User
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 
 class AddParticipantAdapter(
     private val users: List<User>,
@@ -34,7 +35,11 @@ class AddParticipantAdapter(
         private val btnAdd: ImageView = itemView.findViewById(R.id.btnAddToCall)
 
         fun bind(user: User) {
-            tvName.text = user.username
+            tvName.text = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = user.id,
+                remoteProfileName = user.username,
+                remotePhoneNumber = user.phoneNumber
+            )
 
             if (user.profileImageUrl.isNotEmpty()) {
                 Glide.with(itemView.context)

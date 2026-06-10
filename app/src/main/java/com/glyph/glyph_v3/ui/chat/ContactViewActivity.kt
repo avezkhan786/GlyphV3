@@ -22,6 +22,7 @@ import com.google.android.material.imageview.ShapeableImageView
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.utils.ThemeManager
 import com.glyph.glyph_v3.utils.PhoneNumberUtil
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 
 class ContactViewActivity : AppCompatActivity() {
 
@@ -183,7 +184,11 @@ class ContactViewActivity : AppCompatActivity() {
             // Show "Message on Glyph" section if registered
             if (!registeredUserId.isNullOrBlank() && !currentUserId.isNullOrBlank()) {
                 llMessageOnGlyph.visibility = View.VISIBLE
-                tvGlyphUsername?.text = if (!registeredUsername.isNullOrBlank()) "@$registeredUsername" else contactName
+                val resolvedName = ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = registeredUserId,
+                    remoteProfileName = registeredUsername
+                )
+                tvGlyphUsername?.text = if (resolvedName.isNotBlank()) "@$resolvedName" else contactName
                 llMessageOnGlyph.setOnClickListener {
                     openChatIfRegistered(
                         currentUserId,
@@ -232,7 +237,10 @@ class ContactViewActivity : AppCompatActivity() {
             this,
             chatId,
             registeredUserId,
-            registeredUsername ?: contactName,
+            ContactDisplayNameResolver.getDisplayName(
+                otherUserId = registeredUserId,
+                remoteProfileName = registeredUsername ?: contactName
+            ),
             registeredAvatarUrl ?: ""
         )
         startActivity(chatIntent)

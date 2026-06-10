@@ -28,6 +28,7 @@ import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.models.CallType
 import com.glyph.glyph_v3.data.service.CallNotificationHelper
 import com.glyph.glyph_v3.data.webrtc.GroupCallManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -318,13 +319,18 @@ class GroupCallActivity : AppCompatActivity() {
             excludeUserIds = existingIds + myUid
         )
         bottomSheet.onUserSelected = { user ->
+            val displayName = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = user.id,
+                remoteProfileName = user.username,
+                remotePhoneNumber = user.phoneNumber
+            )
             GroupCallManager.addParticipant(
                 this,
                 user.id,
-                user.username,
+                displayName,
                 user.profileImageUrl
             )
-            android.widget.Toast.makeText(this, "Added ${user.username}", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(this, "Added $displayName", android.widget.Toast.LENGTH_SHORT).show()
         }
         bottomSheet.show(supportFragmentManager, AddParticipantBottomSheet.TAG)
     }

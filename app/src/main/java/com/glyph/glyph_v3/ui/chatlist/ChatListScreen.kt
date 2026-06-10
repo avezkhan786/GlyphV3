@@ -119,6 +119,7 @@ import com.glyph.glyph_v3.ui.theme.LocalGlyphTheme
 import com.glyph.glyph_v3.ui.theme.glyphTheme
 import com.glyph.glyph_v3.util.ChatOpenTrace
 import com.glyph.glyph_v3.utils.ThemeManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -1182,7 +1183,7 @@ private fun ChatRow(
                     verticalAlignment = Alignment.Top
                 ) {
                     Text(
-                        text = chatDisplayName(chat),
+                        text = chatDisplayName(chat, currentUserId),
                         modifier = Modifier.weight(1f),
                         fontSize = 16.5.sp,
                         fontWeight = FontWeight.Medium,
@@ -1482,11 +1483,17 @@ private fun resolveOtherUserId(chat: Chat, currentUserId: String?): String {
     }.orEmpty()
 }
 
-private fun chatDisplayName(chat: Chat): String {
+private fun chatDisplayName(chat: Chat, currentUserId: String? = null): String {
     return if (chat.isGroup) {
         chat.groupName.ifBlank { "Group" }
     } else {
-        chat.otherUsername.ifBlank { "Unknown" }
+        val otherUserId = currentUserId?.let { uid ->
+            chat.participants.firstOrNull { it != uid && it.isNotBlank() }
+        } ?: ""
+        ContactDisplayNameResolver.getDisplayName(
+            otherUserId = otherUserId,
+            remoteProfileName = chat.otherUsername
+        )
     }
 }
 

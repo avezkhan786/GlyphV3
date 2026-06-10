@@ -21,6 +21,7 @@ import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.google.firebase.auth.FirebaseAuth
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.models.CallType
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.webrtc.CallManager
 import com.glyph.glyph_v3.ui.chat.ChatActivity
 
@@ -94,7 +95,10 @@ class UnansweredCallActivity : AppCompatActivity() {
         val btnRecord    = findViewById<FrameLayout>(R.id.btnUnansweredRecord)
         val btnCallAgain = findViewById<FrameLayout>(R.id.btnUnansweredCallAgain)
 
-        tvName.text = contactName
+        tvName.text = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = receiverId,
+            remoteProfileName = contactName
+        )
         tvStatus.text = callReason
 
         if (contactAvatar.isNotEmpty()) {
@@ -136,7 +140,10 @@ class UnansweredCallActivity : AppCompatActivity() {
                         context       = this,
                         chatId        = chatId,
                         otherUserId   = receiverId,
-                        otherUsername = contactName,
+                        otherUsername = ContactDisplayNameResolver.getDisplayName(
+                            otherUserId = receiverId,
+                            remoteProfileName = contactName
+                        ),
                         otherUserAvatar = contactAvatar,
                         startRecording = true
                     )

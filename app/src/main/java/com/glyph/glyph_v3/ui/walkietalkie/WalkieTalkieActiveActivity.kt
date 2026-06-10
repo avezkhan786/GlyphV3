@@ -28,6 +28,7 @@ import com.glyph.glyph_v3.ui.chat.ChatActivity
 import com.glyph.glyph_v3.ui.chat.walkietalkie.WalkieTalkieOverlay
 import com.glyph.glyph_v3.ui.theme.GlyphThemeProvider
 import com.glyph.glyph_v3.utils.CallLockScreenHelper
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -79,7 +80,10 @@ class WalkieTalkieActiveActivity : AppCompatActivity() {
         setContent {
             GlyphThemeProvider(isDeepDark = true) {
                 val wtState by wtManager.state.collectAsState()
-                val displayName = peerName.ifEmpty { "User" }
+                val displayName = ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = peerId,
+                    remoteProfileName = peerName
+                )
 
                 WalkieTalkieOverlay(
                     state = wtState,

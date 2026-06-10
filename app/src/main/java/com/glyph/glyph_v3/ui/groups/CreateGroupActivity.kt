@@ -90,6 +90,7 @@ import com.glyph.glyph_v3.ui.chat.ChatActivity
 import com.glyph.glyph_v3.ui.theme.GlyphThemeProvider
 import com.glyph.glyph_v3.ui.theme.glyphTheme
 import com.glyph.glyph_v3.utils.ThemeManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.launch
 import java.io.File
@@ -486,7 +487,11 @@ private fun GroupDetailsStep(
                 MemberPreviewChip(label = "You", user = null)
             }
             items(selectedUsers, key = { it.id }) { user ->
-                MemberPreviewChip(label = user.username.ifBlank { user.phoneNumber }, user = user)
+                MemberPreviewChip(label = ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = user.id,
+                    remoteProfileName = user.username,
+                    remotePhoneNumber = user.phoneNumber
+                ), user = user)
             }
         }
     }
@@ -810,7 +815,11 @@ private fun SelectedChipsRow(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = user.username.ifBlank { user.phoneNumber },
+                    text = ContactDisplayNameResolver.getDisplayName(
+                        otherUserId = user.id,
+                        remoteProfileName = user.username,
+                        remotePhoneNumber = user.phoneNumber
+                    ),
                     color = WaTextSecondary,
                     fontSize = 12.sp,
                     maxLines = 1,
@@ -834,7 +843,11 @@ private fun UserSelectableRow(user: User, isSelected: Boolean, onToggle: () -> U
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = user.username.ifBlank { "Unknown" },
+                text = ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = user.id,
+                    remoteProfileName = user.username,
+                    remotePhoneNumber = user.phoneNumber
+                ),
                 color = WaTextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
@@ -867,7 +880,11 @@ private fun UserDisplayRow(user: User) {
         UserAvatar(user = user, size = 40.dp)
         Spacer(modifier = Modifier.width(12.dp))
         Text(
-            text = user.username.ifBlank { user.phoneNumber.ifBlank { "Unknown" } },
+            text = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = user.id,
+                remoteProfileName = user.username,
+                remotePhoneNumber = user.phoneNumber
+            ),
             color = WaTextPrimary,
             fontSize = 14.sp
         )

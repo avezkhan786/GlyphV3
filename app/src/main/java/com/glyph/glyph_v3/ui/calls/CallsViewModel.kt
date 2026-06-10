@@ -10,6 +10,7 @@ import com.glyph.glyph_v3.data.repo.CallLogRepository
 import com.glyph.glyph_v3.data.models.CallData
 import com.glyph.glyph_v3.data.models.CallState
 import com.glyph.glyph_v3.data.models.CallType
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
@@ -242,29 +243,69 @@ class CallsViewModel(application: Application) : AndroidViewModel(application) {
         return callData.endedAt > 0L || callData.callState() in HISTORICAL_STATES
     }
 
+    private var lastPhoneCacheMs: Long = 0L
+
+    /**
+     * Fetches all users and caches their phone numbers, so that
+     * [ContactDisplayNameResolver.getDisplayName] can match device contacts
+     * when resolving call history display names.
+     * Uses a 5-minute in-memory throttle to avoid excessive Firestore reads.
+     * @return number of newly cached phone numbers, or 0 if skipped/throttled/failed.
+     */
+    private suspend fun cacheAllUserPhones(): Int {
+        val now = System.currentTimeMillis()
+        if (now - lastPhoneCacheMs < 300_000L) return 0 // 5-minute throttle
+        try {
+            val snapshot = FirebaseFirestore.getInstance()
+                .collection("users")
+                .get()
+                .await()
+            var cached = 0
+            for (doc in snapshot.documents) {
+                val phone = doc.getString("phoneNumber") ?: continue
+                if (phone.isBlank()) continue
+                ContactDisplayNameResolver.cacheUserPhone(doc.id, phone)
+                cached++
+            }
+            lastPhoneCacheMs = now
+            if (cached > 0) {
+                Log.d(TAG, "Cached $cached user phone numbers for contact name resolution")
+            }
+            return cached
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to fetch users for phone caching: ${e.message}")
+            return 0
+        }
+    }
+
     private fun rebuildState(callLogs: List<LocalCallLog>, userId: String) {
         val callLogSnapshot = callLogs.toList()
 
         rebuildJob?.cancel()
         rebuildJob = viewModelScope.launch(Dispatchers.Default) {
-            val rebuildResult = buildRebuildResult(callLogSnapshot, userId)
-            Log.d(
-                TAG,
-                "Rebuilt calls state for userId=$userId sourceRows=${callLogSnapshot.size} uiRows=${rebuildResult.items.size}"
-            )
-            if (callLogSnapshot.isNotEmpty() && rebuildResult.items.isEmpty()) {
-                Log.w(
-                    TAG,
-                    "All local call logs were dropped during UI mapping for userId=$userId rows=${callLogSnapshot.joinToString { row -> row.callId + ":caller=" + row.callerId + ":receiver=" + row.receiverId + ":status=" + row.status }}"
+            // First pass: show local call history immediately with whatever phone
+            // cache is available, so the user sees data without waiting for network.
+            val firstResult = buildRebuildResult(callLogSnapshot, userId)
+            withContext(Dispatchers.Main.immediate) {
+                groupedCallIdsByKey = firstResult.groupedCallIdsByKey
+                _uiState.value = CallsUiState(
+                    isLoading = false,
+                    items = firstResult.items
                 )
             }
 
-            withContext(Dispatchers.Main.immediate) {
-                groupedCallIdsByKey = rebuildResult.groupedCallIdsByKey
-                _uiState.value = CallsUiState(
-                    isLoading = false,
-                    items = rebuildResult.items
-                )
+            // Second pass: warm the phone cache in the background, then re-resolve
+            // display names so device contact names replace Firestore usernames.
+            val cachedCount = cacheAllUserPhones()
+            if (cachedCount > 0) {
+                val refreshedResult = buildRebuildResult(callLogSnapshot, userId)
+                withContext(Dispatchers.Main.immediate) {
+                    groupedCallIdsByKey = refreshedResult.groupedCallIdsByKey
+                    _uiState.value = CallsUiState(
+                        isLoading = false,
+                        items = refreshedResult.items
+                    )
+                }
             }
         }
     }
@@ -332,13 +373,19 @@ class CallsViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val timestamp = anchorTimestamp(callLog)
-        val displayName = if (isOutgoing) callLog.receiverName else callLog.callerName
+        val rawDisplayName = if (isOutgoing) callLog.receiverName else callLog.callerName
+        // Resolve display name with device contact priority
+        val displayName = ContactDisplayNameResolver.getDisplayName(
+            otherUserId = peerId,
+            remoteProfileName = rawDisplayName,
+            fallback = UNKNOWN_CONTACT
+        )
         val avatarUrl = if (isOutgoing) callLog.receiverAvatar else callLog.callerAvatar
 
         return FlatCallHistoryItem(
             callId = callLog.callId,
             peerId = peerId,
-            displayName = displayName.ifBlank { UNKNOWN_CONTACT },
+            displayName = displayName,
             avatarUrl = avatarUrl,
             callType = callLog.callType(),
             direction = callLog.toDirection(isOutgoing),

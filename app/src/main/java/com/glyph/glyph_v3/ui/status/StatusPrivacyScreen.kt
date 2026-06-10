@@ -60,6 +60,7 @@ import com.glyph.glyph_v3.data.models.User
 import com.glyph.glyph_v3.ui.theme.GlyphThemeTokens
 import com.glyph.glyph_v3.ui.theme.glyphTheme
 import com.glyph.glyph_v3.utils.ThemeManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -498,7 +499,11 @@ private fun ContactCheckRow(
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = user.username.ifEmpty { user.phoneNumber },
+                    text = ContactDisplayNameResolver.getDisplayName(
+                        otherUserId = user.id,
+                        remoteProfileName = user.username,
+                        remotePhoneNumber = user.phoneNumber
+                    ),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.title,

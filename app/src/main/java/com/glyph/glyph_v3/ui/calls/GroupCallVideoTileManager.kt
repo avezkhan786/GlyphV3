@@ -13,6 +13,7 @@ import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.models.GroupCallParticipantUiState
 import com.glyph.glyph_v3.data.webrtc.GroupCallManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import org.webrtc.EglBase
 import org.webrtc.RendererCommon
 import org.webrtc.SurfaceViewRenderer
@@ -143,7 +144,11 @@ class GroupCallVideoTileManager(
     }
 
     private fun updateTile(holder: TileHolder, state: GroupCallParticipantUiState) {
-        val displayName = if (state.isSelf) "You" else state.userName
+        val displayName = if (state.isSelf) "You" else
+            ContactDisplayNameResolver.getDisplayName(
+                otherUserId = state.userId,
+                remoteProfileName = state.userName
+            )
         holder.tvName.text = displayName
         holder.tvNameCenter.text = displayName
 

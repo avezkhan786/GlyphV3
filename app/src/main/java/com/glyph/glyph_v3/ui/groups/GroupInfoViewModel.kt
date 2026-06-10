@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.glyph.glyph_v3.GlyphApplication
 import com.glyph.glyph_v3.data.local.AppDatabase
 import com.glyph.glyph_v3.data.models.User
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.data.repo.GroupChatRepository
 import com.glyph.glyph_v3.data.repo.PresenceManager
@@ -122,7 +123,11 @@ class GroupInfoViewModel(
                     withContext(Dispatchers.Main) {
                         val available = allUsers
                             .filter { user -> user.id !in participantIds && user.id != currentUid }
-                            .sortedBy { user -> user.username.ifBlank { user.phoneNumber }.lowercase() }
+                            .sortedBy { user -> ContactDisplayNameResolver.getDisplayName(
+                                otherUserId = user.id,
+                                remoteProfileName = user.username,
+                                remotePhoneNumber = user.phoneNumber
+                            ).lowercase() }
                         _state.update {
                             it.copy(
                                 isLoading = false,

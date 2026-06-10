@@ -37,6 +37,7 @@ import android.media.SoundPool
 import android.media.AudioAttributes
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.ui.chat.expressive.SentimentType
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 
 @Stable
 data class ChatUiState(
@@ -208,6 +209,26 @@ class ChatViewModel(
         observeMediaProgress()
         loadUserDetails()
         observeBlockStatus()
+        observeContactCacheChanges()
+    }
+
+    private fun observeContactCacheChanges() {
+        viewModelScope.launch {
+            ContactDisplayNameResolver.cacheVersion.collect { _ ->
+                // When device contacts change, re-resolve the display name
+                if (otherUserId.isNotEmpty()) {
+                    val currentState = _uiState.value
+                    val resolvedName = ContactDisplayNameResolver.getDisplayName(
+                        otherUserId = otherUserId,
+                        remoteProfileName = currentState.otherUserUsername,
+                        remotePhoneNumber = currentState.otherUserPhone
+                    )
+                    if (resolvedName != currentState.otherUserUsername) {
+                        _uiState.update { it.copy(otherUserUsername = resolvedName) }
+                    }
+                }
+            }
+        }
     }
 
     private fun loadUserDetails() {
@@ -224,7 +245,21 @@ class ChatViewModel(
             _uiState.update { it.copy(otherUserId = otherUserId) }
             firebaseRepository.getUser(otherUserId) { user ->
                 user?.let { u ->
-                    _uiState.update { it.copy(otherUserPhone = u.phoneNumber) }
+                    // Cache phone number for contact name resolution
+                    if (u.phoneNumber.isNotBlank()) {
+                        ContactDisplayNameResolver.cacheUserPhone(u.id, u.phoneNumber)
+                    }
+                    // Resolve display name with device contact priority
+                    val currentDisplayName = _uiState.value.otherUserUsername
+                    val resolvedName = ContactDisplayNameResolver.getDisplayName(
+                        otherUserId = otherUserId,
+                        remoteProfileName = u.username.ifBlank { currentDisplayName },
+                        remotePhoneNumber = u.phoneNumber
+                    )
+                    _uiState.update { it.copy(
+                        otherUserPhone = u.phoneNumber,
+                        otherUserUsername = resolvedName
+                    ) }
                 }
             }
         }

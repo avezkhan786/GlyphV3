@@ -26,6 +26,7 @@ import androidx.fragment.app.Fragment
 import androidx.viewpager2.widget.ViewPager2
 import com.glyph.glyph_v3.databinding.ActivityMainBinding
 import com.glyph.glyph_v3.data.preferences.StatusNotificationPrefs
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.ui.calls.CallsFragment
 import com.glyph.glyph_v3.ui.chat.ChatActivity
 import com.glyph.glyph_v3.ui.chatlist.ChatListComposeFragment
@@ -70,7 +71,10 @@ class MainActivity : AppCompatActivity() {
         
         // Ensure user is authenticated (anonymous auth if not signed in)
         ensureAuthenticated()
-        
+
+        // Re-initialize contact name resolver after logout→login without process death
+        ContactDisplayNameResolver.init(this)
+
         // Enable edge-to-edge display
         WindowCompat.setDecorFitsSystemWindows(window, false)
         

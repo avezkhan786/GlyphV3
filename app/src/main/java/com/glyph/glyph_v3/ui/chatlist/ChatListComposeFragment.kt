@@ -22,6 +22,7 @@ import com.glyph.glyph_v3.data.service.DraftMessageStore
 import com.glyph.glyph_v3.data.repo.BlockRepository
 import com.glyph.glyph_v3.data.repo.AvatarVisibilityRepository
 import com.glyph.glyph_v3.data.repo.FirebaseRepository
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.repo.PresenceManager
 import com.glyph.glyph_v3.data.repo.RealtimeMessageRepository
 import com.glyph.glyph_v3.GlyphApplication
@@ -603,6 +604,7 @@ class ChatListComposeFragment : Fragment() {
                             blockedUserIds = blockedUserIds
                         )
                     }
+                    .combine(ContactDisplayNameResolver.cacheVersion) { chats, _ -> chats }
                     .flowOn(Dispatchers.Default)
                     .collect { chats ->
                         viewModel.updateChats(chats)
@@ -670,7 +672,12 @@ class ChatListComposeFragment : Fragment() {
                 lastMessageSenderId = local.lastMessageSenderId,
                 lastMessageStatus = local.lastMessageStatus,
                 unreadCount = local.unreadCount,
-                otherUsername = local.otherUsername,
+                otherUsername = if (!effectiveIsGroup && local.otherUserId.isNotBlank()) {
+                    ContactDisplayNameResolver.getDisplayName(
+                        otherUserId = local.otherUserId,
+                        remoteProfileName = local.otherUsername
+                    )
+                } else local.otherUsername,
                 otherUserAvatar = local.otherUserAvatar,
                 isOtherUserOnline = if (isBlocked) false else (presence?.isOnline ?: false),
                 isOtherUserInChat = if (isBlocked) false else (presence?.viewingChatId == local.id),
@@ -794,11 +801,21 @@ class ChatListComposeFragment : Fragment() {
         firebaseRepository.getAllUsers(
             forceRefresh = false,
             onSuccess = { users ->
+                // Cache userId → phone mappings for contact name resolution
+                users.forEach { user ->
+                    if (user.phoneNumber.isNotBlank()) {
+                        ContactDisplayNameResolver.cacheUserPhone(user.id, user.phoneNumber)
+                    }
+                }
                 val resolved = users.asSequence()
                     .filter { it.id in missingSenderIds }
                     .mapNotNull { user ->
-                        val name = user.username.ifBlank { user.phoneNumber.ifBlank { return@mapNotNull null } }
-                        user.id to name
+                        val name = ContactDisplayNameResolver.getDisplayName(
+                            otherUserId = user.id,
+                            remoteProfileName = user.username,
+                            remotePhoneNumber = user.phoneNumber
+                        )
+                        if (name.isBlank()) null else user.id to name
                     }
                     .toMap()
                 if (resolved.isNotEmpty()) {
@@ -826,11 +843,21 @@ class ChatListComposeFragment : Fragment() {
         firebaseRepository.getAllUsers(
             forceRefresh = false,
             onSuccess = { users ->
+                // Cache userId → phone mappings for contact name resolution
+                users.forEach { user ->
+                    if (user.phoneNumber.isNotBlank()) {
+                        ContactDisplayNameResolver.cacheUserPhone(user.id, user.phoneNumber)
+                    }
+                }
                 val resolved = users.asSequence()
                     .filter { it.id in missingUserIds }
                     .mapNotNull { user ->
-                        val name = user.username.ifBlank { user.phoneNumber.ifBlank { return@mapNotNull null } }
-                        user.id to name
+                        val name = ContactDisplayNameResolver.getDisplayName(
+                            otherUserId = user.id,
+                            remoteProfileName = user.username,
+                            remotePhoneNumber = user.phoneNumber
+                        )
+                        if (name.isBlank()) null else user.id to name
                     }
                     .toMap()
                 if (resolved.isNotEmpty()) {

@@ -23,6 +23,7 @@ import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.repo.FirebaseRepository
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.ui.login.LoginActivity
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
@@ -262,6 +263,7 @@ class AccountSettingsActivity : AppCompatActivity() {
     }
 
     private fun performLogout() {
+        ContactDisplayNameResolver.shutdown()
         FirebaseAuth.getInstance().signOut()
         val intent = Intent(this, LoginActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -288,6 +290,7 @@ class AccountSettingsActivity : AppCompatActivity() {
                         .await()
                 }
                 // Sign out
+                ContactDisplayNameResolver.shutdown()
                 FirebaseAuth.getInstance().signOut()
                 val intent = android.content.Intent(this@AccountSettingsActivity, com.glyph.glyph_v3.ui.login.LoginActivity::class.java)
                 intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK

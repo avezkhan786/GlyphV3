@@ -33,6 +33,7 @@ import com.glyph.glyph_v3.data.cache.UserProfileCache
 import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.data.repo.PrivacySettingsRepository
 import com.glyph.glyph_v3.databinding.FragmentSettingsNewBinding
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
@@ -288,7 +289,12 @@ class SettingsFragment : Fragment() {
         repository.getUser { user ->
             val binding = _binding
             if (binding != null && isAdded && user != null) {
-                userName = user.username.ifEmpty { "Your Name" }
+                userName = ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = user.id,
+                    remoteProfileName = user.username,
+                    remotePhoneNumber = user.phoneNumber,
+                    fallback = "Your Name"
+                )
                 about = user.bio.ifEmpty { "Hey there! I am using Glyph." }
                 avatarUrl = user.profileImageUrl
                 avatarFullUrl = user.profileImageFullUrl

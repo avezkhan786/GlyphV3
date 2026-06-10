@@ -11,6 +11,7 @@ import com.bumptech.glide.load.resource.bitmap.CircleCrop
 import com.bumptech.glide.signature.ObjectKey
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.cache.AvatarCacheManager
+import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.databinding.ItemCallFavoriteAddBinding
 import com.glyph.glyph_v3.databinding.ItemCallFavoriteInfoBinding
 import com.glyph.glyph_v3.databinding.ItemCallFavoriteRowBinding
@@ -98,8 +99,12 @@ class CallFavoritesAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(item: FavoriteCallTarget) {
-            binding.tvName.text = item.displayName
-            binding.tvAvatarInitial.text = item.displayName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
+            val resolvedName = ContactDisplayNameResolver.getDisplayName(
+                otherUserId = item.userId,
+                remoteProfileName = item.displayName
+            )
+            binding.tvName.text = resolvedName
+            binding.tvAvatarInitial.text = resolvedName.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
             bindAvatar(item)
 
             binding.btnVoiceCall.isVisible = !isEditing
