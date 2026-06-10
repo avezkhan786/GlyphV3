@@ -84,13 +84,18 @@ class MainActivity : AppCompatActivity() {
         binding.mainViewPager.offscreenPageLimit = 1
         
         // Pad ViewPager2 so content sits 13dp above the bottom nav bar.
-        // Uses the root insets to account for the system navigation bar.
+        // When the bottom nav is hidden (e.g. full-screen status creation),
+        // padding is removed so content extends to the screen edge.
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val systemBottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
-            val navContentDp = 60
-            val gapDp = 13
             val density = resources.displayMetrics.density
-            val totalPadding = ((navContentDp + gapDp) * density).toInt() + systemBottom
+            val totalPadding = if (binding.bottomNavigation.visibility == View.VISIBLE) {
+                val navContentDp = 60
+                val gapDp = 13
+                ((navContentDp + gapDp) * density).toInt() + systemBottom
+            } else {
+                0
+            }
             binding.mainViewPager.setPadding(0, 0, 0, totalPadding)
             insets
         }

@@ -151,7 +151,6 @@
             android:layout_weight="1"
             android:clipToPadding="false"
             android:overScrollMode="never"
-            android:paddingBottom="104dp"
             android:scrollbars="none"
             tools:itemCount="7"
             tools:listitem="@layout/item_call_history" />
