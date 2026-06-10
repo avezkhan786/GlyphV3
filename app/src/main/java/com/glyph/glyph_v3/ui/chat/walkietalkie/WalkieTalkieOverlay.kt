@@ -15,7 +15,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -49,6 +49,37 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.service.WalkieTalkieManager
+
+// Cached FontFamily — loaded once during first composition and reused
+// across all subsequent compositions and overlay instances.
+@Volatile
+private var cachedTitleFontFamily: FontFamily? = null
+
+@Composable
+private fun getOrLoadTitleFontFamily(): FontFamily {
+    val existing = cachedTitleFontFamily
+    if (existing != null) return existing
+    val font = FontFamily(Font(R.font.bbh_bartle_regular))
+    cachedTitleFontFamily = font
+    return font
+}
+
+// Statically cached Brushes that never change — avoid object allocation per composition.
+private val DarkRadialGradientAccent = { accent: Color ->
+    Brush.radialGradient(listOf(accent.copy(alpha = 0.42f), accent.copy(alpha = 0.16f), Color.Transparent))
+}
+private val DarkRadialGradientFixed = Brush.radialGradient(
+    listOf(Color(0x664B74FF), Color(0x224B74FF), Color.Transparent)
+)
+private val DarkVerticalGradient = Brush.verticalGradient(
+    listOf(Color.Transparent, Color(0x88071822), Color(0xEE081C25))
+)
+private val CardGradient = Brush.verticalGradient(
+    listOf(Color(0xCC1D3144), Color(0xB1132433))
+)
+private val DisconnectGradient = Brush.horizontalGradient(
+    listOf(Color(0xFFFF6A6A), Color(0xFFD73A49))
+)
 
 @Composable
 fun WalkieTalkieOverlay(
@@ -66,12 +97,21 @@ fun WalkieTalkieOverlay(
     val isReceiving = state == WalkieTalkieManager.State.RECEIVING
     val isConnecting = state == WalkieTalkieManager.State.CONNECTING ||
         state == WalkieTalkieManager.State.REQUESTING
-    val titleFont = remember { FontFamily(Font(R.font.bbh_bartle_regular)) }
-    val infoRowInteractionSource = remember { MutableInteractionSource() }
-    val overlayInteractionSource = remember { MutableInteractionSource() }
+    val titleFont = getOrLoadTitleFontFamily()
+    // Single shared interaction source for non-interactive clickables (no ripple needed).
+    val noopInteractionSource = remember { MutableInteractionSource() }
     val density = LocalDensity.current
     val topSafeAreaInset = with(density) { topSafeAreaInsetPx.toDp() }
     val bottomSafeAreaInset = with(density) { bottomSafeAreaInsetPx.toDp() }
+
+    // Use LocalConfiguration instead of BoxWithConstraints for screen size checks.
+    // Avoids an extra measurement pass during the AnimatedVisibility enter animation.
+    val config = LocalConfiguration.current
+    val screenHeightDp = config.screenHeightDp.dp
+    val screenWidthDp = config.screenWidthDp.dp
+    val compactHeight = screenHeightDp < 760.dp
+    val tightHeight = screenHeightDp < 700.dp
+    val compactWidth = screenWidthDp < 360.dp
 
     val accentColor = when {
         isTransmitting -> Color(0xFF56F0BE)
@@ -120,25 +160,29 @@ fun WalkieTalkieOverlay(
         else -> "Private channel"
     }
 
+    // Cached Brushes — avoid allocating new Brush objects every recomposition.
+    val backgroundGradient = remember { DarkVerticalGradient }
+    val cardGradient = remember { CardGradient }
+    val disconnectGradient = remember { DisconnectGradient }
+    // Accent orb depends on accentColor, so it's recomputed on state change.
+    val accentOrbBrush = remember(accentColor) { DarkRadialGradientAccent(accentColor) }
+
     AnimatedVisibility(
         visible = isActive,
         enter = fadeIn(tween(220)) + slideInVertically(tween(220)) { it / 5 },
         exit = fadeOut(tween(180)) + slideOutVertically(tween(180)) { it / 5 },
         modifier = modifier
     ) {
-        BoxWithConstraints(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color(0xFF031018))
                 .clickable(
                     indication = null,
-                    interactionSource = overlayInteractionSource,
+                    interactionSource = noopInteractionSource,
                     onClick = { }
                 )
         ) {
-            val compactHeight = maxHeight < 760.dp
-            val tightHeight = maxHeight < 700.dp
-            val compactWidth = maxWidth < 360.dp
             val horizontalPadding = when {
                 tightHeight || compactWidth -> 18.dp
                 compactHeight -> 20.dp
@@ -174,34 +218,18 @@ fun WalkieTalkieOverlay(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .size(if (tightHeight) 240.dp else if (compactHeight) 280.dp else 320.dp),
-                colors = listOf(
-                    accentColor.copy(alpha = 0.42f),
-                    accentColor.copy(alpha = 0.16f),
-                    Color.Transparent
-                )
+                brush = accentOrbBrush
             )
             BackgroundOrb(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .size(if (tightHeight) 280.dp else if (compactHeight) 320.dp else 360.dp),
-                colors = listOf(
-                    Color(0x664B74FF),
-                    Color(0x224B74FF),
-                    Color.Transparent
-                )
+                brush = DarkRadialGradientFixed
             )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                Color(0x88071822),
-                                Color(0xEE081C25)
-                            )
-                        )
-                    )
+                    .background(backgroundGradient)
             )
 
             Column(
@@ -225,7 +253,8 @@ fun WalkieTalkieOverlay(
                     StatusBadge(
                         text = statusLabel,
                         color = accentColor,
-                        compact = compactHeight
+                        compact = compactHeight,
+                        animatePulse = isActive
                     )
 
                     Spacer(modifier = Modifier.height(if (tightHeight) 10.dp else 12.dp))
@@ -287,14 +316,7 @@ fun WalkieTalkieOverlay(
                         .fillMaxWidth()
                         .weight(cardWeight, fill = true)
                         .clip(RoundedCornerShape(cardCorner))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0xCC1D3144),
-                                    Color(0xB1132433)
-                                )
-                            )
-                        )
+                        .background(cardGradient)
                         .border(
                             width = 1.dp,
                             color = Color(0x3AE4F2FF),
@@ -366,7 +388,7 @@ fun WalkieTalkieOverlay(
                             .weight(1f)
                             .clickable(
                                 indication = null,
-                                interactionSource = infoRowInteractionSource,
+                                interactionSource = noopInteractionSource,
                                 onClick = { }
                             )
                             .clip(RoundedCornerShape(if (compactHeight) 18.dp else 20.dp))
@@ -399,14 +421,7 @@ fun WalkieTalkieOverlay(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .clip(RoundedCornerShape(if (compactHeight) 20.dp else 24.dp))
-                            .background(
-                                Brush.horizontalGradient(
-                                    colors = listOf(
-                                        Color(0xFFFF6A6A),
-                                        Color(0xFFD73A49)
-                                    )
-                                )
-                            )
+                            .background(disconnectGradient)
                             .clickable(onClick = onDisconnect)
                             .padding(
                                 horizontal = if (tightHeight) 16.dp else if (compactHeight) 18.dp else 22.dp,
@@ -437,12 +452,12 @@ fun WalkieTalkieOverlay(
 @Composable
 private fun BackgroundOrb(
     modifier: Modifier,
-    colors: List<Color>
+    brush: Brush
 ) {
     Box(
         modifier = modifier
             .clip(CircleShape)
-            .background(Brush.radialGradient(colors = colors))
+            .background(brush)
     )
 }
 
@@ -450,18 +465,26 @@ private fun BackgroundOrb(
 private fun StatusBadge(
     text: String,
     color: Color,
-    compact: Boolean
+    compact: Boolean,
+    animatePulse: Boolean = true
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "wt_status_pulse")
-    val dotAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.45f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "wt_status_dot_alpha"
-    )
+    // Defer infinite transition creation — only create when we actually need to pulse.
+    // In IDLE or DISCONNECTING states, use a static dot to avoid unnecessary animation frames.
+    val dotAlpha = if (animatePulse) {
+        val infiniteTransition = rememberInfiniteTransition(label = "wt_status_pulse")
+        val alpha by infiniteTransition.animateFloat(
+            initialValue = 0.45f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(900),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "wt_status_dot_alpha"
+        )
+        alpha
+    } else {
+        0.72f // static brighter dot when not pulsing
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

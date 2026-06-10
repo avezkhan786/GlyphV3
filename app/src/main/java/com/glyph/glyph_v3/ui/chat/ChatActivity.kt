@@ -13538,6 +13538,14 @@ class ChatActivity : AppCompatActivity(),
     }
 
     private fun startWalkieTalkieSessionAfterKeyboardDismissal(userId: String) {
+        // Start the session immediately — the manager sets REQUESTING state synchronously
+        // so the overlay appears with "LINKING CHANNEL" feedback without waiting for the
+        // keyboard animation to finish. The overlay renders full-screen over the keyboard.
+        walkieTalkieManager.startSession(userId)
+        Toast.makeText(this@ChatActivity, "Starting Walkie-Talkie…", Toast.LENGTH_SHORT).show()
+
+        // Non-blocking keyboard dismissal: keep hiding the keyboard in the background
+        // while the session setup runs and the overlay is already visible.
         lifecycleScope.launch {
             var waitedFrames = 0
             while (
@@ -13547,9 +13555,6 @@ class ChatActivity : AppCompatActivity(),
                 delay(16L)
                 waitedFrames++
             }
-
-            walkieTalkieManager.startSession(userId)
-            Toast.makeText(this@ChatActivity, "Starting Walkie-Talkie…", Toast.LENGTH_SHORT).show()
         }
     }
 }

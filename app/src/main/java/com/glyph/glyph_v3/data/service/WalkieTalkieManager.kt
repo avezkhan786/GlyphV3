@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.webrtc.IceCandidate
 import org.webrtc.SessionDescription
@@ -310,23 +311,28 @@ class WalkieTalkieManager private constructor(
         _sessionPhase.value = SessionPhase.REQUESTING
         _connectedPeerId.value = peerId
 
-        scope.launch {
+        // Launch heavy session setup on Dispatchers.Default to keep the UI thread
+        // free for the overlay entrance animation. Only the FGS start (which calls
+        // startForegroundService) must happen on the main thread.
+        scope.launch(Dispatchers.Default) {
             try {
                 val sessionId = repository.newSessionId()
                 _activeSessionId.value = sessionId
 
-                // Start FGS for mic access
+                // Start FGS for mic access — must be on main thread
                 val peerDisplayName = UserProfileCache.get(context, peerId)?.username?.trim()
                     .takeUnless { it.isNullOrBlank() } ?: "User"
-                LiveAudioForegroundService.start(
-                    context = context,
-                    mode = LiveAudioForegroundService.MODE_WALKIE_TALKIE,
-                    notificationTitle = "Walkie-Talkie: $peerDisplayName",
-                    notificationText = "Push-to-talk session connecting…",
-                    wtSessionId = sessionId,
-                    wtPeerId = peerId,
-                    wtPeerName = peerDisplayName
-                )
+                withContext(Dispatchers.Main) {
+                    LiveAudioForegroundService.start(
+                        context = context,
+                        mode = LiveAudioForegroundService.MODE_WALKIE_TALKIE,
+                        notificationTitle = "Walkie-Talkie: $peerDisplayName",
+                        notificationText = "Push-to-talk session connecting…",
+                        wtSessionId = sessionId,
+                        wtPeerId = peerId,
+                        wtPeerName = peerDisplayName
+                    )
+                }
 
                 startAudioSession()
                 ensureTurnReadyForPeerSetup(role = "initiator")
@@ -339,6 +345,8 @@ class WalkieTalkieManager private constructor(
                 )
 
                 // Initialize bidirectional WebRTC (as initiator)
+                // WebRTC PeerConnectionFactory.createPeerConnection and createOffer involve
+                // native socket creation and ICE candidate gathering — run on Default.
                 val client = WalkieTalkiePeerClient(
                     context, sessionId, currentUserId, isInitiator = true,
                     relayOnly = initiatorRelayOnly
@@ -357,6 +365,8 @@ class WalkieTalkieManager private constructor(
                 // answer immediately after the wake-up push lands.
                 val offer = client.createOffer()
                 latestLocalOfferRevision = 1
+
+                // RTDB writes are async and work from any dispatcher
                 repository.createSession(
                     responderId = peerId,
                     initiatorName = currentUserDisplayName(),
@@ -696,14 +706,19 @@ class WalkieTalkieManager private constructor(
         }
 
         acquireSetupWakeLock()
-        incomingSetupJob = scope.launch {
+        // Launch heavy session setup on Dispatchers.Default to keep the UI thread
+        // free for any incoming-call UI animations. Only the FGS start (which calls
+        // startForegroundService) must happen on the main thread.
+        incomingSetupJob = scope.launch(Dispatchers.Default) {
             try {
-                // Start FGS
-                LiveAudioForegroundService.start(
-                    context = context,
-                    mode = LiveAudioForegroundService.MODE_WALKIE_TALKIE,
-                    requiresMicrophoneAccess = !backgroundReceiveOnly
-                )
+                // Start FGS — must be on main thread
+                withContext(Dispatchers.Main) {
+                    LiveAudioForegroundService.start(
+                        context = context,
+                        mode = LiveAudioForegroundService.MODE_WALKIE_TALKIE,
+                        requiresMicrophoneAccess = !backgroundReceiveOnly
+                    )
+                }
 
                 startAudioSession(requiresMicrophoneAccess = !backgroundReceiveOnly)
                 repository.primeSession(seed.sessionId)
@@ -715,6 +730,7 @@ class WalkieTalkieManager private constructor(
                     IceCandidateHistoryCache.shouldPreferRelay(context, currentUserId, initiatorId)
 
                 // Initialize bidirectional WebRTC (as responder)
+                // WebRTC PeerConnection creation involves native socket setup — run on Default.
                 val client = WalkieTalkiePeerClient(
                     context,
                     seed.sessionId,
@@ -1559,7 +1575,9 @@ class WalkieTalkieManager private constructor(
             }
             null
         }
-        WalkieTalkieEffectPlayer.preload(context)
+        // Effect player is preloaded asynchronously in init{} on Dispatchers.Default.
+        // Calling preload here would synchronously construct SoundPool on the calling
+        // thread, causing a frame drop during session startup.
         requestAudioFocus()
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         if (requiresMicrophoneAccess) {
