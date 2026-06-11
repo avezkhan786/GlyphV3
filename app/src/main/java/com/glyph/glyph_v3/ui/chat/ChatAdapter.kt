@@ -1567,8 +1567,8 @@ class ChatAdapter(
             val root = itemView as? android.view.ViewGroup ?: return
             val existing = root.findViewById<TextView>(R.id.glyph_reaction_chip) ?: return
             root.removeView(existing)
-            val chipRowSpace = dpToPx(36f)
-            if (root.paddingBottom >= chipRowSpace) {
+            // Clear any extra bottom padding that was reserved for the chip.
+            if (root.paddingBottom > 0) {
                 root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
             }
         }
@@ -1607,10 +1607,9 @@ class ChatAdapter(
             val existing = root.findViewById<TextView>(R.id.glyph_reaction_chip)
             if (message.reactions.isEmpty()) {
                 if (existing != null) root.removeView(existing)
-                // We reserve bottom padding to make room for the chip — remove it now so the
-                // row shrinks back to its natural height when there are no reactions.
-                val chipRowSpace = dpToPx(36f)
-                if (root.paddingBottom >= chipRowSpace) {
+                // Remove any extra bottom padding that was reserved for the chip so the row
+                // shrinks back to its natural bubble-to-bubble spacing.
+                if (root.paddingBottom > 0) {
                     root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
                 }
                 return
@@ -1658,30 +1657,22 @@ class ChatAdapter(
             if (isSingle) {
                 chip.setPadding(0, 0, 0, 0)
             } else {
-                chip.setPadding(dpToPx(10f), dpToPx(5f), dpToPx(10f), dpToPx(5f))
+                chip.setPadding(dpToPx(10f), dpToPx(3f), dpToPx(10f), dpToPx(3f))
             }
 
             val isCL = root is androidx.constraintlayout.widget.ConstraintLayout
 
-            // We must grow the row height ourselves so the chip doesn't bleed into the row
-            // below and get covered (invisible). This applies to BOTH ConstraintLayout text
-            // bubbles (whose anchor has no bottom constraint, so the row never auto-expands)
-            // AND FrameLayout media rows. Reserve bottom padding equal to the chip's visual
-            // footprint:
-            //   chip height (32 dp single / ~28 dp multi)
-            //   − overlap with bubble (−4 dp)
-            //   + gap below chip  (+4 dp)
-            //   = 32 dp extra space. Use 36 dp to be safe. clipToPadding=false lets the chip
-            // paint inside this reserved padding band, keeping it within the row bounds.
-            val chipRowSpace = dpToPx(36f)
-            if (root.paddingBottom < chipRowSpace) {
-                root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, chipRowSpace)
+            // Clear any extra bottom padding — the chip extends the row naturally via
+            // its ConstraintLayout constraints (or translation for FrameLayout).
+            if (root.paddingBottom > 0) {
+                root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, 0)
             }
 
             if (existing == null) {
                 if (isCL) {
-                    // ConstraintLayout: position chip with relational constraints — the layout
-                    // engine expands the row automatically.
+                    // ConstraintLayout: chip tucks under the bubble with a 4dp overlap.
+                    // No bottom constraint — ConstraintLayout wrap_content naturally
+                    // extends to the lowest child edge, which is the chip's bottom.
                     val lp = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(
                         androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.WRAP_CONTENT,
                         androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.WRAP_CONTENT
@@ -1695,13 +1686,6 @@ class ChatAdapter(
                             endToEnd = anchor.id
                             marginEnd = dpToPx(10f)
                         }
-                        // NOTE: deliberately NOT using bottomToBottom=PARENT. cardMessage has
-                        // no bottom constraint, so the ConstraintLayout's wrap_content height
-                        // is driven only by cardMessage. Anchoring the chip to the parent's
-                        // bottom would place it AT the parent's bottom edge (below the row),
-                        // where the next row covers it. Instead the reserved bottom padding
-                        // above grows the row, and topToBottom=cardMessage drops the chip into
-                        // that padding band so it stays visible within the row.
                     }
                     root.addView(chip, lp)
                 } else {
@@ -1718,6 +1702,33 @@ class ChatAdapter(
                 // Existing chip in a non-CL root — re-position in case the row was recycled
                 // to a different message or the anchor dimensions changed.
                 placeChipBelowAnchor(chip, root, anchor, message.isIncoming)
+            } else {
+                // Existing chip in a ConstraintLayout — ensure constraints are correct
+                // in case the row was recycled from a different layout or the XML-defined
+                // margins need updating.
+                val lp = chip.layoutParams as? androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                if (lp != null) {
+                    var updated = false
+                    val targetTopMargin = -dpToPx(4f)
+                    if (lp.topMargin != targetTopMargin) {
+                        lp.topMargin = targetTopMargin
+                        updated = true
+                    }
+                    // Remove any bottom constraint that could create a gap.
+                    if (lp.bottomToBottom != -1) {
+                        lp.bottomToBottom = -1
+                        lp.bottomMargin = 0
+                        updated = true
+                    }
+                    if (message.isIncoming && lp.marginStart != dpToPx(10f)) {
+                        lp.marginStart = dpToPx(10f)
+                        updated = true
+                    } else if (!message.isIncoming && lp.marginEnd != dpToPx(10f)) {
+                        lp.marginEnd = dpToPx(10f)
+                        updated = true
+                    }
+                    if (updated) chip.layoutParams = lp
+                }
             }
 
             // Enforce the correct chip size (strict 1:1 circle vs. pill).
@@ -1773,8 +1784,13 @@ class ChatAdapter(
                         root.viewTreeObserver.removeOnPreDrawListener(this)
                         return true
                     }
-                    // Chip sits slightly overlapping the bottom edge of the anchor (−4 dp).
+                    // Chip tucks under the bottom edge of the anchor by 4dp.
                     chip.translationY = (rect.bottom - dpToPx(4f)).toFloat()
+                    // Reserve just enough bottom padding to contain the chip.
+                    val neededPadding = (chip.measuredHeight - dpToPx(4f)).coerceAtLeast(0)
+                    if (root.paddingBottom != neededPadding) {
+                        root.setPadding(root.paddingLeft, root.paddingTop, root.paddingRight, neededPadding)
+                    }
                     if (isIncoming) {
                         chip.translationX = (rect.left + dpToPx(10f)).toFloat()
                     } else {

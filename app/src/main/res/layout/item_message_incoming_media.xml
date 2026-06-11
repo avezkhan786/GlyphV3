@@ -197,7 +197,6 @@
         app:layout_constraintTop_toBottomOf="@id/messageBubble"
         android:layout_marginStart="10dp"
         android:layout_marginTop="-4dp"
-        android:layout_marginBottom="4dp"
         tools:visibility="visible"
         tools:text="😂  1" />
 
