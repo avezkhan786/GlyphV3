@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap
 object ContactDisplayNameResolver {
 
     private const val TAG = "ContactDisplayNameResolver"
+    private const val PREFS_USER_PHONES = "glyph_user_phone_cache"
 
     // ── In-memory caches ──────────────────────────────────────────────────────
 
@@ -85,8 +86,21 @@ object ContactDisplayNameResolver {
         if (!scope.isActive) {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         }
+        val initStartMs = android.os.SystemClock.elapsedRealtime()
+        Log.d(TAG, "[PerfTrace] init() called at elapsedRealtime=$initStartMs ms")
         scope.launch(Dispatchers.IO) {
+            // Restore persisted userId→phone mappings from the last Firestore fetch.
+            // This runs before loadAllContacts so that legacy call-log entries with
+            // blank phone columns can resolve saved contact names on the very first paint
+            // without waiting for a Firestore round-trip (~2-3 s).
+            restorePersistedUserPhones(context.applicationContext)
+            val loadStartMs = android.os.SystemClock.elapsedRealtime()
+            Log.d(TAG, "[PerfTrace] loadAllContacts() START at elapsedRealtime=$loadStartMs ms (delay since init=${loadStartMs - initStartMs} ms)")
             loadAllContacts(context)
+            val loadEndMs = android.os.SystemClock.elapsedRealtime()
+            Log.d(TAG, "[PerfTrace] loadAllContacts() END  at elapsedRealtime=$loadEndMs ms (took ${loadEndMs - loadStartMs} ms, contacts=${contactNameCache.size})")
+            _cacheVersion.value++ // Signal observers that the initial cache is ready
+            Log.d(TAG, "[PerfTrace] cacheVersion incremented to ${_cacheVersion.value} at elapsedRealtime=${android.os.SystemClock.elapsedRealtime()} ms")
             registerContactObserver(context)
         }
     }
@@ -172,6 +186,53 @@ object ContactDisplayNameResolver {
     }
 
     /**
+     * Persist the current [userPhoneCache] (userId→phone) to SharedPreferences.
+     * Call this after a bulk Firestore user-phone fetch so subsequent cold starts
+     * can restore the mappings synchronously — eliminating the Firestore round-trip
+     * delay for legacy call-log entries with blank stored phone columns.
+     *
+     * Safe to call from any thread.
+     */
+    fun persistUserPhones(context: Context) {
+        val snapshot = HashMap<String, String>(userPhoneCache)
+        if (snapshot.isEmpty()) return
+        try {
+            val prefs = context.applicationContext
+                .getSharedPreferences(PREFS_USER_PHONES, Context.MODE_PRIVATE)
+            prefs.edit().apply {
+                clear()
+                snapshot.forEach { (uid, phone) -> putString(uid, phone) }
+            }.apply()
+            Log.d(TAG, "[PerfTrace] persistUserPhones: saved ${snapshot.size} entries")
+        } catch (e: Exception) {
+            Log.w(TAG, "persistUserPhones failed", e)
+        }
+    }
+
+    /**
+     * Load userId→phone mappings previously saved by [persistUserPhones].
+     * Entries are merged into [userPhoneCache] without overwriting newer in-memory values.
+     * Intended to be called from the IO coroutine inside [init].
+     */
+    private fun restorePersistedUserPhones(context: Context) {
+        try {
+            val prefs = context.getSharedPreferences(PREFS_USER_PHONES, Context.MODE_PRIVATE)
+            var restored = 0
+            for ((uid, value) in prefs.all) {
+                if (uid.isNotBlank() && value is String && value.isNotBlank()) {
+                    userPhoneCache.putIfAbsent(uid, value)
+                    restored++
+                }
+            }
+            if (restored > 0) {
+                Log.d(TAG, "[PerfTrace] restorePersistedUserPhones: restored $restored userId→phone entries")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "restorePersistedUserPhones failed", e)
+        }
+    }
+
+    /**
      * Force-refresh the in-memory contact name cache from the device Contacts Provider.
      * Called automatically by the ContentObserver; call manually when permission is
      * granted after init.
@@ -234,6 +295,8 @@ object ContactDisplayNameResolver {
                 ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
             )
 
+            val queryStartMs = android.os.SystemClock.elapsedRealtime()
+            Log.d(TAG, "[PerfTrace] ContentResolver.query(Phone) START at elapsedRealtime=$queryStartMs ms")
             context.contentResolver.query(
                 ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
                 projection,
@@ -241,6 +304,7 @@ object ContactDisplayNameResolver {
                 null,
                 null
             )?.use { cursor ->
+                Log.d(TAG, "[PerfTrace] ContentResolver.query(Phone) returned cursor in ${android.os.SystemClock.elapsedRealtime() - queryStartMs} ms, count=${cursor.count}")
                 val numberIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
                 val nameIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
 

@@ -13,15 +13,20 @@ import com.glyph.glyph_v3.data.models.CallType
 import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -64,11 +69,58 @@ class CallsViewModel(application: Application) : AndroidViewModel(application) {
     private var callLogsJob: Job? = null
     private var remoteImportJob: Job? = null
     private var rebuildJob: Job? = null
+    /** Separate from rebuildJob so observeContactCacheVersion's cancel does not kill the Firestore fetch. */
+    private var phoneWarmupJob: Job? = null
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
     private var isObservingCalls = false
 
+    // Latest snapshot of call logs + userId for cache-version-triggered rebuilds
+    private var latestCallLogs: List<LocalCallLog>? = null
+    private var latestUserId: String = ""
+    private var contactCacheObserverJob: Job? = null
+
     init {
         startAuthObservation()
+    }
+
+    /**
+     * React to device contact cache changes. When the user adds/renames/deletes
+     * a contact (or when the cache finishes its initial async load after process
+     * start), [ContactDisplayNameResolver.cacheVersion] increments. We rebuild
+     * the call history so display names reflect the latest contacts immediately.
+     */
+    private fun observeContactCacheVersion() {
+        contactCacheObserverJob?.cancel()
+        contactCacheObserverJob = viewModelScope.launch {
+            ContactDisplayNameResolver.cacheVersion
+                .filter { version -> version > 0L && latestCallLogs != null && latestUserId.isNotBlank() }
+                .collect { version ->
+                    Log.d(TAG, "Contact cache version changed to $version; rebuilding call history names")
+                    val callLogs = latestCallLogs ?: return@collect
+                    rebuildJob?.cancel()
+                    rebuildJob = launch(Dispatchers.Default) {
+                        // Re-seed userPhoneCache from stored phone numbers so that
+                        // even if the main rebuildState job hasn't run yet (or ran
+                        // before contacts were loaded), names resolve correctly here.
+                        for (log in callLogs) {
+                            if (log.callerPhone.isNotBlank()) {
+                                ContactDisplayNameResolver.cacheUserPhone(log.callerId, log.callerPhone)
+                            }
+                            if (log.receiverPhone.isNotBlank()) {
+                                ContactDisplayNameResolver.cacheUserPhone(log.receiverId, log.receiverPhone)
+                            }
+                        }
+                        val result = buildRebuildResult(callLogs, latestUserId)
+                        withContext(Dispatchers.Main.immediate) {
+                            groupedCallIdsByKey = result.groupedCallIdsByKey
+                            _uiState.value = CallsUiState(
+                                isLoading = false,
+                                items = result.items
+                            )
+                        }
+                    }
+                }
+        }
     }
 
     fun refresh() {
@@ -115,6 +167,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application) {
         callLogsJob?.cancel()
         remoteImportJob?.cancel()
         rebuildJob?.cancel()
+        phoneWarmupJob?.cancel()
+        contactCacheObserverJob?.cancel()
         authStateListener?.let(auth::removeAuthStateListener)
         authStateListener = null
     }
@@ -137,21 +191,28 @@ class CallsViewModel(application: Application) : AndroidViewModel(application) {
         }
         authStateListener?.let(auth::addAuthStateListener)
 
-        if (currentUserId.isNotBlank() && !isObservingCalls) {
-            startLocalObservation(currentUserId)
+        // Firebase Auth caches the signed-in user locally and makes it available
+        // synchronously via auth.currentUser. Check it NOW rather than relying
+        // solely on the async AuthStateListener, which can fire 1-2 s after
+        // ViewModel creation on cold start (observed: ~1929 ms delay in trace).
+        // Using auth.currentUser directly eliminates that delay.
+        val liveUserId = auth.currentUser?.uid.orEmpty()
+        if (liveUserId.isNotBlank() && !isObservingCalls) {
+            currentUserId = liveUserId
+            startLocalObservation(liveUserId)
         }
     }
 
     private fun startLocalObservation(userId: String) {
         resetObservedCalls(stopLoading = true)
         isObservingCalls = true
-        Log.d(TAG, "Starting local call-log observation for userId=$userId")
+        Log.d(TAG, "[PerfTrace] startLocalObservation userId=$userId cacheVersion=${ContactDisplayNameResolver.cacheVersion.value} elapsedRealtime=${android.os.SystemClock.elapsedRealtime()} ms")
         callLogsJob = viewModelScope.launch {
             CallLogRepository.observeCallLogs(appContext, userId).collect { callLogs ->
-                Log.d(
-                    TAG,
-                    "Observed ${callLogs.size} local call logs for userId=$userId recent=${callLogs.take(3).joinToString { it.callId + ":" + it.status }}"
-                )
+                Log.d(TAG, "[PerfTrace] Room emit: ${callLogs.size} logs, cacheVersion=${ContactDisplayNameResolver.cacheVersion.value}, elapsedRealtime=${android.os.SystemClock.elapsedRealtime()} ms")
+                // Snapshot for contact-cache-version-triggered rebuilds
+                latestCallLogs = callLogs.toList()
+                latestUserId = userId
                 rebuildState(callLogs, userId)
                 maybeBackfillRemoteHistoryIfNeeded(userId, callLogs)
             }
@@ -165,6 +226,8 @@ class CallsViewModel(application: Application) : AndroidViewModel(application) {
         callLogsJob = null
         rebuildJob?.cancel()
         rebuildJob = null
+        phoneWarmupJob?.cancel()
+        phoneWarmupJob = null
         groupedCallIdsByKey = emptyMap()
         isObservingCalls = false
 
@@ -243,69 +306,111 @@ class CallsViewModel(application: Application) : AndroidViewModel(application) {
         return callData.endedAt > 0L || callData.callState() in HISTORICAL_STATES
     }
 
-    private var lastPhoneCacheMs: Long = 0L
-
-    /**
-     * Fetches all users and caches their phone numbers, so that
-     * [ContactDisplayNameResolver.getDisplayName] can match device contacts
-     * when resolving call history display names.
-     * Uses a 5-minute in-memory throttle to avoid excessive Firestore reads.
-     * @return number of newly cached phone numbers, or 0 if skipped/throttled/failed.
-     */
-    private suspend fun cacheAllUserPhones(): Int {
-        val now = System.currentTimeMillis()
-        if (now - lastPhoneCacheMs < 300_000L) return 0 // 5-minute throttle
-        try {
-            val snapshot = FirebaseFirestore.getInstance()
-                .collection("users")
-                .get()
-                .await()
-            var cached = 0
-            for (doc in snapshot.documents) {
-                val phone = doc.getString("phoneNumber") ?: continue
-                if (phone.isBlank()) continue
-                ContactDisplayNameResolver.cacheUserPhone(doc.id, phone)
-                cached++
-            }
-            lastPhoneCacheMs = now
-            if (cached > 0) {
-                Log.d(TAG, "Cached $cached user phone numbers for contact name resolution")
-            }
-            return cached
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to fetch users for phone caching: ${e.message}")
-            return 0
-        }
-    }
-
     private fun rebuildState(callLogs: List<LocalCallLog>, userId: String) {
         val callLogSnapshot = callLogs.toList()
+        Log.d(TAG, "[PerfTrace] rebuildState called: logs=${callLogs.size}, cacheVersion=${ContactDisplayNameResolver.cacheVersion.value}, elapsedRealtime=${android.os.SystemClock.elapsedRealtime()} ms")
 
         rebuildJob?.cancel()
+        phoneWarmupJob?.cancel()
         rebuildJob = viewModelScope.launch(Dispatchers.Default) {
-            // First pass: show local call history immediately with whatever phone
-            // cache is available, so the user sees data without waiting for network.
-            val firstResult = buildRebuildResult(callLogSnapshot, userId)
-            withContext(Dispatchers.Main.immediate) {
-                groupedCallIdsByKey = firstResult.groupedCallIdsByKey
-                _uiState.value = CallsUiState(
-                    isLoading = false,
-                    items = firstResult.items
-                )
+            // ── Seed userPhoneCache from locally-stored phone numbers ──────
+            // For call-log entries that already have a phone number (new calls
+            // after the migration), cache the mapping immediately. This makes
+            // the 2-param getDisplayName() fallback work for legacy entries
+            // that share the same peer.
+            for (log in callLogSnapshot) {
+                if (log.callerPhone.isNotBlank()) {
+                    ContactDisplayNameResolver.cacheUserPhone(log.callerId, log.callerPhone)
+                }
+                if (log.receiverPhone.isNotBlank()) {
+                    ContactDisplayNameResolver.cacheUserPhone(log.receiverId, log.receiverPhone)
+                }
             }
 
-            // Second pass: warm the phone cache in the background, then re-resolve
-            // display names so device contact names replace Firestore usernames.
-            val cachedCount = cacheAllUserPhones()
-            if (cachedCount > 0) {
-                val refreshedResult = buildRebuildResult(callLogSnapshot, userId)
-                withContext(Dispatchers.Main.immediate) {
-                    groupedCallIdsByKey = refreshedResult.groupedCallIdsByKey
-                    _uiState.value = CallsUiState(
-                        isLoading = false,
-                        items = refreshedResult.items
-                    )
+            // ── Wait for device contact cache ─────────────────────────────
+            // Keep isLoading=true while we wait. Contacts are loaded once in
+            // GlyphApplication.onCreate() on Dispatchers.IO; by the time the
+            // user reaches the Calls tab they are nearly always ready. We wait
+            // up to 1500 ms so the first paint always shows saved contact names
+            // rather than profile names that then flip — matching WhatsApp's
+            // behaviour. For warm reopens cacheVersion > 0 already, so this
+            // block is skipped entirely and there is no delay.
+            val waitStartMs = android.os.SystemClock.elapsedRealtime()
+            if (ContactDisplayNameResolver.cacheVersion.value == 0L) {
+                Log.d(TAG, "[PerfTrace] rebuildState: cacheVersion=0, waiting for contacts at elapsedRealtime=$waitStartMs ms")
+                try {
+                    withTimeout(1500L) {
+                        ContactDisplayNameResolver.cacheVersion.first { it > 0L }
+                    }
+                    Log.d(TAG, "[PerfTrace] rebuildState: contacts ready after ${android.os.SystemClock.elapsedRealtime() - waitStartMs} ms wait")
+                } catch (_: TimeoutCancellationException) {
+                    Log.w(TAG, "[PerfTrace] rebuildState: contact cache TIMEOUT after ${android.os.SystemClock.elapsedRealtime() - waitStartMs} ms — painting with profile names")
                 }
+            } else {
+                Log.d(TAG, "[PerfTrace] rebuildState: cacheVersion already ${ContactDisplayNameResolver.cacheVersion.value} — no wait needed")
+            }
+
+            // ── Paint immediately ────────────────────────────────────────
+            val buildStartMs = android.os.SystemClock.elapsedRealtime()
+            val result = buildRebuildResult(callLogSnapshot, userId)
+            Log.d(TAG, "[PerfTrace] rebuildState: buildRebuildResult took ${android.os.SystemClock.elapsedRealtime() - buildStartMs} ms for ${result.items.size} items")
+            withContext(Dispatchers.Main.immediate) {
+                groupedCallIdsByKey = result.groupedCallIdsByKey
+                _uiState.value = CallsUiState(
+                    isLoading = false,
+                    items = result.items
+                )
+                Log.d(TAG, "[PerfTrace] rebuildState: first paint committed at elapsedRealtime=${android.os.SystemClock.elapsedRealtime()} ms")
+                if (contactCacheObserverJob?.isActive != true) {
+                    observeContactCacheVersion()
+                }
+            }
+        }
+
+        // ── Background: fetch ALL user phones for legacy entries ──────────
+        // Run in a SEPARATE job so observeContactCacheVersion cancelling
+        // rebuildJob does not kill this Firestore fetch. Legacy entries (those
+        // with blank callerPhone/receiverPhone) depend on this to resolve
+        // saved contact names.
+        phoneWarmupJob = viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val snapshot = FirebaseFirestore.getInstance()
+                    .collection("users")
+                    .get()
+                    .await()
+                var cached = 0
+                for (doc in snapshot.documents) {
+                    val phone = listOf("phoneNumber", "phone", "mobile")
+                        .asSequence()
+                        .mapNotNull { key -> doc.getString(key) }
+                        .map { it.trim() }
+                        .firstOrNull { it.isNotEmpty() }
+                        ?: continue
+                    ContactDisplayNameResolver.cacheUserPhone(doc.id, phone)
+                    cached++
+                }
+                if (cached > 0) {
+                    Log.d(TAG, "Preloaded $cached user phone numbers for call-log resolution")
+                    // Persist to local storage so the next cold start restores these
+                    // mappings synchronously — eliminating the Firestore round-trip delay
+                    // for legacy entries with blank callerPhone/receiverPhone.
+                    ContactDisplayNameResolver.persistUserPhones(appContext)
+                    // ── Repaint now that userPhoneCache is warm ──────────────────
+                    val refreshed = withContext(Dispatchers.Default) {
+                        buildRebuildResult(callLogSnapshot, userId)
+                    }
+                    withContext(Dispatchers.Main.immediate) {
+                        if (latestCallLogs === callLogSnapshot || latestCallLogs?.toList() == callLogSnapshot) {
+                            groupedCallIdsByKey = refreshed.groupedCallIdsByKey
+                            _uiState.value = CallsUiState(
+                                isLoading = false,
+                                items = refreshed.items
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to preload user phones: ${e.message}")
             }
         }
     }
@@ -374,10 +479,17 @@ class CallsViewModel(application: Application) : AndroidViewModel(application) {
 
         val timestamp = anchorTimestamp(callLog)
         val rawDisplayName = if (isOutgoing) callLog.receiverName else callLog.callerName
-        // Resolve display name with device contact priority
+        // Pass the phone number stored in the call log directly so the contact
+        // lookup goes straight through contactNameCache without needing
+        // userPhoneCache to be warm first. Falls back to userPhoneCache[peerId]
+        // (seeded below) for legacy entries that have no stored phone, then to
+        // remoteProfileName, then to fallback — matching WhatsApp's priority.
+        val peerPhone = (if (isOutgoing) callLog.receiverPhone else callLog.callerPhone)
+            .takeIf { it.isNotBlank() }
         val displayName = ContactDisplayNameResolver.getDisplayName(
             otherUserId = peerId,
             remoteProfileName = rawDisplayName,
+            remotePhoneNumber = peerPhone,
             fallback = UNKNOWN_CONTACT
         )
         val avatarUrl = if (isOutgoing) callLog.receiverAvatar else callLog.callerAvatar
