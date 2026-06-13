@@ -15,3 +15,12 @@
 local.properties
 # Google Cloud service account key
 app/inspiration/gen-lang-client-0353323259-aea43c7e1533.json
+
+# Secret / credential files — NEVER commit these
+functions/.env
+functions/.env.*
+!functions/.env.example
+deploy-translation.bat
+deploy-translation.sh
+functions/set-api-key.bat
+*.bak

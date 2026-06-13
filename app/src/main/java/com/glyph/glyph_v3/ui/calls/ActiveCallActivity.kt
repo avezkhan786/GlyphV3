@@ -243,9 +243,17 @@ class ActiveCallActivity : AppCompatActivity() {
             val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
             if (cd.callerId == myUid) cd.receiverId else cd.callerId
         }.orEmpty()
+        // Pass the peer's phone number from callData so device contact lookup works
+        // even before userPhoneCache is populated (resolves the race condition with
+        // the async resolveUserPhone() in CallManager.startOutgoingCall).
+        val peerPhone = callData?.let { cd ->
+            val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+            if (cd.callerId == myUid) cd.receiverPhone else cd.callerPhone
+        }.orEmpty()
         val resolvedName = ContactDisplayNameResolver.getDisplayName(
             otherUserId = peerId,
-            remoteProfileName = contactName.ifEmpty { callData?.receiverName ?: callData?.callerName ?: "" }
+            remoteProfileName = contactName.ifEmpty { callData?.receiverName ?: callData?.callerName ?: "" },
+            remotePhoneNumber = peerPhone
         )
         val avatar = contactAvatar.ifEmpty { callData?.receiverAvatar ?: callData?.callerAvatar ?: "" }
         tvName.text = resolvedName
@@ -351,9 +359,16 @@ class ActiveCallActivity : AppCompatActivity() {
             val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
             if (cd.callerId == myUid) cd.receiverId else cd.callerId
         }.orEmpty()
+        // Pass the peer's phone number from callData so device contact lookup works
+        // even before userPhoneCache is populated.
+        val peerPhone = callData?.let { cd ->
+            val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+            if (cd.callerId == myUid) cd.receiverPhone else cd.callerPhone
+        }.orEmpty()
         val resolvedName = ContactDisplayNameResolver.getDisplayName(
             otherUserId = peerId,
-            remoteProfileName = contactName.ifEmpty { callData?.receiverName ?: callData?.callerName ?: "" }
+            remoteProfileName = contactName.ifEmpty { callData?.receiverName ?: callData?.callerName ?: "" },
+            remotePhoneNumber = peerPhone
         )
         val avatar = contactAvatar.ifEmpty { callData?.receiverAvatar ?: callData?.callerAvatar ?: "" }
 
@@ -1078,6 +1093,11 @@ class ActiveCallActivity : AppCompatActivity() {
                     val upgradeRequesterId = videoState.upgradeRequesterId
                     val localVideoEnabled = videoState.localVideoEnabled
                     val remoteVideoEnabled = videoState.remoteVideoEnabled
+                    val upgradeRequesterPhone = callData?.let { cd ->
+                        if (cd.receiverId == upgradeRequesterId) cd.receiverPhone
+                        else if (cd.callerId == upgradeRequesterId) cd.callerPhone
+                        else ""
+                    }.orEmpty()
                     val statusText = when {
                         callState == CallState.CONNECTED &&
                             upgradeState == VideoUpgradeRequestState.PENDING &&
@@ -1085,7 +1105,8 @@ class ActiveCallActivity : AppCompatActivity() {
                             upgradeRequesterId != FirebaseAuth.getInstance().currentUser?.uid.orEmpty() &&
                             !localVideoEnabled -> "${ContactDisplayNameResolver.getDisplayName(
                                 otherUserId = upgradeRequesterId,
-                                remoteProfileName = contactName
+                                remoteProfileName = contactName,
+                                remotePhoneNumber = upgradeRequesterPhone
                             )} wants to enable video. Tap camera to join"
                         callState == CallState.CONNECTED &&
                             upgradeState == VideoUpgradeRequestState.PENDING &&

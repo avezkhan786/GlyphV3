@@ -730,7 +730,7 @@ class TranslationRepository(private val context: Context) {
     }
     
     private fun makeAudioFileName(messageId: String, targetLanguage: String): String {
-        return "${messageId}_${targetLanguage}.wav"
+        return "${messageId}_${targetLanguage}.mp3"
     }
 
     private fun isExpired(createdAt: Long): Boolean {
@@ -800,16 +800,16 @@ class TranslationRepository(private val context: Context) {
             }
             
             
-            // Check for WAV header (should start with "RIFF")
-            val hasWavHeader = audioBytes.size >= 4 && 
-                audioBytes[0] == 'R'.code.toByte() && 
-                audioBytes[1] == 'I'.code.toByte() && 
-                audioBytes[2] == 'F'.code.toByte() && 
-                audioBytes[3] == 'F'.code.toByte()
-            
-            if (!hasWavHeader) {
-                Log.w(TAG, "Audio data does not have WAV header (RIFF) - may not play correctly")
-            } else {
+            // Accept WAV (RIFF), MP3 sync frame (0xFF 0xEx), or ID3 header
+            val isWav = audioBytes.size >= 4 &&
+                audioBytes[0] == 'R'.code.toByte() && audioBytes[1] == 'I'.code.toByte() &&
+                audioBytes[2] == 'F'.code.toByte() && audioBytes[3] == 'F'.code.toByte()
+            val isMp3 = audioBytes.size >= 2 &&
+                audioBytes[0] == 0xFF.toByte() && (audioBytes[1].toInt() and 0xE0) == 0xE0
+            val isId3 = audioBytes.size >= 3 &&
+                audioBytes[0] == 'I'.code.toByte() && audioBytes[1] == 'D'.code.toByte() && audioBytes[2] == '3'.code.toByte()
+            if (!isWav && !isMp3 && !isId3) {
+                Log.w(TAG, "Audio data has unrecognised header — MediaPlayer will attempt auto-detect")
             }
             
             val audioDir = File(context.cacheDir, AUDIO_CACHE_DIR)

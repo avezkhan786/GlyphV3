@@ -54,6 +54,7 @@ data class CallData(
     val callerAvatar: String = "",
     val receiverName: String = "",
     val receiverAvatar: String = "",
+    val receiverPhone: String = "",
     val type: String = "VOICE",              // "VOICE" | "VIDEO"
     val callMode: String = "VOICE",          // "VOICE" | "VIDEO"
     val status: String = "initiating",       // maps to CallState

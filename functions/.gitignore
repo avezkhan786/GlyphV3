@@ -2,3 +2,7 @@ node_modules/
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+# Env files contain secrets — only .env.example is safe to commit
+.env
+.env.*
+!.env.example

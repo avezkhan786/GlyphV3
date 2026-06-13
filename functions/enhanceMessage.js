@@ -129,8 +129,8 @@ exports.enhanceMessage = functions
     const userId =
       context.auth?.uid || `anon_${context.rawRequest?.ip || "unknown"}`;
 
-    // 2. API key
-    const apiKey = "AIzaSyAVZ22mqebWYT3I9QbFXGXfiJV7SkOWmfE";
+    // 2. API key — reads from functions/.env (modern dotenv), fallback to legacy config
+    const apiKey = process.env.GOOGLE_CLOUD_API_KEY || functions.config().google?.api_key;
 
     // 3. Validate input
     const { text, action, options } = data;

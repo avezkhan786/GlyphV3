@@ -1,9 +1,12 @@
 #!/bin/bash
 # deploy-translation.sh - Deploy translation feature to Firebase
+# NOTE: Do NOT hardcode API keys here. Load from functions/.env or pass via environment.
 
 set -e
 
-API_KEY="AIzaSyCjfsVLyBS29ENDFNdeTrHNK3WukyMEBPU"
+# The API key is stored in functions/.env (gitignored).
+# Firebase CLI reads .env during deploy and sets it as process.env.GOOGLE_CLOUD_API_KEY.
+# See functions/.env.example for the required format.
 
 echo "🚀 Deploying Glyph Translation Feature"
 echo "======================================"
@@ -20,9 +23,8 @@ if ! firebase projects:list &> /dev/null; then
     firebase login
 fi
 
-echo "📝 Setting API key configuration..."
+echo "📝 Deploying functions (API key loaded from functions/.env)..."
 cd functions
-firebase functions:config:set google.api_key="$API_KEY"
 
 echo "📦 Installing dependencies..."
 npm install

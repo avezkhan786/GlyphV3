@@ -24,6 +24,8 @@ const crypto = require("crypto");
 
 // No need for heavy SDK imports - using direct REST API calls
 
+// Note: do NOT call functions.config() at module level — it causes deploy-time timeouts.
+
 // ─── Helpers ───────────────────────────────────────────────
 
 // Cache version - increment to invalidate all old caches
@@ -162,15 +164,18 @@ exports.translateMessage = functions
     const userId = context.auth?.uid || `anon_${context.rawRequest?.ip || 'unknown'}`;
     console.log("Using userId for rate limiting:", userId);
 
-    // 2. Validate API key is configured
-    // Override triggered by user request: force specific hardcoded key
-    const apiKey = "AIzaSyAVZ22mqebWYT3I9QbFXGXfiJV7SkOWmfE";
-    // const apiKey = functions.config().google?.api_key || process.env.GOOGLE_CLOUD_API_KEY;
-    if (!apiKey) {
-      console.error("API key not configured");
+    // 2. Validate API keys are configured
+    // GOOGLE_CLOUD_API_KEY  → Gemini (Generative Language API)
+    // GOOGLE_TTS_API_KEY    → Cloud Text-to-Speech API (separate key due to GCP restriction policy)
+    const geminiKey = process.env.GOOGLE_CLOUD_API_KEY || functions.config().google?.api_key;
+    const ttsKey = process.env.GOOGLE_TTS_API_KEY || functions.config().google?.tts_api_key || geminiKey;
+    console.log("Gemini key prefix:", geminiKey ? geminiKey.substring(0, 12) + "..." : "MISSING");
+    console.log("TTS key prefix:", ttsKey ? ttsKey.substring(0, 12) + "..." : "MISSING");
+    if (!geminiKey) {
+      console.error("Gemini API key not configured");
       throw new functions.https.HttpsError(
         "internal",
-        "Google Cloud API key not configured. Run: firebase functions:config:set google.api_key=\"YOUR_KEY\""
+        "Gemini API key not configured. Set GOOGLE_CLOUD_API_KEY in functions/.env"
       );
     }
 
@@ -300,13 +305,13 @@ exports.translateMessage = functions
     }
     console.log("Cache miss (or partial) - proceeding with API calls");
 
-    // 5. Translate via Gemini API (direct REST call)
-    // Only if we don't already have the text from partial cache
+    // 5. Translate via Gemini API (direct REST call, free AI Studio quota)
+    // Requires: Generative Language API enabled in GCP and no API key restrictions.
     if (!translatedText) {
       try {
         console.log("Calling Gemini API for translation...");
         const tGeminiStart = Date.now();
-        
+
         // Special handling for Hinglish (romanized Hindi)
         let prompt;
         if (targetLanguage === "hi-Latn") {
@@ -314,43 +319,33 @@ exports.translateMessage = functions
         } else {
           prompt = `Translate the following text to ${targetLanguage}. Return ONLY the translated text, nothing else. No explanations, no quotes, no labels.\n\nText: ${text}`;
         }
-  
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: prompt
-              }]
-            }],
-            safetySettings: [
-              {
-                category: "HARM_CATEGORY_HARASSMENT",
-                threshold: "BLOCK_NONE"
-              },
-              {
-                category: "HARM_CATEGORY_HATE_SPEECH", 
-                threshold: "BLOCK_NONE"
-              }
-            ]
-          })
-        });
-        
-        const tGeminiEnd = Date.now();
-        timings.gemini = tGeminiEnd - tGeminiStart;
-  
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              safetySettings: [
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+              ],
+            }),
+          }
+        );
+
+        timings.gemini = Date.now() - tGeminiStart;
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error("Gemini API error response:", errorText);
           throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
         }
-  
+
         const result = await response.json();
         translatedText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  
+
         if (!translatedText) {
           console.error("Empty translation result from Gemini");
           throw new Error("Empty translation result");
@@ -393,95 +388,89 @@ exports.translateMessage = functions
        };
     }
 
-    // 6. Generate TTS MP3 using Gemini 2.5 Flash TTS
+    // 6. Generate TTS MP3 using Google Cloud Text-to-Speech REST API.
+    // Uses the same API key as Gemini (the key must have Cloud TTS API enabled).
+    // Returns MP3 audio as base64 — no WAV header manipulation needed.
     let audioUrl;
     try {
-      console.log("Calling Gemini 2.5 Flash TTS API...");
+      console.log("Calling Google Cloud Text-to-Speech API...");
       const tTtsStart = Date.now();
-
       console.log("Generating audio for:", translatedText.substring(0, 50));
 
-      const ttsResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Map language code → BCP-47 languageCode + voice name for Cloud TTS.
+      // Cloud TTS voices: https://cloud.google.com/text-to-speech/docs/voices
+      const ttsLangMap = {
+        "ur":      { languageCode: "ur-PK", name: "ur-PK-Standard-A" },
+        "ar":      { languageCode: "ar-XA", name: "ar-XA-Standard-A" },
+        "hi":      { languageCode: "hi-IN", name: "hi-IN-Standard-A" },
+        "hi-Latn": { languageCode: "hi-IN", name: "hi-IN-Standard-A" }, // Hinglish reads as Hindi
+        "zh":      { languageCode: "cmn-CN", name: "cmn-CN-Standard-A" },
+        "zh-TW":   { languageCode: "cmn-TW", name: "cmn-TW-Standard-A" },
+        "ja":      { languageCode: "ja-JP", name: "ja-JP-Standard-A" },
+        "ko":      { languageCode: "ko-KR", name: "ko-KR-Standard-A" },
+        "fr":      { languageCode: "fr-FR", name: "fr-FR-Standard-A" },
+        "de":      { languageCode: "de-DE", name: "de-DE-Standard-A" },
+        "es":      { languageCode: "es-ES", name: "es-ES-Standard-A" },
+        "pt":      { languageCode: "pt-BR", name: "pt-BR-Standard-A" },
+        "it":      { languageCode: "it-IT", name: "it-IT-Standard-A" },
+        "ru":      { languageCode: "ru-RU", name: "ru-RU-Standard-A" },
+        "tr":      { languageCode: "tr-TR", name: "tr-TR-Standard-A" },
+        "nl":      { languageCode: "nl-NL", name: "nl-NL-Standard-A" },
+        "pl":      { languageCode: "pl-PL", name: "pl-PL-Standard-A" },
+        "sv":      { languageCode: "sv-SE", name: "sv-SE-Standard-A" },
+        "da":      { languageCode: "da-DK", name: "da-DK-Standard-A" },
+        "fi":      { languageCode: "fi-FI", name: "fi-FI-Standard-A" },
+        "no":      { languageCode: "nb-NO", name: "nb-NO-Standard-A" },
+        "id":      { languageCode: "id-ID", name: "id-ID-Standard-A" },
+        "ms":      { languageCode: "ms-MY", name: "ms-MY-Standard-A" },
+        "th":      { languageCode: "th-TH", name: "th-TH-Standard-A" },
+        "vi":      { languageCode: "vi-VN", name: "vi-VN-Standard-A" },
+        "en":      { languageCode: "en-US", name: "en-US-Standard-C" },
+      };
+      const voiceCfg = ttsLangMap[targetLanguage] || { languageCode: "en-US", name: "en-US-Standard-C" };
+      console.log("TTS voice config:", voiceCfg, "for language:", targetLanguage);
+
+      const ttsRequestBody = {
+        input: { text: translatedText },
+        voice: {
+          languageCode: voiceCfg.languageCode,
+          name: voiceCfg.name,
         },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: translatedText
-            }]
-          }],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: getVoiceConfig(targetLanguage).name
-                }
-              }
-            }
-          }
-        })
-      });
+        audioConfig: {
+          audioEncoding: "MP3",
+        },
+      };
+      console.log("TTS request body:", JSON.stringify(ttsRequestBody));
+
+      const ttsResponse = await fetch(
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${ttsKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(ttsRequestBody),
+        }
+      );
 
       if (!ttsResponse.ok) {
         const errorText = await ttsResponse.text();
-        console.error("❌ TTS API ERROR ❌");
+        console.error("❌ Cloud TTS API ERROR ❌");
         console.error("Status:", ttsResponse.status, ttsResponse.statusText);
         console.error("Response:", errorText);
         throw new Error(`TTS API error: ${ttsResponse.status} ${ttsResponse.statusText}`);
       }
 
       const ttsResult = await ttsResponse.json();
-      console.log("📦 Full TTS Response Structure:", JSON.stringify(ttsResult, null, 2));
-      
-      const audioContent = ttsResult.candidates?.[0]?.content?.parts?.find(part => part.inlineData)?.inlineData?.data;
+      const audioContent = ttsResult.audioContent; // already base64 MP3
 
       if (!audioContent) {
         console.error("❌ NO AUDIO CONTENT IN TTS RESPONSE ❌");
-        console.error("Full TTS result:", JSON.stringify(ttsResult, null, 2));
         throw new Error("No audio content received from TTS API");
       }
-      
-      // Decode the base64 PCM audio
-      const pcmBuffer = Buffer.from(audioContent, 'base64');
-      console.log("🔍 Raw PCM Audio Buffer:");
-      console.log("  - Base64 length:", audioContent.length);
-      console.log("  - Decoded PCM size:", pcmBuffer.length, "bytes");
-      console.log("  - First 16 bytes (raw PCM):", Array.from(pcmBuffer.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' '));
-      
-      // Check if buffer is completely empty
-      if (pcmBuffer.length === 0) {
-        console.error("❌ AUDIO BUFFER IS EMPTY ❌");
-        throw new Error("TTS returned empty audio data");
-      }
-      
-      // Add WAV header to the raw PCM data
-      console.log("Adding WAV header to raw PCM audio...");
-      const wavBuffer = addWavHeader(pcmBuffer);
-      console.log("✅ WAV file created:", wavBuffer.length, "bytes");
-      console.log("  - WAV header (first 16 bytes):", Array.from(wavBuffer.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' '));
-      
-      // Re-encode as base64
-      const wavBase64 = wavBuffer.toString('base64');
-      console.log("✅ TTS audio with WAV header, base64 size:", wavBase64.length);
 
-      
-      // Inline Audio Optimization: Skip storage upload, return base64 directly
-      console.log("Returning inline base64 audio (skipping Storage upload for speed)");
+      console.log("✅ Cloud TTS MP3 received, base64 length:", audioContent.length);
+      const wavBase64 = audioContent; // Cloud TTS returns MP3, client plays it directly
       timings.tts = Date.now() - tTtsStart;
       timings.total = Date.now() - tStart;
-
-      // 8. Cache result in Firestore (store base64? No, too large for Firestore limit 1MB per doc)
-      // Actually, we should probably NOT cache audio in Firestore if we aren't using Storage.
-      // But if we don't cache audio, every request will regenerate it.
-      // Trade-off: Regeneration vs Storage latency.
-      // Since user wants SPEED, re-generation (expensive) might be faster than Storage fetch?
-      // But re-generation costs money.
-      // Let's compromise: We WON'T cache audio in Firestore for now, relying on Client-side caching.
-      // Client has Room DB and local file storage.
-      // If client clears cache, we regenerate.
 
       try {
         console.log("Caching text-only result in Firestore...");
@@ -489,7 +478,7 @@ exports.translateMessage = functions
             originalText: text,
             translatedText,
             targetLanguage,
-            audioUrl: null, // No public URL
+            audioUrl: null,
             version: CACHE_VERSION,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             createdBy: userId,
@@ -499,7 +488,7 @@ exports.translateMessage = functions
       }
 
       console.log("=== Translation request completed successfully ===");
-      console.log("Returning inline audio content length:", wavBase64.length);
+      console.log("Returning MP3 audio content length:", wavBase64.length);
       
       return {
         translatedText,

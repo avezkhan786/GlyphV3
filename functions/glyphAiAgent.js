@@ -22,7 +22,11 @@ const admin = require("firebase-admin");
 
 // ─── Constants ────────────────────────────────────────────
 
-const API_KEY = "AIzaSyAVZ22mqebWYT3I9QbFXGXfiJV7SkOWmfE";
+// Lazy getter — avoids calling functions.config() at module load time,
+// which causes Firebase CLI deploy-time timeouts.
+function getApiKey() {
+  return process.env.GOOGLE_CLOUD_API_KEY || functions.config().google?.api_key;
+}
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 // Models – cost-optimized per mode
@@ -214,7 +218,7 @@ function checkRateLimit(userId) {
 // ─── Gemini API helpers ───────────────────────────────────
 
 async function callGemini(model, contents, generationConfig = {}) {
-  const url = `${GEMINI_BASE}/${model}:generateContent?key=${API_KEY}`;
+  const url = `${GEMINI_BASE}/${model}:generateContent?key=${getApiKey()}`;
 
   const body = {
     contents,

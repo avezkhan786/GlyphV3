@@ -4,7 +4,7 @@ REM set-api-key.bat - Configure Google Cloud API key for Firebase Functions
 echo 🔑 Setting Google Cloud API key in Firebase Functions config...
 echo.
 
-firebase functions:config:set google.api_key="AIzaSyCF_le4EQUynxvclmyR1zH16pi5D6iTr_Y"
+firebase functions:config:set google.api_key="YOUR_NEW_API_KEY"
 
 if errorlevel 1 (
     echo.

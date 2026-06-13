@@ -225,11 +225,11 @@ object CallManager {
                     return@launch
                 }
                 val resolvedCallerPhone = data.callerPhone.ifBlank { resolveCurrentUserPhone(myUid) }
-                val persistedCallData = if (resolvedCallerPhone == data.callerPhone) {
-                    data
-                } else {
-                    data.copy(callerPhone = resolvedCallerPhone)
-                }
+                val resolvedReceiverPhone = resolveUserPhone(receiverId)
+                val persistedCallData = data.copy(
+                    callerPhone = resolvedCallerPhone.ifBlank { data.callerPhone },
+                    receiverPhone = resolvedReceiverPhone.ifBlank { data.receiverPhone }
+                )
                 _callData.value = persistedCallData
                 startBlockMonitor(context, receiverId)
 
@@ -890,6 +890,16 @@ object CallManager {
         val authPhone = FirebaseAuth.getInstance().currentUser?.phoneNumber.orEmpty().trim()
         if (authPhone.isNotEmpty()) return authPhone
 
+        return resolveUserPhone(userId)
+    }
+
+    /**
+     * Resolves any user's phone number from Firestore.
+     * Also caches it in [ContactDisplayNameResolver] for future UI lookups.
+     */
+    private suspend fun resolveUserPhone(userId: String): String {
+        if (userId.isBlank()) return ""
+
         return try {
             val snapshot = FirebaseFirestore.getInstance()
                 .collection("users")
@@ -897,14 +907,20 @@ object CallManager {
                 .get()
                 .await()
 
-            listOf("phoneNumber", "phone", "mobile")
+            val phone = listOf("phoneNumber", "phone", "mobile")
                 .asSequence()
                 .mapNotNull { key -> snapshot.getString(key) }
                 .map { it.trim() }
                 .firstOrNull { it.isNotEmpty() }
                 .orEmpty()
+
+            if (phone.isNotEmpty()) {
+                com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver.cacheUserPhone(userId, phone)
+            }
+
+            phone
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to resolve current user phone for call signaling", e)
+            Log.w(TAG, "Failed to resolve user phone for call signaling", e)
             ""
         }
     }

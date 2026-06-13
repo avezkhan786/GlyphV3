@@ -794,43 +794,42 @@ fun StatusViewerScreen(
 
         }
 
-        // Bottom: caption for media statuses
-        if (currentStatus.caption.isNotEmpty()) {
-            Box(
+        // Bottom area: caption and viewers (for owners) or reply (for others)
+        // Note: Caption is now moved inside the respective isMine/!isMine columns to ensure
+        // it stacks correctly above the input/viewers area and doesn't get obscured.
+
+        if (isMine) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
                         )
                     )
-                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp + bottomSafeAreaPadding)
+                    .padding(bottom = bottomSafeAreaPadding + 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = currentStatus.caption,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
+                if (currentStatus.caption.isNotEmpty()) {
+                    Text(
+                        text = currentStatus.caption,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 12.dp)
+                    )
+                }
 
-        // Viewers count for my statuses
-        if (isMine) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = bottomSafeAreaPadding + if (currentStatus.caption.isNotEmpty()) 60.dp else 16.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { onViewersClick(currentStatus.id) },
-                contentAlignment = Alignment.Center
-            ) {
                 Row(
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { onViewersClick(currentStatus.id) },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -936,8 +935,26 @@ fun StatusViewerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))
+                            )
+                        )
                         .padding(bottom = effectiveBottomDp)
                 ) {
+                    if (currentStatus.caption.isNotEmpty()) {
+                        Text(
+                            text = currentStatus.caption,
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp)
+                                .padding(bottom = 12.dp)
+                        )
+                    }
+
                     // Sending Progress Banner (Standardized Theme)
                     AnimatedVisibility(
                         visible = isReplying && replyStatusId == currentStatus.id,

@@ -1,7 +1,7 @@
 @echo off
 REM deploy-translation.bat - Deploy translation feature to Firebase (Windows)
 
-set API_KEY=AIzaSyCF_le4EQUynxvclmyR1zH16pi5D6iTr_Y
+set API_KEY=YOUR_NEW_API_KEY_HERE
 
 echo 🚀 Deploying Glyph Translation Feature
 echo ======================================

@@ -4,7 +4,7 @@
 
 1. Firebase CLI installed: `npm install -g firebase-tools`
 2. Firebase project initialized
-3. Google Cloud API key: `AIzaSyCjfsVLyBS29ENDFNdeTrHNK3WukyMEBPU`
+3. Google Cloud API key — stored in `functions/.env` (gitignored, never commit this file)
 
 ## 1. Enable Required APIs
 
@@ -14,10 +14,11 @@ In [Google Cloud Console](https://console.cloud.google.com/), enable:
 
 ## 2. Set API Key as Environment Variable
 
-```bash
-cd functions
-firebase functions:config:set google.api_key="AIzaSyCjfsVLyBS29ENDFNdeTrHNK3WukyMEBPU"
+Add your Gemini API key to `functions/.env` (this file is gitignored):
 ```
+GOOGLE_CLOUD_API_KEY=your_api_key_here
+```
+See `functions/.env.example` for the required format. Firebase CLI reads this file during deploy.
 
 ## 3. Deploy Cloud Function
 
