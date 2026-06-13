@@ -1008,6 +1008,10 @@ class ChatListComposeFragment : Fragment() {
         lastNavigationChatId = chatId
         lastNavigationUptimeMs = now
 
+        // Mark this chat as opening BEFORE startActivity so ChatOpenPrefetcher suppresses
+        // predictive-retained overwrites for this chatId and ChatActivity's consume call
+        // sees the correct retained preloads from warmChatsAsync (if they exist).
+        ChatOpenPrefetcher.noteChatOpenStarting(chatId)
         val intent = ChatActivity.newIntent(hostActivity, chatId, otherUserId, otherUsername, otherUserAvatar)
         ChatOpenTrace.event(chatId, "start_activity", "username=${otherUsername.isNotBlank()} avatar=${otherUserAvatar.isNotBlank()}")
         hostActivity.startActivity(intent)

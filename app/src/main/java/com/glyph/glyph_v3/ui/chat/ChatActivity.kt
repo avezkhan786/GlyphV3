@@ -474,6 +474,10 @@ class ChatActivity : AppCompatActivity(),
     private var messageSyncListener: com.google.firebase.firestore.ListenerRegistration? = null
     private var readReceiptListener: com.google.firebase.firestore.ListenerRegistration? = null
     private var chatOpenStartElapsedMs: Long = 0L
+    // True once the Activity's window-enter animation is complete (or the 500ms safety net fires).
+    // Used to gate the first large live-flow tail expansion so DiffUtil commits don't compete
+    // with the slide-in animation for the main-thread frame budget.
+    @Volatile private var enterAnimationCompleted = false
     private var firstContentDrawLogged = false
     private var initialVisibleWarmupLogged = false
     private var lastVisibleWarmupSignature: String? = null
@@ -1247,8 +1251,9 @@ class ChatActivity : AppCompatActivity(),
         }
 
         // Pre-warm Glide memory cache for both avatars before any ViewHolder binds.
-        // This ensures the avatar bitmap is already decoded and sitting in Glide's
-        // BitmapPool / memory cache so the first onBindViewHolder returns instantly.
+        // Compute eligibility synchronously (cheap cache/flag reads), then defer the actual
+        // Glide RequestBuilder construction + decode submission to the first posted frame so
+        // the RequestBuilder allocations do not pad the critical path before setupRecyclerView.
         val appCtx = applicationContext
         val avatarRequestSizePx = chatAvatarRequestSizePx()
         val cachedVisibility = otherUserId?.let { AvatarVisibilityRepository.getCachedProfilePhotoVisibility(it) }
@@ -1257,36 +1262,50 @@ class ChatActivity : AppCompatActivity(),
         } else {
             cachedVisibility?.isVisible == true && !_blockStatus.value.isBlocked && otherUserAvatar.isNotBlank()
         }
-        if (shouldPreloadPeerAvatar) {
-            val peerAvatarModel = java.io.File(otherUserAvatar)
-                .takeIf { it.exists() && it.length() > 0 }
-                ?: otherUserAvatar
-            val peerRequest = Glide.with(appCtx)
-                .load(peerAvatarModel)
-                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                .circleCrop()
-                .override(avatarRequestSizePx, avatarRequestSizePx)
-            if (peerAvatarModel is java.io.File) {
-                peerRequest.signature(com.bumptech.glide.signature.ObjectKey(peerAvatarModel.lastModified()))
-            }
-            peerRequest.preload(avatarRequestSizePx, avatarRequestSizePx)
-        }
-        if (currentUserAvatar.isNotBlank()) {
-            val currentAvatarModel = java.io.File(currentUserAvatar)
-                .takeIf { it.exists() && it.length() > 0 }
-                ?: currentUserAvatar
-            val currentRequest = Glide.with(appCtx)
-                .load(currentAvatarModel)
-                .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                .circleCrop()
-                .override(avatarRequestSizePx, avatarRequestSizePx)
-            if (currentAvatarModel is java.io.File) {
-                currentRequest.signature(com.bumptech.glide.signature.ObjectKey(currentAvatarModel.lastModified()))
-            }
-            currentRequest.preload(avatarRequestSizePx, avatarRequestSizePx)
-        }
+        // Snapshot avatar paths for the post lambda (avoids capturing mutable vars directly).
+        val peerAvatarSnapshot = otherUserAvatar
+        val currentAvatarSnapshot = currentUserAvatar
 
         setupRecyclerView()
+
+        // Defer avatar Glide preloads to the next frame. The decodes happen on Glide's
+        // background pool regardless, but starting them one frame later removes ~2–4 ms of
+        // RequestBuilder allocation work from the critical path that runs before first layout.
+        binding.root.post {
+            if (isFinishing || isDestroyed) return@post
+            if (shouldPreloadPeerAvatar && peerAvatarSnapshot.isNotBlank()) {
+                val peerAvatarModel: Any = java.io.File(peerAvatarSnapshot)
+                    .takeIf { it.exists() && it.length() > 0 }
+                    ?: peerAvatarSnapshot
+                var peerRequest = Glide.with(appCtx)
+                    .load(peerAvatarModel)
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .circleCrop()
+                    .override(avatarRequestSizePx, avatarRequestSizePx)
+                if (peerAvatarModel is java.io.File) {
+                    peerRequest = peerRequest.signature(
+                        com.bumptech.glide.signature.ObjectKey(peerAvatarModel.lastModified())
+                    )
+                }
+                peerRequest.preload(avatarRequestSizePx, avatarRequestSizePx)
+            }
+            if (currentAvatarSnapshot.isNotBlank()) {
+                val currentAvatarModel: Any = java.io.File(currentAvatarSnapshot)
+                    .takeIf { it.exists() && it.length() > 0 }
+                    ?: currentAvatarSnapshot
+                var currentRequest = Glide.with(appCtx)
+                    .load(currentAvatarModel)
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .circleCrop()
+                    .override(avatarRequestSizePx, avatarRequestSizePx)
+                if (currentAvatarModel is java.io.File) {
+                    currentRequest = currentRequest.signature(
+                        com.bumptech.glide.signature.ObjectKey(currentAvatarModel.lastModified())
+                    )
+                }
+                currentRequest.preload(avatarRequestSizePx, avatarRequestSizePx)
+            }
+        }
 
         // Load the transcript as early as possible so visible content is not delayed by
         // secondary feature setup during cold start or long-idle reopen.
@@ -1719,6 +1738,11 @@ class ChatActivity : AppCompatActivity(),
 
     override fun onEnterAnimationComplete() {
         super.onEnterAnimationComplete()
+        // Mark the window enter animation as complete so shouldDeferLargeFlowEmission
+        // stops blocking the initial live-flow tail expansion.
+        enterAnimationCompleted = true
+        // Flush any emission that was deferred while the animation was in progress.
+        applyDeferredLargeFlowEmissionIfNeeded()
         triggerSecondaryFeaturesNow(reason = "enter_animation_complete")
     }
 
@@ -1762,6 +1786,16 @@ class ChatActivity : AppCompatActivity(),
         }
 
         StartupTrace.logStage("chat_secondary_features_end", "reason=$reason")
+
+        // Safety net: if onEnterAnimationComplete is never called (no transition animation,
+        // test environments, or very fast devices), ensure the enter-animation gate is cleared
+        // and any deferred live-flow emission is applied within a reasonable window.
+        binding.root.postDelayed({
+            if (!isFinishing && !isDestroyed && !enterAnimationCompleted) {
+                enterAnimationCompleted = true
+                applyDeferredLargeFlowEmissionIfNeeded()
+            }
+        }, 500L)
     }
 
     private fun unlockDeferredStartupWork(reason: String) {
@@ -2138,7 +2172,12 @@ class ChatActivity : AppCompatActivity(),
             if (shouldAwaitInitialMediaPreloads) {
                 // Await the initial first-frame decode budget before calling submitList.
                 // submitList + layout + bind then run against already-warm Glide memory entries.
-                mediaController.awaitChatMediaPreloads(mediaPreloadSpecs)
+                // Cap at 450 ms so a cold GIF-heavy chat never blocks the INVISIBLE RecyclerView
+                // for the full 900 ms default. Retained FutureTargets keep decoding in the
+                // background and will bind from memory cache when scrolled into view.
+                withTimeoutOrNull(450L) {
+                    mediaController.awaitChatMediaPreloads(mediaPreloadSpecs)
+                }
             }
 
             // Guard: if the live messages flow already committed newer content while we
@@ -6131,6 +6170,12 @@ class ChatActivity : AppCompatActivity(),
         // Only defer when the list actually grows (new/older messages arriving). Pure
         // status/content updates of the same set go through their own payload paths.
         if (delta <= 0) return false
+        // Defer the initial live-flow tail expansion (replaces small prefill with full history)
+        // until the window enter animation completes (~300–400 ms). Without this gate the
+        // DiffUtil result commits to RecyclerView mid-slide-in and janks the transition even
+        // when the RecyclerView scroll state is IDLE. onEnterAnimationComplete sets the flag
+        // and immediately flushes any pending deferred emission.
+        if (!enterAnimationCompleted) return true
         // Older-page loads (windowed pagination scroll-up) must commit immediately so the fling
         // stays fed with content instead of hitting the top wall and stopping. Never defer them;
         // LinearLayoutManager preserves the scroll anchor natively when prepending above.
@@ -6175,6 +6220,13 @@ class ChatActivity : AppCompatActivity(),
 
     private fun restoreAnchorAfterDeferredFlowCommit(anchorMessageId: String?, anchorOffset: Int) {
         if (anchorMessageId.isNullOrBlank()) return
+        // Anchor restoration is only meaningful when the user has deliberately scrolled UP to
+        // read history. When the user is at the bottom (e.g. the flush triggered by
+        // onEnterAnimationComplete right after chat open), LinearLayoutManager's stackFromEnd
+        // already keeps the tail row visible. Calling scrollToPositionWithOffset here would
+        // snap the viewport to the anchor row's index in the OLD (smaller) list, which maps to
+        // a different visual position in the newly expanded list — the visible downward shift.
+        if (!userHasScrolledUp) return
         val layoutManager = binding.recyclerViewMessages.layoutManager as? LinearLayoutManager ?: return
         val anchorPosition = chatAdapter.currentList.indexOfFirst {
             it is ChatListItem.MessageItem && it.message.id == anchorMessageId
@@ -11558,6 +11610,38 @@ class ChatActivity : AppCompatActivity(),
             // Re-warm wallpaper bitmap off the main thread so the next onResume can apply it
             // from the in-memory cache instead of waiting for a Glide disk decode.
             com.glyph.glyph_v3.utils.ChatWallpaperManager.warmCurrentWallpaperAsync(applicationContext)
+            // After TRIM_MEMORY_UI_HIDDEN Android clears Glide's LruResourceCache and
+            // LruBitmapPool. Re-queue avatar decodes now so the bitmaps are back in memory
+            // by the time the user returns and the first ViewHolder bind tries to load them.
+            // This prevents the placeholder→avatar flash that occurs on long-idle reopens.
+            val appCtx = applicationContext
+            val sizePx = chatAvatarRequestSizePx()
+            val peerAvatar = otherUserAvatar
+            if (peerAvatar.isNotBlank()) {
+                val model: Any = java.io.File(peerAvatar).takeIf { it.exists() && it.length() > 0 } ?: peerAvatar
+                var req = Glide.with(appCtx)
+                    .load(model)
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .circleCrop()
+                    .override(sizePx, sizePx)
+                if (model is java.io.File) {
+                    req = req.signature(com.bumptech.glide.signature.ObjectKey(model.lastModified()))
+                }
+                req.preload(sizePx, sizePx)
+            }
+            val selfAvatar = currentUserAvatar
+            if (selfAvatar.isNotBlank()) {
+                val model: Any = java.io.File(selfAvatar).takeIf { it.exists() && it.length() > 0 } ?: selfAvatar
+                var req = Glide.with(appCtx)
+                    .load(model)
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                    .circleCrop()
+                    .override(sizePx, sizePx)
+                if (model is java.io.File) {
+                    req = req.signature(com.bumptech.glide.signature.ObjectKey(model.lastModified()))
+                }
+                req.preload(sizePx, sizePx)
+            }
         }
     }
 
