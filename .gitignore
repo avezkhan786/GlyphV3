@@ -24,3 +24,16 @@ deploy-translation.bat
 deploy-translation.sh
 functions/set-api-key.bat
 *.bak
+
+# Claude Code internal
+.commandcode/
+
+# Kotlin error logs
+.kotlin/
+
+# VS Code user settings
+.vscode/
+
+# Build output logs
+build_*.log
+build_*.txt
