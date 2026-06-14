@@ -52,7 +52,7 @@
                     android:paddingStart="0dp"
                     android:paddingEnd="0dp"
                     android:textColor="?attr/glyphBubbleOtherText"
-                    android:textSize="15sp"
+                    android:textSize="17sp"
                     tools:text="Hello! How are you doing today?" />
             </LinearLayout>
 

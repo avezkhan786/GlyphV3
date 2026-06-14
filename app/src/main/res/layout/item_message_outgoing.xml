@@ -48,7 +48,7 @@
                     android:paddingStart="0dp"
                     android:paddingEnd="0dp"
                     android:textColor="?attr/glyphBubbleOwnText"
-                    android:textSize="15sp"
+                    android:textSize="17sp"
                     tools:text="I'm good, thanks! How about you?" />
             </LinearLayout>
 

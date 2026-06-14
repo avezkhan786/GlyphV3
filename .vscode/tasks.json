@@ -207,6 +207,11 @@
 				"$tsc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "compileDebugKotlin (validation)",
+			"type": "shell",
+			"command": ".\\gradlew.bat :app:compileDebugKotlin --no-daemon --console=plain"
 		}
 	]
 }

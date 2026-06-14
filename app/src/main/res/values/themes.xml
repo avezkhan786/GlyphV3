@@ -253,8 +253,8 @@
         <!-- Chat-specific Colors -->
         <item name="glyphBubbleOwn">#134d37</item>
         <item name="glyphBubbleOther">#1f272a</item>
-        <item name="glyphBubbleOwnText">@color/dark_text</item>
-        <item name="glyphBubbleOtherText">@color/dark_text</item>
+        <item name="glyphBubbleOwnText">#FFFFFF</item>
+        <item name="glyphBubbleOtherText">#FFFFFF</item>
         <item name="glyphBubbleTimestamp">#f6f8fa</item>
         <item name="glyphChatInputBackground">@color/dark_surface</item>
         <item name="glyphChatInputText">@color/dark_text</item>
