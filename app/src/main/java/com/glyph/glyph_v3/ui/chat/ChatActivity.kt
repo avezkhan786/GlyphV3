@@ -12779,8 +12779,17 @@ class ChatActivity : AppCompatActivity(),
                     // Sync text state with EditText for compatibility
                     // Note: In a real migration, we would observe the ViewModel or EditText changes
                     
-                    // AI Composer state observation
-                    val aiState by aiComposerManager.uiState.collectAsState()
+                    // AI Composer state observation — guard against lateinit not yet initialized
+                    // (applyPastelSkyTheme is called before setupTranslationFeature)
+                    val aiState by if (::aiComposerManager.isInitialized) {
+                        aiComposerManager.uiState.collectAsState()
+                    } else {
+                        androidx.compose.runtime.remember {
+                            kotlinx.coroutines.flow.MutableStateFlow(
+                                com.glyph.glyph_v3.ui.chat.composer.AiComposerUiState.Hidden
+                            )
+                        }.collectAsState()
+                    }
 
                     ChatInputArea(
                         text = messageTextState.value,
