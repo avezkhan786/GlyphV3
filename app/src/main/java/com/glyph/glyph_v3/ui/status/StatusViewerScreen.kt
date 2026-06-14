@@ -722,7 +722,10 @@ fun StatusViewerScreen(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Top
+            ) {
                 Text(
                     text = if (isMine) "My status" else
                         ContactDisplayNameResolver.getDisplayName(
@@ -731,12 +734,15 @@ fun StatusViewerScreen(
                         ),
                     color = Color.White,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 18.sp
                 )
                 Text(
                     text = timestampText,
                     color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    lineHeight = 14.sp,
+                    modifier = Modifier.padding(top = 2.dp)
                 )
             }
 
