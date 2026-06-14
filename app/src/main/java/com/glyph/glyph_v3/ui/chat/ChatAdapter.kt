@@ -125,6 +125,9 @@ class ChatAdapter(
     var onGroupIntroAddMembersClick: (() -> Unit)? = null
     var onGroupIntroInviteClick: (() -> Unit)? = null
 
+    /** Called when the user taps the retry button on a FAILED outgoing media message. */
+    var onRetryUpload: ((Message) -> Unit)? = null
+
     var preloadedMediaDrawableProvider: ((Any, Int, Int, MessageType) -> Drawable?)? = null
     // Secondary provider keyed by messageId — fallback when model string diverges (e.g. race
     // where local file wasn't present at preload time but exists at bind time).
@@ -3533,7 +3536,17 @@ class ChatAdapter(
                 applyStableMediaHeight(binding.ivImage, msg)
 
                 val imageSource = when {
-                    hasLocalMedia -> localImagePath
+                    hasLocalMedia -> {
+                        // For VIDEO messages, prefer the JPEG thumbnail over the raw .mp4 file.
+                        // Glide uses MediaMetadataRetriever to extract a frame from .mp4 files,
+                        // which fails when the moov atom is at the end or the codec is unusual.
+                        // thumbnailUrl may be a local JPEG path (after download) or a Firebase URL.
+                        if (msg.type == MessageType.VIDEO && !msg.thumbnailUrl.isNullOrEmpty()) {
+                            msg.thumbnailUrl
+                        } else {
+                            localImagePath
+                        }
+                    }
                     !msg.localUri.isNullOrEmpty() -> {
                         val uri = Uri.parse(msg.localUri)
                         if (uri.scheme == "file" || msg.localUri!!.startsWith("/")) {
@@ -3842,7 +3855,14 @@ class ChatAdapter(
                 // Compute the current best imageSource the same way bind() does
                 val localImagePath = cachedLocalFilePath(msg.chatId, msg.id, msg.type)
                 val currentSource: Any? = when {
-                    !localImagePath.isNullOrEmpty() -> localImagePath
+                    !localImagePath.isNullOrEmpty() -> {
+                        // For VIDEO messages, prefer the JPEG thumbnail over the raw .mp4 file.
+                        if (msg.type == MessageType.VIDEO && !msg.thumbnailUrl.isNullOrEmpty()) {
+                            msg.thumbnailUrl
+                        } else {
+                            localImagePath
+                        }
+                    }
                     !msg.localUri.isNullOrEmpty() -> {
                         val uri = Uri.parse(msg.localUri)
                         if (uri.scheme == "file" || msg.localUri!!.startsWith("/")) {
@@ -3927,7 +3947,16 @@ class ChatAdapter(
 
                 val localImagePath = cachedLocalFilePath(msg.chatId, msg.id, msg.type)
                 val imageSource = when {
-                    !localImagePath.isNullOrEmpty() -> localImagePath
+                    !localImagePath.isNullOrEmpty() -> {
+                        // For VIDEO messages, prefer the JPEG thumbnail over the raw .mp4 file.
+                        // Glide uses MediaMetadataRetriever to extract a frame from .mp4 files,
+                        // which fails when the moov atom is at the end or the codec is unusual.
+                        if (msg.type == MessageType.VIDEO && !msg.thumbnailUrl.isNullOrEmpty()) {
+                            msg.thumbnailUrl
+                        } else {
+                            localImagePath
+                        }
+                    }
                     !msg.localUri.isNullOrEmpty() -> {
                         val uri = Uri.parse(msg.localUri)
                         if (uri.scheme == "file" || msg.localUri!!.startsWith("/")) {
@@ -4078,11 +4107,45 @@ class ChatAdapter(
                     binding.layoutTimestamp.setPadding(px6, px2, px6, px2)
                 }
                 
+                // Upload state governs whether to show progress, retry, or play button for VIDEO
                 if (msg.type == MessageType.VIDEO) {
-                    binding.ivPlayButton.visibility = View.VISIBLE
-                    binding.tvVideoDuration.visibility = View.VISIBLE
-                    binding.tvVideoDuration.text = formatDuration(msg.videoDuration ?: 0)
+                    val uploadProg = MediaProgressManager.getProgress(msg.id)
+                    val isUploadActive = (uploadProg != null && uploadProg.isUploading && !uploadProg.isComplete)
+                        || displayStatus == MessageStatus.SENDING
+                    val isUploadFailed = displayStatus == MessageStatus.FAILED
+
+                    when {
+                        isUploadActive -> {
+                            binding.progressIndicator.visibility = View.VISIBLE
+                            binding.ivStatusAction.visibility = View.GONE
+                            binding.ivPlayButton.visibility = View.GONE
+                            binding.tvVideoDuration.visibility = View.GONE
+                            if (uploadProg != null && !uploadProg.isIndeterminate) {
+                                binding.progressIndicator.setProgress(uploadProg.progress, animate = false)
+                            } else {
+                                binding.progressIndicator.startIndeterminate()
+                            }
+                        }
+                        isUploadFailed -> {
+                            binding.progressIndicator.visibility = View.GONE
+                            binding.ivStatusAction.visibility = View.VISIBLE
+                            binding.ivPlayButton.visibility = View.GONE
+                            binding.tvVideoDuration.visibility = View.GONE
+                            binding.ivStatusAction.setOnClickListener {
+                                onRetryUpload?.invoke(msg)
+                            }
+                        }
+                        else -> {
+                            binding.progressIndicator.visibility = View.GONE
+                            binding.ivStatusAction.visibility = View.GONE
+                            binding.ivPlayButton.visibility = View.VISIBLE
+                            binding.tvVideoDuration.visibility = View.VISIBLE
+                            binding.tvVideoDuration.text = formatDuration(msg.videoDuration ?: 0)
+                        }
+                    }
                 } else {
+                    binding.progressIndicator.visibility = View.GONE
+                    binding.ivStatusAction.visibility = View.GONE
                     binding.ivPlayButton.visibility = View.GONE
                     binding.tvVideoDuration.visibility = View.GONE
                 }
@@ -4095,6 +4158,10 @@ class ChatAdapter(
                     if (selectionManager.hasSelection()) {
                         selectionManager.toggleSelection(msg.id)
                     } else {
+                        val uploadProg = MediaProgressManager.getProgress(msg.id)
+                        val isUploadActive = (uploadProg != null && uploadProg.isUploading && !uploadProg.isComplete)
+                            || displayStatus == MessageStatus.SENDING
+                        if (isUploadActive) return@setOnClickListener
                         // Resolve playback URI: prefer persistent local storage, then localUri, then remote URL
                         val playbackUri = mediaLocalFileResolver?.getPlaybackUri(msg)
                         if (msg.type == MessageType.VIDEO) {
@@ -4230,7 +4297,14 @@ class ChatAdapter(
                 // Compute the current best imageSource the same way bind() does
                 val localImagePath = cachedLocalFilePath(msg.chatId, msg.id, msg.type)
                 val currentSource: Any? = when {
-                    !localImagePath.isNullOrEmpty() -> localImagePath
+                    !localImagePath.isNullOrEmpty() -> {
+                        // For VIDEO messages, prefer the JPEG thumbnail over the raw .mp4 file.
+                        if (msg.type == MessageType.VIDEO && !msg.thumbnailUrl.isNullOrEmpty()) {
+                            msg.thumbnailUrl
+                        } else {
+                            localImagePath
+                        }
+                    }
                     !msg.localUri.isNullOrEmpty() -> {
                         val uri = Uri.parse(msg.localUri)
                         if (uri.scheme == "file" || msg.localUri!!.startsWith("/")) {
@@ -4257,6 +4331,45 @@ class ChatAdapter(
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) {
                     bind(item, pos, skipImageLoad = false)
+                }
+            }
+        }
+
+        override fun updateProgress(item: ChatListItem) {
+            if (item !is ChatListItem.MessageItem) return
+            val msg = item.message
+            if (msg.type != MessageType.VIDEO) return
+            val uploadProg = MediaProgressManager.getProgress(msg.id)
+            val status = rememberStrongestOutgoingStatus(msg)
+            val isUploadActive = (uploadProg != null && uploadProg.isUploading && !uploadProg.isComplete)
+                || status == MessageStatus.SENDING
+            val isUploadFailed = status == MessageStatus.FAILED
+
+            when {
+                isUploadActive -> {
+                    binding.progressIndicator.visibility = View.VISIBLE
+                    binding.ivStatusAction.visibility = View.GONE
+                    binding.ivPlayButton.visibility = View.GONE
+                    binding.tvVideoDuration.visibility = View.GONE
+                    if (uploadProg != null && !uploadProg.isIndeterminate) {
+                        binding.progressIndicator.setProgress(uploadProg.progress, animate = true)
+                    } else {
+                        binding.progressIndicator.startIndeterminate()
+                    }
+                }
+                isUploadFailed -> {
+                    binding.progressIndicator.visibility = View.GONE
+                    binding.ivStatusAction.visibility = View.VISIBLE
+                    binding.ivPlayButton.visibility = View.GONE
+                    binding.tvVideoDuration.visibility = View.GONE
+                    binding.ivStatusAction.setOnClickListener { onRetryUpload?.invoke(msg) }
+                }
+                else -> {
+                    binding.progressIndicator.visibility = View.GONE
+                    binding.ivStatusAction.visibility = View.GONE
+                    binding.ivPlayButton.visibility = View.VISIBLE
+                    binding.tvVideoDuration.visibility = View.VISIBLE
+                    binding.tvVideoDuration.text = formatDuration(msg.videoDuration ?: 0)
                 }
             }
         }

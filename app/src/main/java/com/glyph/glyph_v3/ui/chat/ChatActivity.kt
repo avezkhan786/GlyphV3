@@ -5329,6 +5329,9 @@ class ChatActivity : AppCompatActivity(),
             userAvatarState.value.takeIf { it.isNotBlank() },
             currentUserAvatar.takeIf { it.isNotBlank() }
         )
+        chatAdapter.onRetryUpload = { message ->
+            retryMediaUpload(message)
+        }
         recyclerCoordinator = RecyclerCoordinator(this, binding.recyclerViewMessages, chatAdapter)
         
         binding.recyclerViewMessages.apply {
@@ -8767,8 +8770,8 @@ class ChatActivity : AppCompatActivity(),
     }
 
     private fun sendVideo(uri: Uri, caption: String = "") {
-        // Show compression bottom sheet for single video
-        showCompressionBottomSheet(listOf(uri to "video/*"), caption)
+        // Automatically compress videos at MEDIUM quality (WhatsApp-style — no dialog needed).
+        sendMediaWithCompression(listOf(uri to "video/*"), CompressionQuality.MEDIUM, emptyMap(), caption)
     }
     
     /**
@@ -8856,6 +8859,105 @@ class ChatActivity : AppCompatActivity(),
         cancelReply()
     }
 
+    // Labels that are auto-generated placeholders, not real user captions.
+    private val retryMediaCaptionExclusions = setOf(
+        "Photo", "Video", "GIF", "Sticker", "Meme", "photo", "video", "gif", "sticker", "meme"
+    )
+
+    /**
+     * Retry a failed media upload. Re-uses the message's localUri so we don't need
+     * to re-pick the file. Works for both 1:1 and group chats.
+     */
+    private fun retryMediaUpload(message: com.glyph.glyph_v3.data.models.Message) {
+        val localUriStr = message.localUri ?: return
+        val uri = android.net.Uri.parse(localUriStr)
+        val id = chatId ?: return
+
+        // Reset status to SENDING so the progress indicator shows immediately
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val dao = (application as com.glyph.glyph_v3.GlyphApplication)
+                .getOrCreateAppDatabase().messageDao()
+            dao.updateMessageStatus(message.id, com.glyph.glyph_v3.data.models.MessageStatus.SENDING)
+        }
+
+        val caption = message.text?.takeIf { it !in retryMediaCaptionExclusions } ?: ""
+        when (message.type) {
+            com.glyph.glyph_v3.data.models.MessageType.VIDEO -> {
+                if (isGroupChat) {
+                    lifecycleScope.launch {
+                        groupRepository.sendGroupVideoMessage(
+                            chatId = id,
+                            videoUri = uri,
+                            caption = caption,
+                            isVideoNote = message.isVideoNote
+                        )
+                    }
+                } else {
+                    val otherId = otherUserId ?: return
+                    lifecycleScope.launch {
+                        repository.sendVideoMessage(
+                            chatId = id,
+                            videoUri = uri,
+                            otherUserId = otherId,
+                            otherUsername = otherUsername.ifEmpty { "Unknown" },
+                            otherUserAvatar = otherUserAvatar,
+                            caption = caption
+                        )
+                    }
+                }
+            }
+            com.glyph.glyph_v3.data.models.MessageType.IMAGE -> {
+                sendImageInternal(uri, caption)
+            }
+            else -> { /* Other types not retryable via this path */ }
+        }
+    }
+
+    /**
+     * On activity resume, find any VIDEO/IMAGE messages that were left in SENDING state
+     * (process was killed mid-upload) and automatically re-queue them so the user sees
+     * uploads resume without having to tap retry.
+     */
+    private fun resumeStalledUploads() {
+        val cId = chatId ?: return
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val dao = (application as com.glyph.glyph_v3.GlyphApplication)
+                .getOrCreateAppDatabase().messageDao()
+            val stalled = dao.getOutgoingMessagesByStatuses(
+                listOf(com.glyph.glyph_v3.data.models.MessageStatus.SENDING), 50
+            ).filter { msg ->
+                msg.chatId == cId
+                    && !msg.localUri.isNullOrEmpty()
+                    && (msg.type == com.glyph.glyph_v3.data.models.MessageType.VIDEO
+                        || msg.type == com.glyph.glyph_v3.data.models.MessageType.IMAGE)
+                    && !com.glyph.glyph_v3.data.repo.MediaProgressManager.isActive(msg.id)
+            }
+            if (stalled.isEmpty()) return@launch
+            // Mark them FAILED so the UI shows the retry button, then immediately retry
+            stalled.forEach { msg ->
+                dao.updateMessageStatus(msg.id, com.glyph.glyph_v3.data.models.MessageStatus.FAILED)
+            }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                stalled.forEach { msg ->
+                    retryMediaUpload(
+                        com.glyph.glyph_v3.data.models.Message(
+                            id = msg.id,
+                            chatId = msg.chatId,
+                            text = msg.text,
+                            senderId = msg.senderId,
+                            timestamp = msg.timestamp,
+                            status = com.glyph.glyph_v3.data.models.MessageStatus.FAILED,
+                            isIncoming = false,
+                            type = msg.type,
+                            localUri = msg.localUri,
+                            isVideoNote = msg.isVideoNote
+                        )
+                    )
+                }
+            }
+        }
+    }
+
     /**
      * Send a video note directly without compression.
      * CameraX 720p output is already suitable for a 240dp circular display.
@@ -8892,7 +8994,12 @@ class ChatActivity : AppCompatActivity(),
 
     private fun handleMediaUri(uri: Uri) {
         val mimeType = contentResolver.getType(uri) ?: "image/*"
-        showCompressionBottomSheet(listOf(uri to mimeType))
+        if (mimeType.startsWith("video")) {
+            // Auto-compress videos at MEDIUM quality — no dialog needed.
+            sendMediaWithCompression(listOf(uri to mimeType), CompressionQuality.MEDIUM, emptyMap())
+        } else {
+            showCompressionBottomSheet(listOf(uri to mimeType))
+        }
     }
 
     /**
@@ -9075,7 +9182,13 @@ class ChatActivity : AppCompatActivity(),
             uri to mimeType
         }
         
-        showCompressionBottomSheet(mediaWithTypes, caption)
+        // If all items are videos, skip the dialog and auto-compress at MEDIUM quality.
+        val allVideos = mediaWithTypes.all { (_, mimeType) -> mimeType.startsWith("video") }
+        if (allVideos) {
+            sendMediaWithCompression(mediaWithTypes, CompressionQuality.MEDIUM, emptyMap(), caption)
+        } else {
+            showCompressionBottomSheet(mediaWithTypes, caption)
+        }
     }
 
     private fun enqueueSharedDocuments(uris: List<Uri>, initialCaption: String) {
@@ -9438,6 +9551,8 @@ class ChatActivity : AppCompatActivity(),
         binding.etMessageInput.setSelection(draft.length)
         messageTextState.value = draft
         updateSendButtonState(true)
+        // Ensure emoji icon is positioned to hide buzz button (no animation on restore)
+        updateAccessoryIcons(isTyping = true, animate = false)
     }
 
     private fun updateRegisteredUsersCache() {
@@ -11411,6 +11526,7 @@ class ChatActivity : AppCompatActivity(),
         }
         resumeIdleTaskQueue(reason = "activity_resume")
         maybeScheduleInitialLastSeenReveal(_reason = "resume")
+        resumeStalledUploads()
 
         // CRITICAL ORDER: Set activeChatId in PresenceManager BEFORE calling goOnline().
         //
