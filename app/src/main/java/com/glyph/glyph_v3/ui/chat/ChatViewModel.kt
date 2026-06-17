@@ -143,6 +143,10 @@ class ChatViewModel(
     private val messageWindowLimit = MutableStateFlow(INITIAL_WINDOW)
     @Volatile
     private var isLoadingOlderMessages = false
+    // Track previous emission's message count for growth-based hasMoreOlderMessages detection.
+    // When the window grows and the Room query returns more messages than before, there may
+    // be even more older history to page in. When the count stops growing, we've hit the end.
+    private var previousMessageCount = 0
 
     fun onChatResumed() {
         if (!_isChatVisible.value) {
@@ -416,10 +420,12 @@ class ChatViewModel(
                     }
                 }
                 .collectLatest { messages ->
-                    // WhatsApp-style pagination bookkeeping: a full window means older
-                    // history likely remains in the local DB. Reset the in-flight flag now
-                    // that the (possibly larger) page has arrived.
-                    val moreOlder = messages.size >= messageWindowLimit.value
+                    // WhatsApp-style pagination bookkeeping: use growth detection so that
+                    // hasMoreOlderMessages stays true as long as each larger window returns
+                    // more messages than the previous one. Falls back to window-fill check
+                    // for the first emission (previousMessageCount starts at 0).
+                    val moreOlder = messages.size > previousMessageCount || messages.size >= messageWindowLimit.value
+                    previousMessageCount = messages.size
                     if (isLoadingOlderMessages ||
                         _uiState.value.hasMoreOlderMessages != moreOlder ||
                         _uiState.value.isLoadingOlderMessages) {

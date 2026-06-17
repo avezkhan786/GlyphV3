@@ -1938,9 +1938,11 @@ class ChatActivity : AppCompatActivity(),
     /**
      * Continuous keep-ahead prefetch. Called after every window emission settles. While the user
      * is scrolling up, if the first visible row is still within [OLDER_PREFETCH_KEEP_AHEAD_ROWS]
-     * of the top, immediately page in more history. Each load grows the window, which pushes the
-     * first-visible index deeper and self-terminates the chain once the buffer is deep again — so
-     * a sustained fast fling is fed back-to-back and never hits the top wall / stalls. No-op when
+     * of the bottom (near position 0, i.e. just started scrolling up) OR the last visible row
+     * is within that same distance of the absolute top of the loaded list, immediately page in
+     * more history. The bottom-proximity gate handles the initial scroll-up prefetch; the
+     * top-proximity gate ensures that a sustained fast fling is fed back-to-back and never hits
+     * the top wall / stalls even after the user scrolls past position ~180-220. No-op when
      * the user is at/near the bottom (never scrolled up) so normal use does no extra work.
      */
     private fun maybeContinueOlderPrefetch() {
@@ -1954,7 +1956,11 @@ class ChatActivity : AppCompatActivity(),
         val lm = rv.layoutManager as? LinearLayoutManager ?: return
         val first = lm.findFirstVisibleItemPosition()
         if (first == RecyclerView.NO_POSITION) return
-        if (first <= OLDER_PREFETCH_KEEP_AHEAD_ROWS) {
+        val lastVisible = lm.findLastVisibleItemPosition()
+        val totalItems = chatAdapter.itemCount
+        val rowsFromEnd = max(0, totalItems - 1 - lastVisible)
+        if (first <= OLDER_PREFETCH_KEEP_AHEAD_ROWS ||
+            rowsFromEnd <= OLDER_PREFETCH_KEEP_AHEAD_ROWS) {
             // Pull two pages so the restored buffer comfortably exceeds the keep-ahead distance.
             loadOlderMessages(2)
         }
@@ -5551,6 +5557,13 @@ class ChatActivity : AppCompatActivity(),
                             warmVisibleContentWindows(reason = "scroll_idle")
                             scheduleScrollIdleMediaUpgrade()
                             maybeScheduleInitialLastSeenReveal(_reason = "scroll_idle")
+                            // Safety net: after every scroll session settles, re-check whether
+                            // the user is still near the top of the loaded range and page in
+                            // more older history if available. This catches cases where the
+                            // flow-emission chain (maybeContinueOlderPrefetch) was interrupted
+                            // by a cancellation while the adapter hadn't yet reflected the new
+                            // window size.
+                            maybeContinueOlderPrefetch()
 
                             // User scrolled back to the strict bottom — re-enable auto-scroll.
                             // Near-bottom hysteresis can fluctuate during small drags and must
@@ -5612,12 +5625,28 @@ class ChatActivity : AppCompatActivity(),
                     // earlier and pulls a bigger chunk — the buffer is refilled ahead of the
                     // scroll instead of stalling at the top. loadOlderMessages() self-guards
                     // against overlapping loads.
+                    //
+                    // Dual-proximity gate: with stackFromEnd=true, position 0 is the newest
+                    // message (bottom of screen) and high positions are older messages (top of
+                    // screen). The firstVisible condition catches scroll-up near the bottom
+                    // (prefetch). The end-distance condition catches the user approaching the
+                    // oldest loaded message — without it, once the user scrolls past position
+                    // ~180-220 the trigger stops firing and any remaining older history in the
+                    // local DB is never loaded.
                     if (dy < 0 && lm != null) {
                         val absDy = -dy
                         // Faster upward fling -> larger look-ahead distance.
                         val dynamicThreshold = (LOAD_OLDER_THRESHOLD + absDy / 8)
                             .coerceAtMost(LOAD_OLDER_THRESHOLD_MAX)
-                        if (lm.findFirstVisibleItemPosition() <= dynamicThreshold) {
+                        val firstVisible = lm.findFirstVisibleItemPosition()
+                        val lastVisible = lm.findLastVisibleItemPosition()
+                        val totalItems = chatAdapter.itemCount
+                        // Near the bottom: prefetch older history while scrolling up.
+                        val nearBottom = firstVisible <= dynamicThreshold
+                        // Near the top: approaching the oldest loaded message — page in more.
+                        val rowsFromEnd = max(0, totalItems - 1 - lastVisible)
+                        val nearTop = rowsFromEnd <= dynamicThreshold
+                        if (nearBottom || nearTop) {
                             val pages = when {
                                 absDy >= 90 -> 4
                                 absDy >= 55 -> 3
@@ -6340,7 +6369,7 @@ class ChatActivity : AppCompatActivity(),
                         // Pagination bookkeeping: a full window means older history likely
                         // remains in the local DB. Reset the in-flight flag now that the
                         // (possibly larger) page has arrived.
-                        hasMoreOlderMessages = messages.size >= messageWindowLimit.value
+                        hasMoreOlderMessages = messages.size > previousMessages.size || messages.size >= messageWindowLimit.value
                         isLoadingOlderMessages = false
                         // Keep the older-history buffer deep ahead of an active upward fling so
                         // the scroll is never blocked waiting for a page to load.

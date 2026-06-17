@@ -227,6 +227,14 @@ class SettingsFragment : Fragment() {
                 startActivity(Intent(requireContext(), StorageDataActivity::class.java))
             },
             SettingItem(
+                "Backup & Restore",
+                "Back up chats and media to Google Drive",
+                R.drawable.ic_storage
+            ) {
+                val intent = Intent(requireContext(), BackupSettingsActivity::class.java)
+                startActivity(intent)
+            },
+            SettingItem(
                 "Help",
                 "FAQ, contact us, report a bug",
                 R.drawable.ic_help

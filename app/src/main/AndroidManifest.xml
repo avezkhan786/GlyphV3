@@ -113,6 +113,12 @@
             android:name=".ui.settings.SecuritySettingsActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.settings.BackupSettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.onboarding.RestoreOfferActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.settings.HelpSupportActivity"
             android:exported="false" />
         <activity

@@ -10,6 +10,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.bumptech.glide.Glide
+import com.glyph.glyph_v3.data.auth.GoogleSignInRepository
 import com.glyph.glyph_v3.data.cache.AvatarCacheManager
 import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.cache.MessagePreviewCacheManager
@@ -224,6 +225,15 @@ class GlyphApplication : Application() {
             // Restore persisted background live-sharing services after process death.
             restoreBackgroundSharingServices()
             
+            // Initialize Google Sign-In for backup/restore (fire-and-forget, best-effort)
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                runCatching {
+                    GoogleSignInRepository.getInstance(this@GlyphApplication).silentSignIn()
+                }.onFailure { e ->
+                    Log.w(TAG, "Google Sign-In silent attempt failed (expected if no Google account)", e)
+                }
+            }
+
             // Initialize block list listeners (must be after auth is available)
             com.glyph.glyph_v3.data.repo.BlockRepository.startListening()
             

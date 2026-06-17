@@ -168,6 +168,17 @@ android {
         stabilityConfigurationFile = project.layout.projectDirectory.file("stability_config.conf")
     }
     
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/DEPENDENCIES",
+                "META-INF/INDEX.LIST",
+                "META-INF/NOTICE",
+                "META-INF/LICENSE"
+            )
+        }
+    }
+
     buildFeatures {
         viewBinding = true
         compose = true
@@ -296,6 +307,14 @@ dependencies {
     implementation("io.getstream:stream-webrtc-android-ui:1.3.10")
     // .await() extension for Task<Location> (client.lastLocation.await())
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+    // Google Sign-In (for Google account + Drive auth)
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
+
+    // Google Drive REST API (AppDataFolder access)
+    implementation("com.google.api-client:google-api-client-android:2.2.0")
+    implementation("com.google.apis:google-api-services-drive:v3-rev20230815-2.0.0")
+    implementation("com.google.http-client:google-http-client-gson:1.43.3")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
