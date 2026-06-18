@@ -334,7 +334,7 @@ class WalkieTalkieManager private constructor(
                     )
                 }
 
-                startAudioSession()
+                withContext(Dispatchers.Main) { startAudioSession() }
                 ensureTurnReadyForPeerSetup(role = "initiator")
 
                 // History-based relay optimisation: if previous sessions with this peer
@@ -720,7 +720,7 @@ class WalkieTalkieManager private constructor(
                     )
                 }
 
-                startAudioSession(requiresMicrophoneAccess = !backgroundReceiveOnly)
+                withContext(Dispatchers.Main) { startAudioSession(requiresMicrophoneAccess = !backgroundReceiveOnly) }
                 repository.primeSession(seed.sessionId)
                 ensureTurnReadyForPeerSetup(role = "responder")
 
