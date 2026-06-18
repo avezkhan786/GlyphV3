@@ -50,8 +50,15 @@ android {
                 ?: localProps.getProperty(name)?.trim()?.takeIf { it.isNotEmpty() }
         }
 
-        // Google Maps API key – replace with your own key
-        val mapsKey = readProperty("MAPS_API_KEY") ?: "YOUR_MAPS_API_KEY"
+        // Google Maps API key – set MAPS_API_KEY in local.properties
+        // This is SEPARATE from the Firebase/TTS Cloud project. If the map background
+        // shows an API error, ensure the Maps SDK for Android is enabled in your
+        // Google Cloud Console project and the key is unrestricted (or restricted to
+        // your package name + SHA-1).
+        val mapsKey = readProperty("MAPS_API_KEY") ?: "MISSING_MAPS_API_KEY"
+        if (mapsKey == "MISSING_MAPS_API_KEY" || mapsKey == "YOUR_MAPS_API_KEY") {
+            logger.warn("⚠️  MAPS_API_KEY is not set in local.properties — map features will fail with API error")
+        }
         buildConfigField("String", "MAPS_API_KEY", "\"$mapsKey\"")
         manifestPlaceholders["mapsApiKey"] = mapsKey
 
