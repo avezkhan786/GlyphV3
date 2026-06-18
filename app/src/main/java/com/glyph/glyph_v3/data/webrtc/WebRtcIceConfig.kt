@@ -33,10 +33,10 @@ object WebRtcIceConfig {
     // candidates are available immediately after setLocalDescription.
     private const val ICE_CANDIDATE_POOL_SIZE = 10
     private const val DYNAMIC_ICE_CACHE_TTL_MS = 15 * 60 * 1000L
-    private const val DYNAMIC_ICE_CONNECT_TIMEOUT_MS = 8_000
-    private const val DYNAMIC_ICE_READ_TIMEOUT_MS = 8_000
-    private const val DYNAMIC_ICE_FETCH_RETRY_COUNT = 2
-    private const val DYNAMIC_ICE_FETCH_RETRY_DELAY_MS = 1_500L
+    private const val DYNAMIC_ICE_CONNECT_TIMEOUT_MS = 3_000
+    private const val DYNAMIC_ICE_READ_TIMEOUT_MS = 3_000
+    private const val DYNAMIC_ICE_FETCH_RETRY_COUNT = 1
+    private const val DYNAMIC_ICE_FETCH_RETRY_DELAY_MS = 1_000L
 
     private val stunUrls = listOf(
         "stun:stun.relay.metered.ca:80",

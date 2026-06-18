@@ -39,7 +39,7 @@ class WalkieTalkieRepository {
         private const val RTDB_SESSIONS = "walkieTalkieSessions"
         private const val RTDB_CANDIDATES = "candidates"
         private const val RTDB_FLOOR = "floor"
-        private const val REALTIME_SIGNALING_WRITE_TIMEOUT_MS = 2_500L
+        private const val REALTIME_SIGNALING_WRITE_TIMEOUT_MS = 1_500L
         private const val REALTIME_ICE_WRITE_TIMEOUT_MS = 1_500L
     }
 
@@ -150,7 +150,7 @@ class WalkieTalkieRepository {
         }
     }
 
-    private suspend fun awaitRealtimeConnection(timeoutMs: Long): Boolean {
+    internal suspend fun awaitRealtimeConnection(timeoutMs: Long): Boolean {
         val connectedRef = rtdb.getReference(".info/connected")
         return withTimeoutOrNull(timeoutMs) {
             suspendCancellableCoroutine { continuation ->

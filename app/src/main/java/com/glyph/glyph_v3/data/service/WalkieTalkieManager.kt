@@ -82,8 +82,7 @@ class WalkieTalkieManager private constructor(
 
     companion object {
         private const val TAG = "WalkieTalkieMgr"
-        // Keep TURN warm in the background; only block briefly when no relay is configured.
-        private const val TURN_READY_WAIT_WITH_RELAY_MS = 1_200L
+        // Only block when no relay is configured (dynamic fetch via HTTP).
         private const val TURN_READY_WAIT_NO_RELAY_MS = 3_500L
         // 25 s gives TURN-backed reconnects time to finish on slower mobile or
         // carrier-filtered networks before we terminate the session.
@@ -92,13 +91,11 @@ class WalkieTalkieManager private constructor(
          *  Must be long enough for the callee to complete a full setRemoteDescription + createAnswer
          *  round-trip (typically 2-5 s) plus RTDB propagation latency.  Once the callee rings
          *  the loop is cancelled entirely — this only covers the pre-ringing window. */
-        // 20 s gives the initial offer → FCM → RTDB reconnect → ringing path enough time
-        // to complete on a 60-second-idle device before an ICE restart is triggered.
-        // 12 s was too short: after any ~60 s pause RTDB's WebSocket drops; our goOnline()
-        // kick starts the reconnect but the full TLS + auth + listener delivery cycle
-        // reliably takes 8–15 s, so a 12 s timer guaranteed an unnecessary ICE restart
-        // on every single call.
-        private const val OFFER_REFRESH_INTERVAL_MS = 20_000L
+        // 12 s gives the initial offer → FCM → RTDB reconnect → ringing path enough
+        // time to complete on a 60-second-idle device before an ICE restart is triggered.
+        // Reduced from 20 s after connection-aware retry loops make ringing writes faster;
+        // the loop is cancelled as soon as STATUS_RINGING is observed.
+        private const val OFFER_REFRESH_INTERVAL_MS = 12_000L
         /** Caller-side timeout before the callee has even rung.  After the callee marks
          *  STATUS_RINGING the timeout is cancelled and restarted with SESSION_REQUEST_TTL_MS
          *  so the user has time to manually accept. */
@@ -269,28 +266,77 @@ class WalkieTalkieManager private constructor(
     }
 
     private suspend fun ensureTurnReadyForPeerSetup(role: String): Boolean {
-        val relayAlreadyConfigured = WebRtcIceConfig.hasRelayConfigured()
-        val waitMs = if (relayAlreadyConfigured) TURN_READY_WAIT_WITH_RELAY_MS else TURN_READY_WAIT_NO_RELAY_MS
-
-        val turnReady = withTimeoutOrNull(waitMs) {
-            WebRtcIceConfig.refreshIceServersIfConfigured()
-        } ?: false
-
-        if (relayAlreadyConfigured) {
-            // Never hold session setup for dynamic refresh when static relay already exists.
-            if (!turnReady) {
-                scope.launch(Dispatchers.IO) {
-                    runCatching { WebRtcIceConfig.refreshIceServersIfConfigured() }
-                        .onFailure { error -> Log.w(TAG, "WT $role: background TURN refresh failed", error) }
-                }
+        if (WebRtcIceConfig.hasRelayConfigured()) {
+            // Static relay is already configured. The dynamic refresh is
+            // prefetched asynchronously in init{} — never block session setup
+            // waiting for it. Launch a background refresh to keep creds fresh.
+            scope.launch(Dispatchers.IO) {
+                runCatching { WebRtcIceConfig.refreshIceServersIfConfigured() }
+                    .onFailure { error -> Log.w(TAG, "WT $role: background TURN refresh failed", error) }
             }
             return true
         }
+
+        // No relay configured — block for dynamic fetch
+        val turnReady = withTimeoutOrNull(TURN_READY_WAIT_NO_RELAY_MS) {
+            WebRtcIceConfig.refreshIceServersIfConfigured()
+        } ?: false
 
         if (!turnReady && !WebRtcIceConfig.hasRelayConfigured()) {
             Log.w(TAG, "WT $role: TURN credentials not ready before peer setup; cross-network calls may fail")
         }
         return turnReady
+    }
+
+    /**
+     * Retry [operation] with RTDB-connection-aware backoff.
+     *
+     * On the first failure, waits for the RTDB WebSocket to reconnect (via
+     * `.info/connected`) instead of using fixed delays.  Once connected, falls
+     * back to short exponential backoff (500 ms, 1 s, 2 s, 3 s, 5 s) capped at
+     * [maxTotalMs].  This replaces the old 0/3/8/15/25 s fixed-delay schedule
+     * that wasted 10-25 s of dead time on cold RTDB starts.
+     *
+     * On warm RTDB the first attempt (0 ms) succeeds immediately — zero overhead.
+     */
+    private suspend fun retryWithConnectionAwareBackoff(
+        label: String,
+        maxTotalMs: Long = 25_000L,
+        operation: suspend () -> Boolean
+    ): Boolean {
+        val startTime = System.currentTimeMillis()
+        val delays = longArrayOf(0L, 500L, 1_000L, 2_000L, 3_000L, 5_000L)
+        var waitedForConnection = false
+
+        for (i in delays.indices) {
+            val elapsed = System.currentTimeMillis() - startTime
+            if (elapsed >= maxTotalMs) break
+
+            if (i > 0) {
+                val remaining = maxTotalMs - (System.currentTimeMillis() - startTime)
+                if (remaining <= 0L) break
+                delay(delays[i].coerceAtMost(remaining))
+            }
+
+            if (operation()) {
+                Log.d(TAG, "$label: succeeded (attempt=${i + 1}, elapsed=${System.currentTimeMillis() - startTime}ms)")
+                return true
+            }
+
+            // After the first failure, wait for RTDB to reconnect before retrying.
+            // This replaces the old fixed 3/8/15/25 s blind delays with a signal-driven
+            // wait that resumes as soon as the WebSocket is up.
+            if (!waitedForConnection && i == 0) {
+                waitedForConnection = true
+                Log.d(TAG, "$label: first attempt failed — waiting for RTDB connection")
+                val remaining = maxTotalMs - (System.currentTimeMillis() - startTime)
+                if (remaining > 1_000L) {
+                    repository.awaitRealtimeConnection(remaining.coerceAtMost(20_000L))
+                }
+            }
+        }
+
+        return false
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -318,6 +364,12 @@ class WalkieTalkieManager private constructor(
             try {
                 val sessionId = repository.newSessionId()
                 _activeSessionId.value = sessionId
+
+                // Prime RTDB transport immediately — kick off WebSocket reconnect
+                // before any other setup so the connection is warm by the time we
+                // need to write the session/offer. On cold start (idle 20+ min)
+                // this saves 2-5 s of RTDB reconnect time.
+                repository.primeTransport("startSession")
 
                 // Start FGS for mic access — must be on main thread
                 val peerDisplayName = UserProfileCache.get(context, peerId)?.username?.trim()
@@ -752,24 +804,18 @@ class WalkieTalkieManager private constructor(
                 // and terminates the session before ICE can connect (the "first call always
                 // fails" bug on cold receiver).
                 scope.launch {
-                    // Retry schedule must cover the full RTDB cold-start reconnect window.
-                    // After 45+ min of Doze, the radio, TCP, TLS, and Firebase auth cycle
-                    // takes 15–25 s.  Old schedule (0/1.5/3/5 s = 9.5 s total) was always
-                    // exhausted before RTDB came online, so STATUS_RINGING was never written,
-                    // the initiator's offer-refresh loop kept firing ICE restarts, and the
-                    // 60 s calling timeout killed the session before ICE could connect.
-                    val ringingDelays = longArrayOf(0L, 3_000L, 8_000L, 15_000L, 25_000L)
-                    for (delayMs in ringingDelays) {
-                        if (_activeSessionId.value != seed.sessionId) break // session ended
-                        if (delayMs > 0L) delay(delayMs)
-                        if (_activeSessionId.value != seed.sessionId) break // ended during delay
-                        val ok = runCatching { repository.markSessionRinging(seed.sessionId) }.isSuccess
-                        if (ok) {
-                            Log.d(TAG, "Responder: session ${seed.sessionId} marked ringing (delay=${delayMs}ms)")
-                            break
+                    // Retry markSessionRinging with RTDB-connection-aware backoff.
+                    // On warm RTDB the first attempt at 0 ms succeeds instantly.
+                    // On cold RTDB we wait for .info/connected before retrying,
+                    // avoiding the old 0/3/8/15/25 s fixed-delay schedule that
+                    // wasted 10-25 s of dead time.
+                    retryWithConnectionAwareBackoff(
+                        label = "Responder: markSessionRinging",
+                        operation = {
+                            if (_activeSessionId.value != seed.sessionId) return@retryWithConnectionAwareBackoff false
+                            runCatching { repository.markSessionRinging(seed.sessionId) }.isSuccess
                         }
-                        Log.w(TAG, "Responder: markSessionRinging failed (delay=${delayMs}ms) — will retry")
-                    }
+                    )
                 }
 
                 // Observe ICE and session changes before applying SDP so restarts are handled.
@@ -800,23 +846,10 @@ class WalkieTalkieManager private constructor(
                         ),
                         client
                     )
-                } else {
-                    // No offer in seed — fetch from RTDB as fallback.
-                    // observeSessionAsResponder will also deliver the offer when the
-                    // RTDB listener fires, but the explicit fetch can race ahead when
-                    // the session was created just before this path ran.
-                    scope.launch {
-                        runCatching { repository.getSession(seed.sessionId) }
-                            .onSuccess { session ->
-                                if (session != null) {
-                                    processResponderSessionSnapshot(seed.sessionId, session, client)
-                                }
-                            }
-                            .onFailure { error ->
-                                Log.w(TAG, "Responder: initial session fetch failed for ${seed.sessionId}", error)
-                            }
-                    }
                 }
+                // When seed has no initial offer, observeSessionAsResponder
+                // delivers it via the RTDB listener (already started above).
+                // The reaper handles the timeout if RTDB never delivers.
 
             } catch (e: Exception) {
                 Log.e(TAG, "Responder: setup failed", e)
@@ -934,33 +967,24 @@ class WalkieTalkieManager private constructor(
             val answer = client.createAnswer()
             latestLocalAnswerRevision = nextAnswerRevision
 
-            // Retry setAnswer with backoff — on cold start the RTDB WebSocket may still be
-            // reconnecting when we first try to write.  The retry schedule mirrors
-            // markSessionRinging: 0/3/8/15/25 s, covering the full 25 s worst-case RTDB
-            // cold-start reconnect window (radio + TLS + Firebase auth on a 45-min-idle
-            // Doze device).  The first attempt at delay=0 costs nothing on the fast path.
-            var answerWritten = false
-            val answerDelays = longArrayOf(0L, 3_000L, 8_000L, 15_000L, 25_000L)
-            for (delayMs in answerDelays) {
-                if (_activeSessionId.value != sessionId) return // session ended before this attempt
-                if (delayMs > 0L) delay(delayMs)
-                if (_activeSessionId.value != sessionId) return // session ended during delay
-                val writeOk = runCatching {
-                    repository.setAnswer(
-                        sessionId,
-                        answer.description,
-                        nextAnswerRevision,
-                        answeredOfferRevision = remoteOfferRevision,
-                        iceRestart = session.iceRestart
-                    )
-                }.isSuccess
-                if (writeOk) {
-                    Log.d(TAG, "Responder: answer written for revision=$remoteOfferRevision (delay=${delayMs}ms)")
-                    answerWritten = true
-                    break
+            // Retry setAnswer with RTDB-connection-aware backoff.
+            // On warm RTDB the first attempt at 0 ms succeeds instantly.
+            // On cold RTDB we wait for .info/connected before retrying.
+            val answerWritten = retryWithConnectionAwareBackoff(
+                label = "Responder: setAnswer",
+                operation = {
+                    if (_activeSessionId.value != sessionId) return@retryWithConnectionAwareBackoff false
+                    runCatching {
+                        repository.setAnswer(
+                            sessionId,
+                            answer.description,
+                            nextAnswerRevision,
+                            answeredOfferRevision = remoteOfferRevision,
+                            iceRestart = session.iceRestart
+                        )
+                    }.isSuccess
                 }
-                Log.w(TAG, "Responder: setAnswer failed (delay=${delayMs}ms) — will retry")
-            }
+            )
             if (!answerWritten) {
                 Log.e(TAG, "Responder: setAnswer failed after all retries for revision=$remoteOfferRevision")
                 terminateSession(TerminationReason.ERROR)

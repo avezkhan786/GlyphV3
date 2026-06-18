@@ -45,7 +45,7 @@ data class WalkieTalkieSession(
         /** Maximum age of a session request before it is considered expired.
          *  60 s gives room for FCM delivery delays (can be 5-35 s on Android Doze/cold-start)
          *  plus device clock skew (up to ~5 s between devices) plus RTDB reconnect time. */
-        const val SESSION_REQUEST_TTL_MS = 60_000L
+        const val SESSION_REQUEST_TTL_MS = 45_000L
 
         /** Statuses that indicate the session is no longer joinable. */
         val TERMINAL_STATUSES = setOf(STATUS_ENDED, STATUS_CANCELLED, STATUS_REJECTED, STATUS_TIMEOUT)
