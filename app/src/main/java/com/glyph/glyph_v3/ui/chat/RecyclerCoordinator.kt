@@ -133,6 +133,9 @@ internal class RecyclerCoordinator(
      * distribution. Analyzes [messages] to determine which view types dominate and
      * allocates warm ViewHolders proportionally. Falls back to the static
      * [FIRST_FLING_WARM_VIEW_TYPES] if fewer than MIN_ADAPTIVE_MESSAGES are available.
+     *
+     * Prefer [warmCommonViewHoldersAdaptiveAsync] for coroutine callers — it yields
+     * between inflations so frames are not blocked.
      */
     fun warmCommonViewHoldersAdaptive(
         messages: List<com.glyph.glyph_v3.data.models.Message>,
@@ -148,6 +151,34 @@ internal class RecyclerCoordinator(
             }
         } catch (exception: Exception) {
             Log.w("ChatActivity", "Adaptive VH pool warm failed", exception)
+        }
+    }
+
+    /**
+     * Coroutine-friendly adaptive warm that [yield]s after each ViewHolder inflation so
+     * the main thread gets a chance to render frames between creations. Otherwise identical
+     * to [warmCommonViewHoldersAdaptive].
+     *
+     * Each inflation takes 10–15 ms (XML parse + View creation). Without yielding, a batch
+     * of 24 ViewHolders blocks the main thread for 240–360 ms, delaying the first visible
+     * frame. With yield(), frames can interleave, keeping the animation responsive.
+     */
+    suspend fun warmCommonViewHoldersAdaptiveAsync(
+        messages: List<com.glyph.glyph_v3.data.models.Message>,
+        isFinishingProvider: () -> Boolean
+    ) = withContext(Dispatchers.Main.immediate) {
+        val pool = recyclerView.recycledViewPool
+        configureRecycledViewPool(pool)
+        val warmList = buildAdaptiveWarmList(messages)
+        try {
+            for (viewType in warmList) {
+                currentCoroutineContext().ensureActive()
+                if (isFinishingProvider()) return@withContext
+                pool.putRecycledView(adapter.createViewHolder(recyclerView, viewType))
+                yield() // hand main thread back to Choreographer for a frame
+            }
+        } catch (exception: Exception) {
+            Log.w("ChatActivity", "Adaptive VH pool warm async failed", exception)
         }
     }
 
@@ -247,16 +278,18 @@ internal class RecyclerCoordinator(
         // Minimum count per view-type pair in the adaptive warm (ensures every type gets at least 1).
         private const val ADAPTIVE_WARM_MIN_PER_PAIR = 1
 
-        // SYNCHRONOUS safety batch inflated before the first scroll. Expanded to 24 VHs
-        // covering all active view types (including video notes 19/20 and collage 9/10).
+        // SYNCHRONOUS safety batch inflated before the first scroll. 26 VHs covering all
+        // active view types. Text dominates most chats, so it gets 16 slots (was 12) to
+        // keep the pool stocked during the very first fast fling before progressive warming
+        // can backfill the pool.
         // Used as a fallback when adaptive warming doesn't have enough message history.
         val FIRST_FLING_WARM_VIEW_TYPES = intArrayOf(
-            1, 2, 1, 2, 1, 2, 1, 2,      // 8 text (4 in + 4 out)
-            1, 2, 1, 2,                   // +4 text (2 in + 2 out)
-            3, 4, 3, 4,                   // 4 media (2 in + 2 out)
-            13, 13,                       // 2 date headers
-            9, 10,                        // 2 collage (1 in + 1 out)
-            19, 20                        // 2 video notes (1 in + 1 out)
+            1, 2, 1, 2, 1, 2, 1, 2, 1, 2,  // 10 text (5 in + 5 out)
+            1, 2, 1, 2, 1, 2,                // +6 text (3 in + 3 out)
+            3, 4, 3, 4,                      // 4 media (2 in + 2 out)
+            13, 13,                          // 2 date headers
+            9, 10,                           // 2 collage (1 in + 1 out)
+            19, 20                           // 2 video notes (1 in + 1 out)
         )
 
         // Full target pool occupancy per view type — STAGE3_FULL.

@@ -544,9 +544,12 @@ class ChatActivity : AppCompatActivity(),
         // WhatsApp-style windowed pagination. The live message subscription is bounded to
         // the most recent INITIAL_WINDOW messages and pages in OLDER_PAGE_SIZE more each
         // time the user scrolls near the top, so the whole history is never loaded at once.
-        // Tuned for mid-range devices: a moderate initial window gives a first-scroll cushion
-        // without paying a large one-time processMessagesWithHeaders cost at open.
-        private const val INITIAL_MESSAGE_WINDOW = 300
+        // Only load enough for the first screenful + a small scroll-up buffer.
+        // Pagination incrementally prepends older messages as the user scrolls up,
+        // so the initial window stays small and the first frame appears instantly.
+        // 40 messages ≈ 4 screenfuls — enough that a casual scroll doesn't trigger
+        // pagination, small enough that processMessagesWithHeaders is sub-10ms.
+        private const val INITIAL_MESSAGE_WINDOW = 40
         // PAGE SIZE: 60 messages per page. Smaller pages + cooldown prevent the pagination
         // cascade observed in profiling (14 fires / 2400+ rows during a single fling) which
         // saturated the main thread with DiffUtil commits and bind bursts of 9-12 per frame.
@@ -554,22 +557,25 @@ class ChatActivity : AppCompatActivity(),
         // Minimum cooldown between consecutive pagination fires. Prevents the cascade where
         // maybeContinueOlderPrefetch → loadOlderMessages → flow emission → maybeContinueOlderPrefetch
         // chains back-to-back without giving the render thread time to breathe.
-        private const val PAGINATION_COOLDOWN_MS = 0L
+        // 30ms lets fast flings re-fire sooner while still breaking infinite loops.
+        private const val PAGINATION_COOLDOWN_MS = 30L
         // Base trigger distance: prefetch older history when the first visible item is within
         // this many rows of the very top. Scaled up dynamically with scroll velocity so fast
         // flings start loading much earlier (well before the user reaches the top).
-        private const val LOAD_OLDER_THRESHOLD = 60
+        // Raised from 60 to 120 so pagination fires when the user is still far from the boundary.
+        private const val LOAD_OLDER_THRESHOLD = 120
         // Upper bound for the velocity-scaled prefetch distance. Higher = pagination
         // triggers earlier during fast flings, keeping the buffer ahead of the scroll.
-        private const val LOAD_OLDER_THRESHOLD_MAX = 400
+        // Raised from 400 to 600 for even more aggressive prefetch on extreme flings.
+        private const val LOAD_OLDER_THRESHOLD_MAX = 600
         // A single load may pull up to this many pages at once when the user is flinging fast.
-        // Capped at 2 (max 120 rows/load) so each background burst stays small enough not to
-        // contend with the render thread on mid-range CPUs.
-        private const val MAX_OLDER_PAGES_PER_LOAD = 2
-        // Trigger pagination when within 300 rows of the loaded window boundary.
-        // With 300 message initial window (~350 items) and 60-row pages, this keeps
-        // 5 pages of buffer ahead of the scroll, preventing the "hit the wall" stall.
-        private const val OLDER_PREFETCH_KEEP_AHEAD_ROWS = 300
+        // Raised from 2 to 3 (max 180 rows/load) so fast flings get a bigger chunk.
+        private const val MAX_OLDER_PAGES_PER_LOAD = 3
+        // Continuous keep-ahead: pre-fetch more history when within this many rows of the
+        // loaded window boundary. Must be > 1 page (60 rows) so the next page is ready
+        // before the user reaches the edge. At 200 rows (3+ pages), the buffer stays ahead
+        // of even the fastest flings.
+        private const val OLDER_PREFETCH_KEEP_AHEAD_ROWS = 200
 
         fun newIntent(
             context: Context,
@@ -1785,10 +1791,11 @@ class ChatActivity : AppCompatActivity(),
 
     override fun onEnterAnimationComplete() {
         super.onEnterAnimationComplete()
-        // Mark the window enter animation as complete so shouldDeferLargeFlowEmission
-        // stops blocking the initial live-flow tail expansion.
+        // Mark the window enter animation as complete. Secondary features (network
+        // listeners, message sync, typing observer) are deferred until this point so
+        // their startup work doesn't compete with the slide-in transition.
         enterAnimationCompleted = true
-        // Flush any emission that was deferred while the animation was in progress.
+        // Flush any scroll-deferred emission that was waiting for idle state.
         applyDeferredLargeFlowEmissionIfNeeded()
         triggerSecondaryFeaturesNow(reason = "enter_animation_complete")
     }
@@ -1835,8 +1842,7 @@ class ChatActivity : AppCompatActivity(),
         StartupTrace.logStage("chat_secondary_features_end", "reason=$reason")
 
         // Safety net: if onEnterAnimationComplete is never called (no transition animation,
-        // test environments, or very fast devices), ensure the enter-animation gate is cleared
-        // and any deferred live-flow emission is applied within a reasonable window.
+        // test environments, or very fast devices), ensure secondary features are unblocked.
         binding.root.postDelayed({
             if (!isFinishing && !isDestroyed && !enterAnimationCompleted) {
                 enterAnimationCompleted = true
@@ -2066,7 +2072,7 @@ class ChatActivity : AppCompatActivity(),
             }
 
             val recent = withContext(Dispatchers.IO) {
-                repository.getRecentMessages(id, 20)
+                repository.getRecentMessages(id, 50)
             }
             StartupTrace.logStage(
                 "chat_prefill_source",
@@ -2267,8 +2273,10 @@ class ChatActivity : AppCompatActivity(),
             // Pre-warm the pool BEFORE submitList so RecyclerView can pull from the pool
             // instead of inflating all items fresh. Uses adaptive warming based on the
             // actual message type distribution of this chat (falls back to static list if
-            // fewer than 20 messages). The small upfront cost here happens outside the
-            // frame boundary that the user sees.
+            // fewer than 20 messages). Synchronous is intentional here: nothing is visible
+            // on screen yet, so blocking the main thread for 240-360ms to inflate 24 VHs
+            // is faster overall than yielding between each one (which would add ~16ms per
+            // yield and delay the first frame by ~400ms — the user sees a blank screen).
             if (::recyclerCoordinator.isInitialized) {
                 recyclerCoordinator.warmCommonViewHoldersAdaptive(
                     messages = recentMessages,
@@ -2308,10 +2316,20 @@ class ChatActivity : AppCompatActivity(),
                                 chatAdapter.isFirstLayout = false
                                 warmVisibleContentWindows(reason = "prefill_commit")
                                 if (::recyclerCoordinator.isInitialized) {
-                                    recyclerCoordinator.warmCommonViewHoldersAdaptive(
-                                        messages = recentMessages,
-                                        isFinishingProvider = { isFinishing || isDestroyed }
-                                    )
+                                    // Use progressive stage-based warming (targeting up to
+                                    // 74 VHs across 3 stages) after the first frame.
+                                    // No shouldPauseProvider: yield() already interleaves
+                                    // with frames, and we deliberately want this warm to
+                                    // complete even while the enter animation runs.
+                                    // frameBudgetGuard is NOT started here because the
+                                    // first frame always exceeds budget, which would
+                                    // instantly kill the warm before any inflation.
+                                    lifecycleScope.launch {
+                                        recyclerCoordinator.preInflateViewHoldersNow(
+                                            isFinishingProvider = { isFinishing || isDestroyed },
+                                            shouldPauseProvider = { false }
+                                        )
+                                    }
                                     recyclerCoordinator.enableOffscreenBuffer()
                                 }
                                 unlockDeferredStartupWork(reason = "first_frame_drawn")
@@ -5632,6 +5650,9 @@ class ChatActivity : AppCompatActivity(),
                             // The fling is over — older-page loads no longer need to bypass the
                             // settle-defer (any straggler emission now commits via the normal path).
                             olderLoadInFlight = false
+                            // Safety net: reset the pagination gate so subsequent scrolls can
+                            // trigger loads even if a deferred emission never reset it.
+                            isLoadingOlderMessages = false
                             finishScrollPerfTrackingIfNeeded(reason = "idle", layoutManager = lm)
                             resumeIdleTaskQueue(reason = "scroll_idle")
                             finishFirstScrollPerfTrackingIfNeeded(reason = "idle")
@@ -5683,6 +5704,10 @@ class ChatActivity : AppCompatActivity(),
                             // frame exceeds the budget.
                             frameBudgetGuard.start()
                             translationToolbar?.dismiss()
+                            // Flush any deferred pagination emission now so the fling has
+                            // fresh rows to scroll into. Without this, DRAGGING-deferred
+                            // emissions wait until IDLE and the fling hits the wall.
+                            applyDeferredLargeFlowEmissionIfNeeded()
                         }
                     }
                 }
@@ -6301,17 +6326,20 @@ class ChatActivity : AppCompatActivity(),
         // Only defer when the list actually grows (new/older messages arriving). Pure
         // status/content updates of the same set go through their own payload paths.
         if (delta <= 0) return false
-        // Defer the initial live-flow tail expansion (replaces small prefill with full history)
-        // until the window enter animation completes (~300–400 ms). Without this gate the
-        // DiffUtil result commits to RecyclerView mid-slide-in and janks the transition even
-        // when the RecyclerView scroll state is IDLE. onEnterAnimationComplete sets the flag
-        // and immediately flushes any pending deferred emission.
-        if (!enterAnimationCompleted) return true
-        // Older-page loads must commit immediately so the fling stays fed with content.
-        // The commit itself only blocks the main thread for ~10-20ms (DiffUtil runs on
-        // background); the 200-400ms "list emission commit" time includes background
-        // work. With isScrolling=true during the fling, binds are lightweight (~2ms).
-        if (olderLoadInFlight) return false
+        // The initial live-flow tail expansion (replaces small prefill with full history)
+        // is NOT deferred for the enter animation. Deferring content availability causes the
+        // user to hit the scroll boundary immediately — the chat feels unresponsive.
+        // Instead, isFirstLayout keeps binds lightweight during the animation window, and
+        // the 150ms PREFILL_SETTLE_WINDOW already coalesces Room DB emissions so the first
+        // full-window commit lands after the first frame has drawn.
+        // Older-page loads (pagination): defer during DRAGGING (finger on screen) to avoid
+        // blocking the scroll with a 200-400ms list commit. Allow during SETTLING (fling
+        // deceleration) so content appears before the user reaches the boundary. The initial
+        // window is large enough that the user rarely hits the wall during a single drag.
+        if (olderLoadInFlight) {
+            val state = binding.recyclerViewMessages.scrollState
+            return state == RecyclerView.SCROLL_STATE_DRAGGING
+        }
         val scrollState = binding.recyclerViewMessages.scrollState
         val scrollActive = chatAdapter.isScrolling || scrollState != RecyclerView.SCROLL_STATE_IDLE
         if (!scrollActive) return false
@@ -6410,6 +6438,12 @@ class ChatActivity : AppCompatActivity(),
             }
 
             submitListAwait(listItems)
+            // Pagination bookkeeping: reset the gate so the next fire can proceed.
+            // The original flow-collector path resets isLoadingOlderMessages before
+            // the commit, but when we flush a deferred emission through this path,
+            // the collector was short-circuited — reset it here too.
+            isLoadingOlderMessages = false
+            maybeContinueOlderPrefetch()
             processedListItems = listItems
             updateDisplayedMessageIds(listItems)
             restoreAnchorAfterDeferredFlowCommit(anchorMessageId, anchorOffset)
@@ -6467,13 +6501,11 @@ class ChatActivity : AppCompatActivity(),
                         eagerTypingObserverJob?.cancel()
                         eagerTypingObserverJob = null
                         // Pagination bookkeeping: a full window means older history likely
-                        // remains in the local DB. Reset the in-flight flag now that the
-                        // (possibly larger) page has arrived.
+                        // remains in the local DB. Note: isLoadingOlderMessages and
+                        // maybeContinueOlderPrefetch are deferred until AFTER the first
+                        // defer check below — resetting them early would allow a pagination
+                        // cascade while the current emission is waiting in the defer queue.
                         hasMoreOlderMessages = messages.size > previousMessages.size || messages.size >= messageWindowLimit.value
-                        isLoadingOlderMessages = false
-                        // Keep the older-history buffer deep ahead of an active upward fling so
-                        // the scroll is never blocked waiting for a page to load.
-                        maybeContinueOlderPrefetch()
                         if (isGroupChat) ensureGroupSenderNamesLoadedFor(messages)
                         val nowElapsed = SystemClock.elapsedRealtime()
                         val deltaMs = if (lastMessageFlowTraceAtMs == 0L) 0L else nowElapsed - lastMessageFlowTraceAtMs
@@ -6510,6 +6542,13 @@ class ChatActivity : AppCompatActivity(),
                             )) {
                             return@collectLatest
                         }
+                        // The emission passed the first defer gate — the list will actually
+                        // grow. Now it's safe to reset the pagination gate and check whether
+                        // more prefetch is needed. Doing this BEFORE the defer check caused a
+                        // cascade where each deferred fire immediately allowed another fire,
+                        // ballooning the window during the drag.
+                        isLoadingOlderMessages = false
+                        maybeContinueOlderPrefetch()
                         warmVisibleContentWindows(messages = messages, reason = "flow_emit")
 
                         // FLICKER GUARD — Settling Window
@@ -6812,7 +6851,18 @@ class ChatActivity : AppCompatActivity(),
                                 return@collectLatest
                             }
 
+                            // Try incremental paths before falling back to a full rebuild.
+                            // Fast-append: exactly one new message at the tail (live incoming).
+                            // Prepend: pagination loaded strictly older messages at the head.
                             val listItems = tryBuildFastAppendedMessageList(
+                                previousMessages = previousMessages,
+                                messages = stableMessages,
+                                showTypingIndicator = showIndicator,
+                                newIncomingIds = newIncomingIds,
+                                expressiveActive = expActive,
+                                expressiveText = expText,
+                                expressiveSent = expSent
+                            ) ?: tryBuildPrependedMessageList(
                                 previousMessages = previousMessages,
                                 messages = stableMessages,
                                 showTypingIndicator = showIndicator,
@@ -7240,7 +7290,12 @@ class ChatActivity : AppCompatActivity(),
         // Always defer if first scroll is active, even if deltas are small.
         // This prevents jank from any list commits during the critical first scroll interaction.
         val firstScrollActive = ::scrollController.isInitialized && scrollController.firstScrollTrackingActive
-        val activelyScrolling = chatAdapter.isScrolling || rv.scrollState != RecyclerView.SCROLL_STATE_IDLE || firstScrollActive
+        // During SETTLING (fling deceleration), pagination commits go through immediately
+        // so the fling is continuously fed with rows and never hits a wall. The fling
+        // already has natural slack between deceleration frames for the commit to land.
+        // During DRAGGING (finger on screen), we defer to maximize main-thread headroom.
+        val scrollState = rv.scrollState
+        val activelyScrolling = scrollState == RecyclerView.SCROLL_STATE_DRAGGING || firstScrollActive
         if (!activelyScrolling) return
 
         val lm = rv.layoutManager as? LinearLayoutManager
@@ -7897,6 +7952,156 @@ class ChatActivity : AppCompatActivity(),
             details = "chatId=${chatId ?: "unknown"} messageId=${appendedMessage.id} total=${messages.size}"
         )
         return baseList
+    }
+
+    /**
+     * Incremental prepend for pagination: when older messages are loaded, only the NEW
+     * (older) messages are processed and prepended to the existing [processedListItems].
+     * Returns null if prepend is not applicable (tail changed, first load, etc.),
+     * causing the caller to fall back to a full [processMessagesWithHeaders] rebuild.
+     *
+     * This avoids the O(n) cost of re-processing the entire message list on every
+     * pagination step — critical for chats with 500+ messages where each Room emission
+     * returns the full window. Only the delta is processed.
+     */
+    private fun tryBuildPrependedMessageList(
+        previousMessages: List<Message>,
+        messages: List<Message>,
+        showTypingIndicator: Boolean,
+        newIncomingIds: Set<String>,
+        expressiveActive: Boolean,
+        expressiveText: String,
+        expressiveSent: com.glyph.glyph_v3.ui.chat.expressive.SentimentType
+    ): List<ChatListItem>? {
+        // Only applicable when pagination loaded strictly older messages — the tail
+        // (newest messages) must be identical to the previous emission.
+        val newCount = messages.size - previousMessages.size
+        if (newCount <= 0) return null
+        if (processedListItems.isEmpty()) return null
+        if (previousMessages.isEmpty()) return null
+        if (messages.subList(newCount, messages.size) != previousMessages) return null
+        if (shouldShowGroupIntroInList(previousMessages)) return null
+
+        val newOlderMessages = messages.subList(0, newCount)
+        val newItems = ArrayList<ChatListItem>(newCount + 8)
+
+        // ── Process new (older) messages: date headers + items ─────────────────
+        val today = LocalDate.now(zoneId)
+        val yesterday = today.minusDays(1)
+        val firstExistingMsg = previousMessages.firstOrNull() ?: return null
+        val firstExistingDate = Instant.ofEpochMilli(firstExistingMsg.timestamp).atZone(zoneId).toLocalDate()
+        var lastDate: LocalDate? = null
+
+        for (message in newOlderMessages) {
+            message.warmUpForUi()
+            val messageDate = Instant.ofEpochMilli(message.timestamp).atZone(zoneId).toLocalDate()
+            if (messageDate != lastDate) {
+                val headerText = when (messageDate) {
+                    today -> "Today"
+                    yesterday -> "Yesterday"
+                    else -> dateFormatter.format(messageDate)
+                }
+                newItems.add(ChatListItem.DateHeader(headerText))
+                lastDate = messageDate
+            }
+            val isEmoji = EmojiUtils.isEmojiOnlyMessage(message.text)
+            val shouldAnimate = newIncomingIds.contains(message.id)
+            val txState = translationStateMap[message.id]
+            newItems.add(
+                ChatListItem.MessageItem(
+                    message = message,
+                    groupPosition = BubbleGroupPosition.SINGLE,
+                    dateString = "",
+                    isEmojiContent = isEmoji,
+                    shouldAnimateEntry = shouldAnimate,
+                    translatedText = txState?.translatedText,
+                    isShowingTranslation = txState?.isShowingTranslation ?: false,
+                    isTranslating = txState?.isTranslating ?: false
+                )
+            )
+        }
+
+        // ── Compute bubble grouping within the new block ──────────────────────
+        for (i in newItems.indices) {
+            val item = newItems[i]
+            if (item is ChatListItem.MessageItem) {
+                val prev = if (i > 0) newItems[i - 1] else null
+                val next = if (i < newItems.size - 1) newItems[i + 1] else null
+                val hasPrevSame = (prev is ChatListItem.MessageItem) && prev.message.senderId == item.message.senderId
+                val hasNextSame = (next is ChatListItem.MessageItem) && next.message.senderId == item.message.senderId
+                if (hasPrevSame || hasNextSame) {
+                    val groupPos = when {
+                        hasPrevSame && hasNextSame -> BubbleGroupPosition.MIDDLE
+                        hasPrevSame && !hasNextSame -> BubbleGroupPosition.BOTTOM
+                        !hasPrevSame && hasNextSame -> BubbleGroupPosition.TOP
+                        else -> BubbleGroupPosition.SINGLE
+                    }
+                    newItems[i] = item.copy(groupPosition = groupPos)
+                }
+            }
+        }
+
+        // ── Base list: drop typing indicator, strip first DateHeader if needed ─
+        val baseList = processedListItems
+            .dropLastWhile { it is ChatListItem.TypingIndicator }
+            .toMutableList()
+
+        // ── Boundary fixup: date headers ──────────────────────────────────────
+        // If the new block's last date matches the base list's first existing
+        // date, remove the base list's leading DateHeader — the new block already
+        // provides a date header for that date.
+        val firstBaseDateHeaderIdx = baseList.indexOfFirst { it is ChatListItem.DateHeader }
+        if (firstBaseDateHeaderIdx >= 0 && lastDate == firstExistingDate) {
+            baseList.removeAt(firstBaseDateHeaderIdx)
+        }
+
+        // ── Boundary fixup: bubble grouping between last-new and first-existing ─
+        val lastNewMsgIdx = newItems.indexOfLast { it is ChatListItem.MessageItem }
+        val firstBaseMsgIdx = baseList.indexOfFirst { it is ChatListItem.MessageItem }
+        if (lastNewMsgIdx >= 0 && firstBaseMsgIdx >= 0) {
+            val lastNew = newItems[lastNewMsgIdx] as ChatListItem.MessageItem
+            val firstBase = baseList[firstBaseMsgIdx] as ChatListItem.MessageItem
+
+            if (lastNew.message.senderId == firstBase.message.senderId) {
+                // The boundary merges two same-sender blocks — adjust both sides.
+                val newPrevIdx = if (lastNewMsgIdx > 0) lastNewMsgIdx - 1 else -1
+                val newPrev = newItems.getOrNull(newPrevIdx) as? ChatListItem.MessageItem
+                val hasPrevSameInNew = newPrev?.message?.senderId == lastNew.message.senderId
+
+                val baseNextIdx = if (firstBaseMsgIdx + 1 < baseList.size) firstBaseMsgIdx + 1 else -1
+                val baseNext = baseList.getOrNull(baseNextIdx) as? ChatListItem.MessageItem
+                val hasNextSameInBase = baseNext?.message?.senderId == firstBase.message.senderId
+
+                val newLastGroup = if (hasPrevSameInNew) BubbleGroupPosition.MIDDLE
+                                   else BubbleGroupPosition.TOP
+                newItems[lastNewMsgIdx] = lastNew.copy(groupPosition = newLastGroup)
+
+                val baseFirstGroup = if (hasNextSameInBase) BubbleGroupPosition.MIDDLE
+                                     else BubbleGroupPosition.BOTTOM
+                if (firstBase.groupPosition != baseFirstGroup) {
+                    baseList[firstBaseMsgIdx] = firstBase.copy(groupPosition = baseFirstGroup)
+                }
+            }
+        }
+
+        // ── Assemble: new items + existing base + typing indicator ────────────
+        newItems.addAll(baseList)
+        if (showTypingIndicator) {
+            newItems.add(
+                ChatListItem.TypingIndicator(
+                    isVisible = true,
+                    isExpressive = expressiveActive,
+                    liveText = expressiveText,
+                    sentiment = expressiveSent
+                )
+            )
+        }
+
+        traceUi(
+            stage = "list_commit_prepend_prepare",
+            details = "chatId=${chatId ?: "unknown"} prepended=$newCount total=${messages.size}"
+        )
+        return newItems
     }
 
     private fun updateSendButtonState(hasText: Boolean) {

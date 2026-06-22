@@ -1664,12 +1664,26 @@ class ChatAdapter(
             }
             chip.text = display
 
-            val bg = android.graphics.drawable.GradientDrawable().apply {
-                shape = if (isSingle) android.graphics.drawable.GradientDrawable.OVAL
-                        else android.graphics.drawable.GradientDrawable.RECTANGLE
-                if (!isSingle) cornerRadius = dpToPx(16f).toFloat()
-                setColor(android.graphics.Color.parseColor("#2A2A2A"))
-                setStroke(dpToPx(1f).coerceAtLeast(1), android.graphics.Color.parseColor("#33FFFFFF"))
+            val bg = if (isScrolling && chip.background is android.graphics.drawable.GradientDrawable) {
+                // During scroll, mutate the existing drawable instead of allocating a new one.
+                // A new GradientDrawable allocation + native paint setup costs ~2-4ms per bind;
+                // reusing the existing background cuts that to near-zero. The animation gap
+                // (old color → new color) is invisible mid-fling because rows blur past.
+                (chip.background as android.graphics.drawable.GradientDrawable).apply {
+                    shape = if (isSingle) android.graphics.drawable.GradientDrawable.OVAL
+                            else android.graphics.drawable.GradientDrawable.RECTANGLE
+                    if (!isSingle) setCornerRadius(dpToPx(16f).toFloat())
+                    setColor(android.graphics.Color.parseColor("#2A2A2A"))
+                    setStroke(dpToPx(1f).coerceAtLeast(1), android.graphics.Color.parseColor("#33FFFFFF"))
+                }
+            } else {
+                android.graphics.drawable.GradientDrawable().apply {
+                    shape = if (isSingle) android.graphics.drawable.GradientDrawable.OVAL
+                            else android.graphics.drawable.GradientDrawable.RECTANGLE
+                    if (!isSingle) cornerRadius = dpToPx(16f).toFloat()
+                    setColor(android.graphics.Color.parseColor("#2A2A2A"))
+                    setStroke(dpToPx(1f).coerceAtLeast(1), android.graphics.Color.parseColor("#33FFFFFF"))
+                }
             }
             chip.background = bg
             if (isSingle) {
