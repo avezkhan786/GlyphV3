@@ -5395,10 +5395,10 @@ fun ChatInput(
                                 contentAlignment = Alignment.Center
                             ) {
                                 val transition = updateTransition(targetState = isTyping, label = "InputIcons")
-                                
+
                                 val cameraScale by transition.animateFloat(
                                     label = "CameraScale",
-                                    transitionSpec = { 
+                                    transitionSpec = {
                                         if (targetState) {
                                             tween(durationMillis = 120, easing = FastOutLinearInEasing)
                                         } else {
@@ -5406,10 +5406,10 @@ fun ChatInput(
                                         }
                                     }
                                 ) { typing -> if (typing) 0f else 1f }
-                                
+
                                 val cameraAlpha by transition.animateFloat(
-                                    label = "CameraAlpha", 
-                                    transitionSpec = { 
+                                    label = "CameraAlpha",
+                                    transitionSpec = {
                                         if (targetState) {
                                             tween(durationMillis = 100)
                                         } else {
@@ -5417,10 +5417,10 @@ fun ChatInput(
                                         }
                                     }
                                 ) { typing -> if (typing) 0f else 1f }
-                                
+
                                 val aiScale by transition.animateFloat(
                                     label = "AiScale",
-                                    transitionSpec = { 
+                                    transitionSpec = {
                                         if (targetState) {
                                             tween(durationMillis = 220, delayMillis = 120, easing = FastOutSlowInEasing)
                                         } else {
@@ -5431,7 +5431,7 @@ fun ChatInput(
 
                                 val aiAlpha by transition.animateFloat(
                                     label = "AiAlpha",
-                                    transitionSpec = { 
+                                    transitionSpec = {
                                         if (targetState) {
                                             tween(durationMillis = 150, delayMillis = 120)
                                         } else {

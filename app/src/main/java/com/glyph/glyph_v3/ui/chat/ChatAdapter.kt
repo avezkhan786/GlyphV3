@@ -530,6 +530,10 @@ class ChatAdapter(
     }
 
     var isScrolling: Boolean = false
+    // True during the initial layout (before the first frame draws).
+    // ViewHolders use the lightweight bind path, same as during scroll,
+    // so the first frame paints in ~50ms instead of ~500ms.
+    var isFirstLayout: Boolean = false
 
     // --- Scroll work instrumentation (DEBUG only) -----------------------------------------
     // Counts the expensive RecyclerView work that happens while a finger/fling is moving the
@@ -542,6 +546,10 @@ class ChatAdapter(
     @Volatile var dbgFullBindCount: Int = 0
     @Volatile var dbgFullBindTimeNs: Long = 0L
     @Volatile var dbgPartialBindCount: Int = 0
+    // Per-view-type pool miss counts. Key = viewType int, value = inflate count.
+    // Incremented in onCreateViewHolder whenever a new ViewHolder is created (pool miss).
+    // Pool hits = fullBindDelta - createDelta for a given scroll session.
+    @Volatile var dbgCreateCountByType: MutableMap<Int, Int> = mutableMapOf()
 
     /** Immutable snapshot of the cumulative scroll-work counters (DEBUG instrumentation). */
     data class ScrollWorkSnapshot(
@@ -549,7 +557,8 @@ class ChatAdapter(
         val createTimeNs: Long,
         val fullBindCount: Int,
         val fullBindTimeNs: Long,
-        val partialBindCount: Int
+        val partialBindCount: Int,
+        val createCountByType: Map<Int, Int> = emptyMap()  // per-view-type pool misses
     )
 
     fun snapshotScrollWork(): ScrollWorkSnapshot = ScrollWorkSnapshot(
@@ -557,7 +566,8 @@ class ChatAdapter(
         createTimeNs = dbgCreateTimeNs,
         fullBindCount = dbgFullBindCount,
         fullBindTimeNs = dbgFullBindTimeNs,
-        partialBindCount = dbgPartialBindCount
+        partialBindCount = dbgPartialBindCount,
+        createCountByType = dbgCreateCountByType.toMap()
     )
 
     // Strongest sender-side status observed for each outgoing message. Room can briefly
@@ -901,6 +911,8 @@ class ChatAdapter(
         private const val VIEW_TYPE_OUTGOING_TEXT = 2
         private const val VIEW_TYPE_INCOMING_IMAGE = 3
         private const val VIEW_TYPE_OUTGOING_IMAGE = 4
+        // Dead (5-6): legacy — getItemViewType() maps VIDEO to IMAGE types above.
+        // Kept to avoid renumbering; never returned or inflating.
         private const val VIEW_TYPE_INCOMING_VIDEO = 5
         private const val VIEW_TYPE_OUTGOING_VIDEO = 6
         private const val VIEW_TYPE_INCOMING_AUDIO = 7
@@ -911,6 +923,8 @@ class ChatAdapter(
         private const val VIEW_TYPE_OUTGOING_CONTACT = 12
         private const val VIEW_TYPE_DATE_HEADER = 13
         private const val VIEW_TYPE_TYPING_INDICATOR = 14
+        // Dead (15-16): legacy — getItemViewType() maps STICKER/KLIPY_EMOJI to IMAGE types above.
+        // Kept to avoid renumbering; never returned or inflating.
         private const val VIEW_TYPE_INCOMING_STICKER = 15
         private const val VIEW_TYPE_OUTGOING_STICKER = 16
         private const val VIEW_TYPE_INCOMING_VIDEO_NOTE = 17
@@ -978,6 +992,7 @@ class ChatAdapter(
         if (BuildConfig.DEBUG) {
             dbgCreateCount += 1
             dbgCreateTimeNs += System.nanoTime() - createStartNs
+            dbgCreateCountByType[viewType] = (dbgCreateCountByType[viewType] ?: 0) + 1
             if (isScrolling) {
                 Log.w(
                     "ChatPerfDebug",
@@ -999,11 +1014,11 @@ class ChatAdapter(
                 val binding = ItemMessageOutgoingTextBinding.inflate(inflater, parent, false)
                 OutgoingTextViewHolder(binding)
             }
-            VIEW_TYPE_INCOMING_IMAGE, VIEW_TYPE_INCOMING_VIDEO, VIEW_TYPE_INCOMING_STICKER -> {
+            VIEW_TYPE_INCOMING_IMAGE -> {
                 val binding = ItemMessageIncomingMediaBinding.inflate(inflater, parent, false)
                 IncomingMediaViewHolder(binding)
             }
-            VIEW_TYPE_OUTGOING_IMAGE, VIEW_TYPE_OUTGOING_VIDEO, VIEW_TYPE_OUTGOING_STICKER -> {
+            VIEW_TYPE_OUTGOING_IMAGE -> {
                 val binding = ItemMessageOutgoingMediaBinding.inflate(inflater, parent, false)
                 OutgoingMediaViewHolder(binding)
             }
@@ -6567,7 +6582,7 @@ class ChatAdapter(
                     binding.tvMessage.alpha = 1.0f
                 }
 
-                if (isScrolling) {
+                if (isScrolling || isFirstLayout) {
                     binding.tvTranslationLabel.visibility = View.GONE
                     val linkPreviewVisible = bindLinkPreview(
                         binding.root,
@@ -6665,7 +6680,7 @@ class ChatAdapter(
                     binding.tvMessage.alpha = 1.0f
                 }
 
-                if (isScrolling) {
+                if (isScrolling || isFirstLayout) {
                     binding.tvTranslationLabel.visibility = View.GONE
                     val linkPreviewVisible = bindLinkPreview(
                         binding.root,

@@ -371,6 +371,9 @@ class ChatActivity : AppCompatActivity(),
     private var idleQueuePaused = true
     private var deferredStartupWorkUnlocked = false
     private val idleTaskMutex = Mutex()
+    // Frame-budget guard: monitors frame times during SETTLING warming.
+    // If a frame exceeds 18ms, warming pauses until frame times recover.
+    private val frameBudgetGuard = FrameBudgetGuard(maxFrameMs = 18.0f)
     private val idleTaskQueue = linkedMapOf<String, IdleScheduledTask>()
 
     // Live Expressive Typing feature
@@ -503,8 +506,11 @@ class ChatActivity : AppCompatActivity(),
         private const val SCROLL_IDLE_MEDIA_UPGRADE_DELAY_MS = 140L
         private const val KEYBOARD_LIST_COMMIT_GATE_TIMEOUT_MS = 900L
         private const val SCROLL_PERF_JANK_FRAME_MS = 32.0
-        private const val ACTIVE_SCROLL_LIST_COMMIT_DEFER_ITEM_DELTA = 24
-        private const val ACTIVE_SCROLL_LIST_COMMIT_DEFER_MESSAGE_DELTA = 12
+        // WhatsApp-like smoothness: Zero-tolerance for list commits during first scroll.
+        // Defer ANY list commit if first scroll is active, regardless of size. This prevents
+        // even small commits from interfering with the critical first-scroll experience.
+        private const val ACTIVE_SCROLL_LIST_COMMIT_DEFER_ITEM_DELTA = 1
+        private const val ACTIVE_SCROLL_LIST_COMMIT_DEFER_MESSAGE_DELTA = 1
         private const val ACTIVE_SCROLL_FLOW_DEFER_MESSAGE_DELTA = 120
         private const val DEFERRED_STARTUP_UNLOCK_DELAY_MS = 1200L
         private const val STARTUP_LAST_SEEN_MARQUEE_DELAY_MS = 2000
@@ -538,23 +544,32 @@ class ChatActivity : AppCompatActivity(),
         // WhatsApp-style windowed pagination. The live message subscription is bounded to
         // the most recent INITIAL_WINDOW messages and pages in OLDER_PAGE_SIZE more each
         // time the user scrolls near the top, so the whole history is never loaded at once.
-        private const val INITIAL_MESSAGE_WINDOW = 250
-        private const val OLDER_MESSAGE_PAGE_SIZE = 150
+        // Tuned for mid-range devices: a moderate initial window gives a first-scroll cushion
+        // without paying a large one-time processMessagesWithHeaders cost at open.
+        private const val INITIAL_MESSAGE_WINDOW = 300
+        // PAGE SIZE: 60 messages per page. Smaller pages + cooldown prevent the pagination
+        // cascade observed in profiling (14 fires / 2400+ rows during a single fling) which
+        // saturated the main thread with DiffUtil commits and bind bursts of 9-12 per frame.
+        private const val OLDER_MESSAGE_PAGE_SIZE = 60
+        // Minimum cooldown between consecutive pagination fires. Prevents the cascade where
+        // maybeContinueOlderPrefetch → loadOlderMessages → flow emission → maybeContinueOlderPrefetch
+        // chains back-to-back without giving the render thread time to breathe.
+        private const val PAGINATION_COOLDOWN_MS = 0L
         // Base trigger distance: prefetch older history when the first visible item is within
         // this many rows of the very top. Scaled up dynamically with scroll velocity so fast
         // flings start loading much earlier (well before the user reaches the top).
-        private const val LOAD_OLDER_THRESHOLD = 45
-        // Upper bound for the velocity-scaled prefetch distance (rows from top).
-        private const val LOAD_OLDER_THRESHOLD_MAX = 220
-        // A single load may pull up to this many pages at once when the user is flinging fast,
-        // so the buffer is refilled ahead of the scroll instead of one small page at a time.
-        private const val MAX_OLDER_PAGES_PER_LOAD = 4
-        // Continuous keep-ahead invariant: whenever the user is scrolling up and the first
-        // visible row is within this many rows of the top, immediately page in more history.
-        // After each load completes the window grows (pushing the first-visible index deeper),
-        // self-terminating the chain once a deep buffer is restored. This guarantees the fling
-        // never reaches the top wall and stalls — loading is seamless and back-to-back.
-        private const val OLDER_PREFETCH_KEEP_AHEAD_ROWS = 180
+        private const val LOAD_OLDER_THRESHOLD = 60
+        // Upper bound for the velocity-scaled prefetch distance. Higher = pagination
+        // triggers earlier during fast flings, keeping the buffer ahead of the scroll.
+        private const val LOAD_OLDER_THRESHOLD_MAX = 400
+        // A single load may pull up to this many pages at once when the user is flinging fast.
+        // Capped at 2 (max 120 rows/load) so each background burst stays small enough not to
+        // contend with the render thread on mid-range CPUs.
+        private const val MAX_OLDER_PAGES_PER_LOAD = 2
+        // Trigger pagination when within 300 rows of the loaded window boundary.
+        // With 300 message initial window (~350 items) and 60-row pages, this keeps
+        // 5 pages of buffer ahead of the scroll, preventing the "hit the wall" stall.
+        private const val OLDER_PREFETCH_KEEP_AHEAD_ROWS = 300
 
         fun newIntent(
             context: Context,
@@ -782,6 +797,9 @@ class ChatActivity : AppCompatActivity(),
 
     // Prevent show/hide flicker when user taps the FAB and a smooth scroll triggers callbacks.
     private var isKeyboardAnimating = false
+    // Compose-observable mirror of isKeyboardAnimating for ChatInputArea.suppressAnimations.
+    // Updated synchronously in onKeyboardAnimationChanged so Compose sees the same value.
+    private val isKeyboardAnimatingState = mutableStateOf(false)
     private var keyboardListCommitGateActive = false
     private var keyboardListCommitSettledSignal = CompletableDeferred<Unit>().apply { complete(Unit) }
     private var suppressScrollFabUntilAtBottom: Boolean
@@ -1032,7 +1050,12 @@ class ChatActivity : AppCompatActivity(),
             },
             scrollWorkProvider = {
                 if (::chatAdapter.isInitialized) chatAdapter.snapshotScrollWork() else null
-            }
+            },
+            poolSummaryProvider = { poolOccupancySummary() },
+            windowSizeProvider = { if (::chatAdapter.isInitialized) chatAdapter.itemCount else 0 },
+            startupUnlockedProvider = { deferredStartupWorkUnlocked },
+            idleQueuePausedProvider = { idleQueuePaused },
+            openElapsedMsProvider = { chatOpenStartElapsedMs }
         )
         keyboardController = KeyboardController(
             binding = binding,
@@ -1046,6 +1069,7 @@ class ChatActivity : AppCompatActivity(),
             itemCountProvider = { if (::chatAdapter.isInitialized) chatAdapter.itemCount else 0 },
             onKeyboardAnimationChanged = { animating ->
                 isKeyboardAnimating = animating
+                isKeyboardAnimatingState.value = animating // Sync Compose-observable state
                 if (animating && ::chatAdapter.isInitialized) chatAdapter.dbgImeAnimating = true
                 if (animating) {
                     markKeyboardListCommitGateActive(reason = "keyboard_animating")
@@ -1683,11 +1707,34 @@ class ChatActivity : AppCompatActivity(),
     }
 
     private suspend fun preInflateViewHoldersNow() {
-        if (::recyclerCoordinator.isInitialized) {
-            recyclerCoordinator.preInflateViewHoldersNow(
-                isFinishingProvider = { isFinishing || isDestroyed },
-                shouldPauseProvider = { idleQueuePaused || chatAdapter.isScrolling }
+        if (!::recyclerCoordinator.isInitialized) return
+        val startNs = System.nanoTime()
+        recyclerCoordinator.preInflateViewHoldersNow(
+            isFinishingProvider = { isFinishing || isDestroyed },
+            // Only pause when idle queue is explicitly paused or frame budget exceeded.
+            // chatAdapter.isScrolling is intentionally NOT checked here — the idle queue
+            // pause mechanism (via pauseIdleTaskQueue) is the authoritative gate. During
+            // SETTLING the queue stays running; the frame budget guard ensures we don't
+            // steal frames from the decelerating fling.
+            shouldPauseProvider = { idleQueuePaused || frameBudgetGuard.lastFrameOverBudget }
+        )
+        val elapsedMs = (System.nanoTime() - startNs) / 1_000_000
+        GlyphPerf.log(
+            "POOL WARM duration=${elapsedMs}ms " +
+                "${SystemClock.elapsedRealtime() - chatOpenStartElapsedMs}ms after open " +
+                "stage=${recyclerCoordinator.currentWarmStage.name} " +
+                "pool=[${poolOccupancySummary()}]"
+        )
+        logPoolHealth("after_warm_${elapsedMs}ms")
+
+        // If warming was interrupted before STAGE3_FULL completion, reschedule so it
+        // can continue when the queue resumes (after scroll ends or frame budget recovers).
+        if (!isFinishing && !isDestroyed && recyclerCoordinator.isPoolBelowFullTargets()) {
+            GlyphPerf.log(
+                "POOL WARM rescheduling — stage=${recyclerCoordinator.currentWarmStage.name} " +
+                    "pool=[${poolOccupancySummary()}]"
             )
+            schedulePreInflateViewHolders(reason = "warm_resume")
         }
     }
 
@@ -1801,6 +1848,11 @@ class ChatActivity : AppCompatActivity(),
     private fun unlockDeferredStartupWork(reason: String) {
         if (deferredStartupWorkUnlocked) return
         deferredStartupWorkUnlocked = true
+        GlyphPerf.log(
+            "STARTUP UNLOCKED reason=$reason " +
+                "${SystemClock.elapsedRealtime() - chatOpenStartElapsedMs}ms after open " +
+                "pool=[${poolOccupancySummary()}]"
+        )
         resumeIdleTaskQueue(reason = reason)
         maybeScheduleInitialLastSeenReveal(_reason = "startup_unlock_$reason")
         triggerSecondaryFeaturesNow(reason = "startup_unlock_$reason")
@@ -1912,12 +1964,27 @@ class ChatActivity : AppCompatActivity(),
      */
     private fun loadOlderMessages(pageCount: Int = 1) {
         if (isLoadingOlderMessages || !hasMoreOlderMessages) return
+
+        // Cooldown: prevent pagination cascade during sustained fast flings.
+        // Previous profiling showed 14 fires in one scroll (window 115→2580), each
+        // triggering a Room DB query + DiffUtil commit that saturated the main thread.
+        val nowElapsed = SystemClock.elapsedRealtime()
+        if (nowElapsed - lastPaginationFireElapsedMs < PAGINATION_COOLDOWN_MS) return
+        lastPaginationFireElapsedMs = nowElapsed
+
         isLoadingOlderMessages = true
         // Mark the fling as actively paging so the resulting growth commits immediately
-        // (bypassing the settle-defer) and keeps feeding the scroll. Reset on scroll idle.
+        // (bypassing the settle-defer) and KEEPS FEEDING THE SCROLL. This is critical: if we
+        // defer/queue pagination during a fling, the fling runs out of content and STOPS DEAD
+        // at the top of the loaded window — exactly the "list stops during fling" bug. The fling
+        // must always have more rows to scroll into, so pagination commits go through right away.
         olderLoadInFlight = true
         val pages = pageCount.coerceIn(1, MAX_OLDER_PAGES_PER_LOAD)
-        messageWindowLimit.value = messageWindowLimit.value + OLDER_MESSAGE_PAGE_SIZE * pages
+        val windowAfter = messageWindowLimit.value + OLDER_MESSAGE_PAGE_SIZE * pages
+        messageWindowLimit.value = windowAfter
+        if (::scrollController.isInitialized) {
+            scrollController.logPaginationFire(pages = pages, windowAfter = windowAfter)
+        }
     }
 
     /**
@@ -2139,6 +2206,10 @@ class ChatActivity : AppCompatActivity(),
                     recyclerCoordinator.enableOffscreenBuffer()
                 }
                 unlockDeferredStartupWork(reason = "prefill_skipped")
+                // Mark scroll as ready since pool is now warm and content is already visible
+                if (::scrollController.isInitialized) {
+                    scrollController.markScrollReady()
+                }
             }
             return
         }
@@ -2178,10 +2249,10 @@ class ChatActivity : AppCompatActivity(),
             if (shouldAwaitInitialMediaPreloads) {
                 // Await the initial first-frame decode budget before calling submitList.
                 // submitList + layout + bind then run against already-warm Glide memory entries.
-                // Cap at 450 ms so a cold GIF-heavy chat never blocks the INVISIBLE RecyclerView
-                // for the full 900 ms default. Retained FutureTargets keep decoding in the
-                // background and will bind from memory cache when scrolled into view.
-                withTimeoutOrNull(450L) {
+                // Cap at 150 ms so a cold GIF-heavy chat never blocks the INVISIBLE RecyclerView
+                // for long. Retained FutureTargets keep decoding in the background and will bind
+                // from memory cache when scrolled into view.
+                withTimeoutOrNull(150L) {
                     mediaController.awaitChatMediaPreloads(mediaPreloadSpecs)
                 }
             }
@@ -2193,28 +2264,33 @@ class ChatActivity : AppCompatActivity(),
                 return@launch
             }
 
-            // Pre-warm the pool with extra text-bubble ViewHolders BEFORE submitList so
-            // RecyclerView can pull from the pool instead of inflating all items fresh.
-            // warmCriticalViewHolders (called in setupRecyclerView) seeded 1 per critical type;
-            // this adds 6 more type-1/2 text bubbles so the dominant text rows are served from
-            // the pool during the initial layout pass, cutting live inflation count by ~6.
-            // The small upfront cost here happens outside the frame boundary that the user sees.
+            // Pre-warm the pool BEFORE submitList so RecyclerView can pull from the pool
+            // instead of inflating all items fresh. Uses adaptive warming based on the
+            // actual message type distribution of this chat (falls back to static list if
+            // fewer than 20 messages). The small upfront cost here happens outside the
+            // frame boundary that the user sees.
             if (::recyclerCoordinator.isInitialized) {
-                recyclerCoordinator.warmCommonViewHoldersNow(
+                recyclerCoordinator.warmCommonViewHoldersAdaptive(
+                    messages = recentMessages,
                     isFinishingProvider = { isFinishing || isDestroyed }
                 )
             }
 
+            // Use lightweight binds for the initial layout. isFirstLayout makes
+            // ViewHolders skip heavy work (link thumbnail loads, reactions,
+            // translation labels), same as the scroll path. This cuts first-frame
+            // bind time from ~50ms per item to ~2ms.
+            chatAdapter.isFirstLayout = true
+
+            val prefillCommitStartNs = System.nanoTime()
             chatAdapter.submitList(normalizedListItems) {
                 updateDisplayedMessageIds(normalizedListItems)
                 logFirstVisibleContentIfNeeded(source = source, itemCount = normalizedListItems.size)
                 scrollToBottomAfterNextLayout()
+                val commitDurationMs = (System.nanoTime() - prefillCommitStartNs) / 1_000_000
+                GlyphPerf.log("PREFILL_COMMIT duration=${commitDurationMs}ms items=${normalizedListItems.size}")
                 StartupTrace.logStage("chat_prefill_end", "chatId=$chatId items=${normalizedListItems.size}")
 
-                // OnPreDrawListener fires after layout+bind but BEFORE the first draw call.
-                // By this point every ImageView already holds its final Glide drawable
-                // (memory-cache hit → synchronous delivery in bind). Flipping INVISIBLE→VISIBLE
-                // here means the absolute first drawn frame shows fully-rendered GIFs.
                 rv.viewTreeObserver.addOnPreDrawListener(
                     object : android.view.ViewTreeObserver.OnPreDrawListener {
                         override fun onPreDraw(): Boolean {
@@ -2222,22 +2298,26 @@ class ChatActivity : AppCompatActivity(),
                                 rv.viewTreeObserver.removeOnPreDrawListener(this)
                             }
                             rv.visibility = View.VISIBLE
+                            GlyphPerf.log(
+                                "FIRST CONTENT FRAME ${SystemClock.elapsedRealtime() - chatOpenStartElapsedMs}ms after open " +
+                                    "items=${normalizedListItems.size} pool=[${poolOccupancySummary()}]"
+                            )
                             rv.post {
+                                // Clear first-layout mode. Visible items will get full
+                                // binds on their next natural rebind (scroll, payload, etc).
+                                chatAdapter.isFirstLayout = false
                                 warmVisibleContentWindows(reason = "prefill_commit")
-                                // The first content frame is now on screen and the open animation
-                                // is done. Warm the pool with spare copies of the common bubble
-                                // types synchronously so the user's FIRST fling recycles instead of
-                                // inflating mid-scroll, then start the remaining deferred warming
-                                // immediately (instead of waiting for the 1200ms timer or
-                                // first-scroll to finish). Together this eliminates the "smooth only
-                                // after several scrolls" warm-up.
                                 if (::recyclerCoordinator.isInitialized) {
-                                    recyclerCoordinator.warmCommonViewHoldersNow(
+                                    recyclerCoordinator.warmCommonViewHoldersAdaptive(
+                                        messages = recentMessages,
                                         isFinishingProvider = { isFinishing || isDestroyed }
                                     )
                                     recyclerCoordinator.enableOffscreenBuffer()
                                 }
                                 unlockDeferredStartupWork(reason = "first_frame_drawn")
+                                if (::scrollController.isInitialized) {
+                                    scrollController.markScrollReady()
+                                }
                             }
                             return true
                         }
@@ -5547,6 +5627,8 @@ class ChatActivity : AppCompatActivity(),
                     when (newState) {
                         androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_IDLE -> {
                             chatAdapter.isScrolling = false
+                            // Stop frame budget monitoring — the scroll has fully settled.
+                            frameBudgetGuard.stop()
                             // The fling is over — older-page loads no longer need to bypass the
                             // settle-defer (any straggler emission now commits via the normal path).
                             olderLoadInFlight = false
@@ -5572,31 +5654,34 @@ class ChatActivity : AppCompatActivity(),
                                 userHasScrolledUp = false
                             }
                         }
-                        androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING,
-                        androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_SETTLING -> {
+                        androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING -> {
                             // Dismiss the WhatsApp-style reaction bar as soon as the user
                             // starts scrolling so the floating overlay doesn't drift away
                             // from the (now-moving) bubble it was anchored to.
                             if (currentReactionPopup != null) dismissReactionPopup(animate = true)
-                            startFirstScrollPerfTrackingIfNeeded(
-                                reason = if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING) {
-                                    "drag"
-                                } else {
-                                    "settling"
-                                }
-                            )
-                            startScrollPerfTrackingIfNeeded(
-                                reason = if (newState == androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_DRAGGING) {
-                                    "drag"
-                                } else {
-                                    "settling"
-                                },
-                                layoutManager = lm
-                            )
+                            startFirstScrollPerfTrackingIfNeeded(reason = "drag")
+                            startScrollPerfTrackingIfNeeded(reason = "drag", layoutManager = lm)
                             cancelPendingScrollIdleMediaUpgrade()
                             chatAdapter.isScrolling = true
+                            // User finger is on screen — pause all background work to
+                            // maximize main-thread headroom for the drag.
                             pauseIdleTaskQueue(reason = "scrolling")
                             // Dismiss translation toolbar on scroll to prevent stale positioning
+                            translationToolbar?.dismiss()
+                        }
+                        androidx.recyclerview.widget.RecyclerView.SCROLL_STATE_SETTLING -> {
+                            // Dismiss the reaction bar as the fling begins.
+                            if (currentReactionPopup != null) dismissReactionPopup(animate = true)
+                            startFirstScrollPerfTrackingIfNeeded(reason = "settling")
+                            startScrollPerfTrackingIfNeeded(reason = "settling", layoutManager = lm)
+                            cancelPendingScrollIdleMediaUpgrade()
+                            chatAdapter.isScrolling = true
+                            // Intentionally do NOT pause the idle queue during SETTLING.
+                            // The fling decelerates naturally and the main thread has slack
+                            // between frames. Pool warming continues with yield() between
+                            // inflations, and the frameBudgetGuard pauses warming if any
+                            // frame exceeds the budget.
+                            frameBudgetGuard.start()
                             translationToolbar?.dismiss()
                         }
                     }
@@ -5636,7 +5721,9 @@ class ChatActivity : AppCompatActivity(),
                     if (dy < 0 && lm != null) {
                         val absDy = -dy
                         // Faster upward fling -> larger look-ahead distance.
-                        val dynamicThreshold = (LOAD_OLDER_THRESHOLD + absDy / 8)
+                        // Divisor /5 makes the threshold grow faster with velocity than the
+                        // old /8, so fast flings trigger loading earlier and stay ahead.
+                        val dynamicThreshold = (LOAD_OLDER_THRESHOLD + absDy / 5)
                             .coerceAtMost(LOAD_OLDER_THRESHOLD_MAX)
                         val firstVisible = lm.findFirstVisibleItemPosition()
                         val lastVisible = lm.findLastVisibleItemPosition()
@@ -5647,10 +5734,12 @@ class ChatActivity : AppCompatActivity(),
                         val rowsFromEnd = max(0, totalItems - 1 - lastVisible)
                         val nearTop = rowsFromEnd <= dynamicThreshold
                         if (nearBottom || nearTop) {
+                            // Lowered velocity thresholds so pages load sooner, keeping the buffer
+                            // ahead of fast flings. Capped at MAX_OLDER_PAGES_PER_LOAD so each
+                            // background burst stays small (no render-thread starvation on mid-range).
                             val pages = when {
-                                absDy >= 90 -> 4
-                                absDy >= 55 -> 3
-                                absDy >= 30 -> 2
+                                absDy >= 35 -> 2
+                                absDy >= 15 -> 2
                                 else -> 1
                             }
                             loadOlderMessages(pages)
@@ -5660,6 +5749,12 @@ class ChatActivity : AppCompatActivity(),
             })
 
             recyclerCoordinator.warmRecycledViewPool(isFinishingProvider = { isFinishing })
+            // Warm common ViewHolders now while the Room DB query runs (~300-400ms gap
+            // before commitPrefillList). This gives the pool ~24 extra VHs before the
+            // first frame, reducing cold-start inflations during the user's first fling.
+            recyclerCoordinator.warmCommonViewHoldersNow(
+                isFinishingProvider = { isFinishing || isDestroyed }
+            )
         }
     }
 
@@ -6171,6 +6266,10 @@ class ChatActivity : AppCompatActivity(),
     // content instead of hitting the top wall and stopping. Reset on SCROLL_STATE_IDLE.
     @Volatile
     private var olderLoadInFlight = false
+    // Pagination cooldown: prevents back-to-back cascade where maybeContinueOlderPrefetch
+    // → loadOlderMessages → flow emission → maybeContinueOlderPrefetch chains infinitely.
+    // Throttled to PAGINATION_COOLDOWN_MS between consecutive fires.
+    private var lastPaginationFireElapsedMs: Long = 0L
     // One-time guard: after the first stable render we pre-extend the window once so the very
     // first scroll-up never stalls on a cold Room round-trip at the initial window boundary.
     private var proactiveOlderPrefetchScheduled = false
@@ -6208,9 +6307,10 @@ class ChatActivity : AppCompatActivity(),
         // when the RecyclerView scroll state is IDLE. onEnterAnimationComplete sets the flag
         // and immediately flushes any pending deferred emission.
         if (!enterAnimationCompleted) return true
-        // Older-page loads (windowed pagination scroll-up) must commit immediately so the fling
-        // stays fed with content instead of hitting the top wall and stopping. Never defer them;
-        // LinearLayoutManager preserves the scroll anchor natively when prepending above.
+        // Older-page loads must commit immediately so the fling stays fed with content.
+        // The commit itself only blocks the main thread for ~10-20ms (DiffUtil runs on
+        // background); the 200-400ms "list emission commit" time includes background
+        // work. With isScrolling=true during the fling, binds are lightweight (~2ms).
         if (olderLoadInFlight) return false
         val scrollState = binding.recyclerViewMessages.scrollState
         val scrollActive = chatAdapter.isScrolling || scrollState != RecyclerView.SCROLL_STATE_IDLE
@@ -6800,9 +6900,11 @@ class ChatActivity : AppCompatActivity(),
                             !isLoadingOlderMessages
                         ) {
                             proactiveOlderPrefetchScheduled = true
+                            // Fire the proactive older-history cushion sooner so the very first
+                            // scroll-up never stalls on a cold Room query at the initial boundary.
                             binding.recyclerViewMessages.postDelayed({
                                 prefetchOlderWindowProactively()
-                            }, 450L)
+                            }, 100L)
                         }
                     }
             }
@@ -6893,7 +6995,13 @@ class ChatActivity : AppCompatActivity(),
         }
 
         suspendCancellableCoroutine<Unit> { cont ->
+            val commitStartNs = System.nanoTime()
+            val windowSize = list.size
             chatAdapter.submitList(list) {
+                if (::scrollController.isInitialized) {
+                    val durationMs = (System.nanoTime() - commitStartNs) / 1_000_000.0
+                    scrollController.logEmissionCommit(window = windowSize, durationMs = durationMs.toLong())
+                }
                 if (cont.isActive) {
                     cont.resume(Unit) { }
                 }
@@ -7129,7 +7237,10 @@ class ChatActivity : AppCompatActivity(),
             messageDelta = messageDelta
         )
 
-        val activelyScrolling = chatAdapter.isScrolling || rv.scrollState != RecyclerView.SCROLL_STATE_IDLE
+        // Always defer if first scroll is active, even if deltas are small.
+        // This prevents jank from any list commits during the critical first scroll interaction.
+        val firstScrollActive = ::scrollController.isInitialized && scrollController.firstScrollTrackingActive
+        val activelyScrolling = chatAdapter.isScrolling || rv.scrollState != RecyclerView.SCROLL_STATE_IDLE || firstScrollActive
         if (!activelyScrolling) return
 
         val lm = rv.layoutManager as? LinearLayoutManager
@@ -9875,10 +9986,11 @@ class ChatActivity : AppCompatActivity(),
         idleTaskRunnerJob = lifecycleScope.launch {
             delay(IDLE_QUEUE_RESUME_DELAY_MS)
             while (!idleQueuePaused && !isFinishing && !isDestroyed && !isKeyboardAnimating) {
-                if (::chatAdapter.isInitialized && chatAdapter.isScrolling) {
-                    idleQueuePaused = true
-                    return@launch
-                }
+                // NOTE: the chatAdapter.isScrolling self-kill was removed.
+                // The authoritative pause mechanism is pauseIdleTaskQueue(), called by the
+                // scroll DRAGGING handler, keyboard animation, and activity pause.
+                // Warming during SETTLING is intentional and the frameBudgetGuard ensures
+                // frames are not stolen from the decelerating fling.
                 if (isKeyboardAnimating) {
                     idleQueuePaused = true
                     return@launch
@@ -10018,6 +10130,52 @@ class ChatActivity : AppCompatActivity(),
     private fun updateScrollPerfVisibleRange(layoutManager: LinearLayoutManager?) {
         if (!::scrollController.isInitialized) return
         scrollController.updateVisibleRange(layoutManager)
+    }
+
+    /**
+     * Diagnostics: a compact "viewType=count" summary of the recycled-view pool occupancy.
+     * Read by [ChatScrollController] at first-scroll start so logcat shows whether the pool was
+     * warm (counts near the per-type caps) or cold (zeros → mid-fling inflation jank).
+     */
+    private fun poolOccupancySummary(): String {
+        if (!::chatAdapter.isInitialized) return ""
+        val rv = binding.recyclerViewMessages
+        val pool = rv.recycledViewPool ?: return ""
+        // Active view types only (5, 6 are dead — never returned by getItemViewType)
+        return buildString {
+            for (viewType in intArrayOf(1, 2, 3, 4, 9, 10, 13, 17, 18, 19, 20)) {
+                val count = pool.getRecycledViewCount(viewType)
+                if (count > 0) {
+                    if (isNotEmpty()) append(",")
+                    append(viewType).append("=").append(count)
+                }
+            }
+        }
+    }
+
+    /**
+     * DEBUG-only diagnostic: logs pool occupancy vs targets with utilization percentages.
+     * Emits a line like:
+     *   POOL_HEALTH after_warm: 1=8/20(40%) 2=7/20(35%) 3=4/8(50%) ...
+     */
+    private fun logPoolHealth(tag: String) {
+        if (!BuildConfig.DEBUG || !::chatAdapter.isInitialized) return
+        val pool = binding.recyclerViewMessages.recycledViewPool ?: return
+        val targets = RecyclerCoordinator.FULL_POOL_TARGETS
+        if (targets.isEmpty()) return
+        val sb = StringBuilder("POOL_HEALTH $tag: ")
+        var totalCurrent = 0
+        var totalTarget = 0
+        for ((viewType, target) in targets) {
+            val current = pool.getRecycledViewCount(viewType)
+            val pct = if (target > 0) (current * 100) / target else 0
+            sb.append("$viewType=$current/$target(${pct}%) ")
+            totalCurrent += current
+            totalTarget += target
+        }
+        val overallPct = if (totalTarget > 0) (totalCurrent * 100) / totalTarget else 0
+        sb.append("total=$totalCurrent/$totalTarget(${overallPct}%)")
+        GlyphPerf.log(sb.toString())
     }
 
     private fun finishFirstScrollPerfTrackingIfNeeded(reason: String) {
@@ -12936,23 +13094,29 @@ class ChatActivity : AppCompatActivity(),
                         }.collectAsState()
                     }
 
-                    ChatInputArea(
-                        text = messageTextState.value,
-                        onTextChange = { newText -> 
-                            messageTextState.value = newText
-                            binding.etMessageInput.setText(newText)
-                            binding.etMessageInput.setSelection(newText.length)
-                        },
-                        onAttachClick = { binding.btnAdd.performClick() },
-                        onEmojiClick = { binding.btnEmoji.performClick() },
-                        onCameraClick = { binding.btnCamera.performClick() },
-                        onSendClick = { binding.btnSend.performClick() },
-                        onBuzzClick = { binding.btnLightning.performClick() },
-                        replyToMessage = replyMessageState.value,
-                        onCancelReply = { cancelReply() },
-                        editingMessage = editingMessageState.value,
-                        onCancelEdit = { cancelEditMode(true) },
-                        otherUsername = userNameState.value,
+                    // Observe keyboard animation state to suppress Compose animations
+                        // during the IME slide — avoids competing with the View-layer
+                        // chatContentContainer.translationY animation for frame budget.
+                        val suppressAnimations by isKeyboardAnimatingState
+
+                        ChatInputArea(
+                            text = messageTextState.value,
+                            onTextChange = { newText ->
+                                messageTextState.value = newText
+                                binding.etMessageInput.setText(newText)
+                                binding.etMessageInput.setSelection(newText.length)
+                            },
+                            onAttachClick = { binding.btnAdd.performClick() },
+                            onEmojiClick = { binding.btnEmoji.performClick() },
+                            onCameraClick = { binding.btnCamera.performClick() },
+                            onSendClick = { binding.btnSend.performClick() },
+                            onBuzzClick = { binding.btnLightning.performClick() },
+                            replyToMessage = replyMessageState.value,
+                            onCancelReply = { cancelReply() },
+                            editingMessage = editingMessageState.value,
+                            onCancelEdit = { cancelEditMode(true) },
+                            otherUsername = userNameState.value,
+                            suppressAnimations = suppressAnimations,
                         onRecordingDown = {
                             if (ContextCompat.checkSelfPermission(this@ChatActivity, android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                                 recordAudioLauncher.launch(android.Manifest.permission.RECORD_AUDIO)

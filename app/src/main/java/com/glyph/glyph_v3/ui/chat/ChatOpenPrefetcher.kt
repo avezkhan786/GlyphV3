@@ -39,8 +39,10 @@ object ChatOpenPrefetcher {
     const val CACHE_DEBUG = true
     const val VERBOSE_MEDIA_BIND_DEBUG = false
 
-    private const val PREFETCH_MESSAGE_LIMIT = 60
-    private const val LIGHT_PREFETCH_MESSAGE_LIMIT = 120
+    private const val PREFETCH_MESSAGE_LIMIT = 180
+    // 300 messages (~350 list items) gives 3-4 screens of scroll buffer.
+    // With lightweight first-frame binds, the main-thread cost is minimal.
+    private const val LIGHT_PREFETCH_MESSAGE_LIMIT = 300
     private const val MEDIA_WARM_LIMIT = 8
     private const val MEMORY_WARM_LIMIT = 4
     private const val DURABLE_PREVIEW_WARM_LIMIT = 160

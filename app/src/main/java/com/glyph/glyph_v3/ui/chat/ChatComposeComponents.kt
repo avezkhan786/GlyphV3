@@ -426,10 +426,17 @@ fun ChatInputArea(
     onCancelReply: () -> Unit = {},
     editingMessage: Message? = null,
     onCancelEdit: () -> Unit = {},
-    otherUsername: String = "Unknown"
+    otherUsername: String = "Unknown",
+    // When true, all icon/transition animations snap to target instantly.
+    // Set to true during IME animation to avoid competing with the keyboard slide.
+    suppressAnimations: Boolean = false
 ) {
     val theme = glyphTheme
-    
+
+    // Use derivedStateOf to scope recomposition — only composables reading
+    // isTyping recompose when text emptiness changes, not the entire tree.
+    val isTyping by remember { derivedStateOf { text.isNotEmpty() } }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -455,34 +462,35 @@ fun ChatInputArea(
             if (replyToMessage != null) {
                 lastReplyMessage = replyToMessage
             }
-            
+
             var lastEditMessage by remember { mutableStateOf(editingMessage) }
             if (editingMessage != null) {
                 lastEditMessage = editingMessage
             }
 
             // Edit Preview (takes priority over Reply)
+            // IME JANK FIX: animationSpec snaps when keyboard is animating
             AnimatedVisibility(
                 visible = editingMessage != null,
                 enter = expandVertically(
                     expandFrom = Alignment.Bottom,
-                    animationSpec = spring(
+                    animationSpec = if (suppressAnimations) snap() else spring(
                         dampingRatio = Spring.DampingRatioLowBouncy,
                         stiffness = Spring.StiffnessLow
                     )
-                ) + fadeIn(animationSpec = tween(300)) + slideInVertically(
+                ) + fadeIn(animationSpec = if (suppressAnimations) snap() else tween(300)) + slideInVertically(
                     initialOffsetY = { it / 2 },
-                    animationSpec = spring(
+                    animationSpec = if (suppressAnimations) snap() else spring(
                         dampingRatio = Spring.DampingRatioLowBouncy,
                         stiffness = Spring.StiffnessLow
                     )
                 ),
                 exit = shrinkVertically(
                     shrinkTowards = Alignment.Bottom,
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(300, easing = LinearOutSlowInEasing)) + slideOutVertically(
+                    animationSpec = if (suppressAnimations) snap() else tween(durationMillis = 300, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = if (suppressAnimations) snap() else tween(300, easing = LinearOutSlowInEasing)) + slideOutVertically(
                     targetOffsetY = { it / 2 },
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+                    animationSpec = if (suppressAnimations) snap() else tween(durationMillis = 300, easing = FastOutSlowInEasing)
                 )
             ) {
                 lastEditMessage?.let { msg ->
@@ -501,23 +509,23 @@ fun ChatInputArea(
                 visible = replyToMessage != null && editingMessage == null,
                 enter = expandVertically(
                     expandFrom = Alignment.Bottom,
-                    animationSpec = spring(
+                    animationSpec = if (suppressAnimations) snap() else spring(
                         dampingRatio = Spring.DampingRatioLowBouncy,
                         stiffness = Spring.StiffnessLow
                     )
-                ) + fadeIn(animationSpec = tween(300)) + slideInVertically(
+                ) + fadeIn(animationSpec = if (suppressAnimations) snap() else tween(300)) + slideInVertically(
                     initialOffsetY = { it / 2 },
-                    animationSpec = spring(
+                    animationSpec = if (suppressAnimations) snap() else spring(
                         dampingRatio = Spring.DampingRatioLowBouncy,
                         stiffness = Spring.StiffnessLow
                     )
                 ),
                 exit = shrinkVertically(
                     shrinkTowards = Alignment.Bottom,
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(300, easing = LinearOutSlowInEasing)) + slideOutVertically(
+                    animationSpec = if (suppressAnimations) snap() else tween(durationMillis = 300, easing = FastOutSlowInEasing)
+                ) + fadeOut(animationSpec = if (suppressAnimations) snap() else tween(300, easing = LinearOutSlowInEasing)) + slideOutVertically(
                     targetOffsetY = { it / 2 },
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+                    animationSpec = if (suppressAnimations) snap() else tween(durationMillis = 300, easing = FastOutSlowInEasing)
                 )
             ) {
                 lastReplyMessage?.let { msg ->
@@ -575,15 +583,15 @@ fun ChatInputArea(
 
             Spacer(modifier = Modifier.width(4.dp))
 
-            // Declare typing state early so animated values are available before use in child composables.
-            val isTyping = text.isNotEmpty()
+            // IME JANK FIX: Removed .animateContentSize() from the right-icons Row.
+            // This was the #1 cause of per-frame animation during IME-triggered
+            // container resizes. Without it, size changes are instant and don't
+            // compete with the keyboard animation for frame budget.
+            //
             // Right-side icons: [emoji] [buzz?] [camera/AI]
-            // When typing we collapse the buzz slot so the text can extend up to the emoji area.
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .wrapContentWidth()
-                    .animateContentSize()
+                modifier = Modifier.wrapContentWidth()
             ) {
                 IconButton(
                     onClick = onEmojiClick,
@@ -596,6 +604,7 @@ fun ChatInputArea(
                     )
                 }
 
+                // Buzz button — removed from tree when typing (no lingering invisible node)
                 if (!isTyping) {
                     IconButton(
                         onClick = onBuzzClick,
@@ -609,56 +618,27 @@ fun ChatInputArea(
                     }
                 }
 
-                // Camera/AI swap — fixed 40dp slot, only content animated
+                // IME JANK FIX: Replace updateTransition (4 animated floats, staggered
+                // delays) with simple animateFloatAsState on graphicsLayer. GPU-accelerated
+                // and produces fewer recompositions. During IME animation, transitions snap.
+                //
+                // Camera/AI swap — fixed 44dp slot
                 Box(
                     modifier = Modifier.size(44.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    val transition = updateTransition(targetState = isTyping, label = "InputIcons")
+                    val animSpec: AnimationSpec<Float> = if (suppressAnimations) snap() else tween(durationMillis = 200, easing = FastOutSlowInEasing)
 
-                    val cameraScale by transition.animateFloat(
-                        label = "CameraScale",
-                        transitionSpec = {
-                            if (targetState) {
-                                tween(durationMillis = 120, easing = FastOutLinearInEasing)
-                            } else {
-                                tween(durationMillis = 200, delayMillis = 100, easing = FastOutSlowInEasing)
-                            }
-                        }
-                    ) { typing -> if (typing) 0f else 1f }
-
-                    val cameraAlpha by transition.animateFloat(
-                        label = "CameraAlpha",
-                        transitionSpec = {
-                            if (targetState) {
-                                tween(durationMillis = 100)
-                            } else {
-                                tween(durationMillis = 150, delayMillis = 100)
-                            }
-                        }
-                    ) { typing -> if (typing) 0f else 1f }
-
-                    val aiScale by transition.animateFloat(
-                        label = "AiScale",
-                        transitionSpec = {
-                            if (targetState) {
-                                tween(durationMillis = 220, delayMillis = 120, easing = FastOutSlowInEasing)
-                            } else {
-                                tween(durationMillis = 120, easing = FastOutLinearInEasing)
-                            }
-                        }
-                    ) { typing -> if (typing) 1f else 0f }
-
-                    val aiAlpha by transition.animateFloat(
-                        label = "AiAlpha",
-                        transitionSpec = {
-                            if (targetState) {
-                                tween(durationMillis = 150, delayMillis = 120)
-                            } else {
-                                tween(durationMillis = 100)
-                            }
-                        }
-                    ) { typing -> if (typing) 1f else 0f }
+                    val cameraScale by animateFloatAsState(
+                        targetValue = if (isTyping) 0f else 1f,
+                        animationSpec = animSpec,
+                        label = "cameraScale"
+                    )
+                    val aiScale by animateFloatAsState(
+                        targetValue = if (isTyping) 1f else 0f,
+                        animationSpec = animSpec,
+                        label = "aiScale"
+                    )
 
                     Box(
                         modifier = Modifier
@@ -668,29 +648,35 @@ fun ChatInputArea(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_camera),
-                            contentDescription = "Camera",
-                            tint = theme.attachmentIcon,
-                            modifier = Modifier.graphicsLayer {
-                                this.scaleX = cameraScale
-                                this.scaleY = cameraScale
-                                this.alpha = cameraAlpha
-                            }
-                        )
-
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_ai_composer),
-                            contentDescription = "AI Composer",
-                            tint = theme.aiIcon,
-                            modifier = Modifier
-                                .size(30.dp)
-                                .graphicsLayer {
-                                    this.scaleX = aiScale
-                                    this.scaleY = aiScale
-                                    this.alpha = aiAlpha
+                        // Camera — rendered only when non-zero to keep tree lean
+                        if (cameraScale > 0.01f) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_camera),
+                                contentDescription = "Camera",
+                                tint = theme.attachmentIcon,
+                                modifier = Modifier.graphicsLayer {
+                                    scaleX = cameraScale
+                                    scaleY = cameraScale
+                                    alpha = cameraScale
                                 }
-                        )
+                            )
+                        }
+
+                        // AI Composer — rendered only when non-zero to keep tree lean
+                        if (aiScale > 0.01f) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_ai_composer),
+                                contentDescription = "AI Composer",
+                                tint = theme.aiIcon,
+                                modifier = Modifier
+                                    .size(30.dp)
+                                    .graphicsLayer {
+                                        scaleX = aiScale
+                                        scaleY = aiScale
+                                        alpha = aiScale
+                                    }
+                            )
+                        }
                     }
                 }
             }
@@ -700,6 +686,10 @@ fun ChatInputArea(
         Spacer(modifier = Modifier.width(8.dp))
 
         // Send Button with Mic/Send transition
+        // Uses AnimatedContent for the swap — only one icon in the tree at a time,
+        // keeping the composition tree lean. The transition only fires when text
+        // emptiness changes (not during IME animation), so it doesn't need
+        // suppressAnimations gating.
         Box(
             modifier = Modifier
                 .size(52.dp)
@@ -716,7 +706,7 @@ fun ChatInputArea(
                                 while (true) {
                                     val down = awaitFirstDown()
                                     onRecordingDown()
-                                    
+
                                     var lastPos = down.position
                                     drag(down.id) { change ->
                                         lastPos = change.position
@@ -726,7 +716,7 @@ fun ChatInputArea(
                                         )
                                         change.consume()
                                     }
-                                    
+
                                     onRecordingUp(
                                         lastPos.x - down.position.x,
                                         lastPos.y - down.position.y

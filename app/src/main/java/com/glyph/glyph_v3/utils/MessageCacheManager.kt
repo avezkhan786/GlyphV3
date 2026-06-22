@@ -18,7 +18,10 @@ import java.util.concurrent.Executors
 object MessageCacheManager {
 
     private const val MAX_CHAT_SNAPSHOTS = 12
-    private const val MAX_RENDER_SNAPSHOT_MESSAGES = 240
+    // Fast opening: Keep cache snapshot small so serialization/restoration on open is cheap.
+    // 500-message snapshots made opening heavy (2289ms). 150 covers the initial view + a
+    // small scroll buffer; pagination handles anything beyond smoothly during scroll.
+    private const val MAX_RENDER_SNAPSHOT_MESSAGES = 150
     private const val MEMORY_SNAPSHOT_TTL_MS = 10 * 60 * 1000L
     private const val DISK_SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000L
     private const val ROOT_DIR = "chat_render_snapshots"

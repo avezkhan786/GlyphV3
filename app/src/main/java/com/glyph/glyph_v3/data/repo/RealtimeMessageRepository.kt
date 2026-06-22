@@ -623,11 +623,10 @@ class RealtimeMessageRepository(
                 details = "reason=$reason connected=$initialConnected"
             )
 
-            val connected = if (initialConnected) {
-                warmRealtimeTransport(reason = "foreground_$reason", waitForConnection = false)
-            } else {
-                warmRealtimeTransport(reason = "foreground_$reason", waitForConnection = true)
-            }
+            // WhatsApp-like instant opening: NEVER block UI waiting for Firebase connection.
+            // Always use waitForConnection=false so Firebase operations are async/non-blocking.
+            // The UI shows immediately with cached data while Firebase warms in background.
+            val connected = warmRealtimeTransport(reason = "foreground_$reason", waitForConnection = false)
 
             val finalConnected = if (!connected && !PresenceManager.isConnected.value) {
                 trace(

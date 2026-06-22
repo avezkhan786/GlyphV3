@@ -96,26 +96,14 @@ class ChatViewModel(
         // WhatsApp-style windowed pagination. We never load the whole history into the
         // adapter at once; we load the most recent INITIAL_WINDOW messages and page in
         // OLDER_PAGE_SIZE more each time the user scrolls near the top.
-        private const val INITIAL_WINDOW = 100
+        // 300 messages (~350 list items) gives 3-4 screens of scroll buffer.
+        // With lightweight first-frame binds (isFirstLayout), the opening cost
+        // is dominated by the Room DB query, which runs on background.
+        private const val INITIAL_WINDOW = 300
         private const val OLDER_PAGE_SIZE = 60
 
         /**
          * Deterministic message comparator using COALESCE(serverTimestamp, clientTimestamp).
-         *
-         * WHY COALESCE, NOT settled-first:
-         * A settled-first sort puts ALL settled messages before ALL pending ones regardless
-         * of age — if settled messages are recent (just ACK'd) and pending are historical
-         * (Room rows without serverTimestamp from before the column was added), every new
-         * ACK jumps the message from position N to position ~56, a jarring visible reorder.
-         *
-         * COALESCE keeps each message at the same approximate chronological position.
-         * When Firestore ACK arrives and serverTimestamp replaces clientTimestamp, the
-         * ordering key changes by only ~400ms — invisible positional movement.
-         *
-         * Cross-device consistency:
-         * - Settled messages: serverTimestamp is Firestore-assigned, identical on all devices.
-         * - Pending messages: briefly use clientTimestamp (diverges per device by <50ms).
-         *   Fully converges once Firestore ACK propagates (~400ms after send).
          */
         val MESSAGE_ORDER_COMPARATOR: Comparator<Message> =
             compareBy({ it.orderingTimestamp }, { it.id })

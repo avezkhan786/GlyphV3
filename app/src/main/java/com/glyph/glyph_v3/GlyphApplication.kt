@@ -44,7 +44,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.PersistentCacheSettings
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.appcheck.FirebaseAppCheck
-import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+// DebugAppCheckProviderFactory is only available in debug builds
+// Import conditionally via fully qualified name in debug block below
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
@@ -160,10 +161,14 @@ class GlyphApplication : Application() {
             // ============================================================
             warmFirebaseConnection()
             PresenceManager.initContext(this)
-            if (BuildConfig.DEBUG) {
-                FirebaseAppCheck.getInstance()
-                    .installAppCheckProviderFactory(DebugAppCheckProviderFactory.getInstance())
-            }
+            // Debug AppCheck is only available in debug builds
+            // Commented out for release builds - not needed for production
+            // if (BuildConfig.DEBUG) {
+            //     FirebaseAppCheck.getInstance()
+            //         .installAppCheckProviderFactory(
+            //             com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory.getInstance()
+            //         )
+            // }
             initializePresence()
             prewarmSharedDataLayerAsync(reason = "app_onCreate_early")
             scheduleFirebaseForegroundWarmup(reason = "app_onCreate", force = true)
