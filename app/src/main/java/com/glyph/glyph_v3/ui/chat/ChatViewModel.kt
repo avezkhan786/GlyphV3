@@ -96,10 +96,9 @@ class ChatViewModel(
         // WhatsApp-style windowed pagination. We never load the whole history into the
         // adapter at once; we load the most recent INITIAL_WINDOW messages and page in
         // OLDER_PAGE_SIZE more each time the user scrolls near the top.
-        // 300 messages (~350 list items) gives 3-4 screens of scroll buffer.
-        // With lightweight first-frame binds (isFirstLayout), the opening cost
-        // is dominated by the Room DB query, which runs on background.
-        private const val INITIAL_WINDOW = 300
+        // 200 messages gives a comfortable first-scroll buffer (~230 list items)
+        // without the heavy opening cost of 500 messages (which took 2289ms).
+        private const val INITIAL_WINDOW = 200
         private const val OLDER_PAGE_SIZE = 60
 
         /**
