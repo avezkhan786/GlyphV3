@@ -481,11 +481,16 @@ class MainActivity : AppCompatActivity() {
 
         // CRITICAL: Go online when MainActivity becomes visible
         // This ensures presence is set when user is on chat list, status, etc.
-        PresenceManager.primeTransport("main_activity_resume", forceTokenRefresh = true)
-        PresenceManager.goOnline()
-        com.glyph.glyph_v3.data.service.WalkieTalkieManager
-            .getInstance(applicationContext)
-            .primeTransport("main_activity_resume", forceTokenRefresh = true)
+        // Deferred one frame so this main-thread work does not compete with the
+        // first frame of the return animation (chat list being revealed on back).
+        binding.root.post {
+            if (isFinishing || isDestroyed) return@post
+            PresenceManager.primeTransport("main_activity_resume", forceTokenRefresh = true)
+            PresenceManager.goOnline()
+            com.glyph.glyph_v3.data.service.WalkieTalkieManager
+                .getInstance(applicationContext)
+                .primeTransport("main_activity_resume", forceTokenRefresh = true)
+        }
 
         // COLD-START FIX: Retry goOnline() once RTDB connection is established.
         // On cold start the initial goOnline() may queue the write before the

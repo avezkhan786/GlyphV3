@@ -111,6 +111,7 @@ import com.glyph.glyph_v3.util.VideoNoteCompressor
 import com.glyph.glyph_v3.data.service.ChatNotificationHelper
 import com.glyph.glyph_v3.data.service.DraftMessageStore
 import com.glyph.glyph_v3.data.service.UnreadMessageStore
+import com.glyph.glyph_v3.util.ChatOpenTrace
 import com.glyph.glyph_v3.util.StartupTrace
 import com.glyph.glyph_v3.utils.DebugUtils
 import com.glyph.glyph_v3.utils.MessageCacheManager
@@ -1058,6 +1059,13 @@ class ChatActivity : AppCompatActivity(),
         
         binding = ActivityChatBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // Telegram-style instant settle: replace the platform default activity
+        // slide (100% travel / 280ms) with a short 15% / 180ms decelerate tween.
+        // The chat list beneath gets no exit anim, so it stays visible under the
+        // incoming screen — matching Telegram's "old view remains" feel. The
+        // close direction is mirrored in finish().
+        @Suppress("DEPRECATION")
+        overridePendingTransition(R.anim.chat_open_enter, 0)
         selectionToolbarBinding = binding.selectionToolbar
         scrollController = ChatScrollController(
             chatIdProvider = { chatId },
@@ -1817,9 +1825,23 @@ class ChatActivity : AppCompatActivity(),
         // listeners, message sync, typing observer) are deferred until this point so
         // their startup work doesn't compete with the slide-in transition.
         enterAnimationCompleted = true
+        StartupTrace.logStage(
+            "chat_window_first_draw",
+            "chatId=${chatId ?: "unknown"} elapsed=${SystemClock.elapsedRealtime() - chatOpenStartElapsedMs}ms"
+        )
+        ChatOpenTrace.event(chatId, "chat_transition_window_drawn")
         // Flush any scroll-deferred emission that was waiting for idle state.
         applyDeferredLargeFlowEmissionIfNeeded()
         triggerSecondaryFeaturesNow(reason = "enter_animation_complete")
+    }
+
+    override fun finish() {
+        super.finish()
+        // Mirror the open transition on the way out: short settle toward the
+        // right with a fade, so the chat list beneath is revealed cleanly instead
+        // of the platform's long default slide.
+        @Suppress("DEPRECATION")
+        overridePendingTransition(0, R.anim.chat_open_exit)
     }
 
     private fun triggerSecondaryFeaturesNow(reason: String) {
@@ -2269,20 +2291,63 @@ class ChatActivity : AppCompatActivity(),
             mediaController.consumePrefetcherRetainedMediaPreloads(id)
         }
 
-        // Fade in the RecyclerView — content is already laid out, so the
-        // user sees a smooth reveal instead of a pop-in. 100ms is fast
-        // enough to feel instant but smooth enough to mask any frame delay.
-        binding.recyclerViewMessages.apply {
-            if (alpha < 0.99f) {
-                animate().alpha(1f).setDuration(100L).start()
-            }
-        }
+        // Telegram's needDelayOpenAnimation principle: keep the list invisible
+        // (so it pre-renders — laid out + bound — while not drawn) and reveal it
+        // only once the prefilled items are actually bound + laid out, so the
+        // first visible frame already shows fully-rendered messages (no fade, no
+        // pop-in). A 200ms fallback covers edge cases where a layout pass doesn't
+        // fire promptly.
+        scheduleContentReveal(source = source)
         binding.recyclerViewMessages.post {
             warmVisibleContentWindows(reason = "prefill_${source}")
             unlockDeferredStartupWork(reason = "cache_hit_first_frame")
             if (::scrollController.isInitialized) scrollController.markScrollReady()
         }
         primeTextLayoutPrecomputerIfNeeded()
+    }
+
+    // Guards the content reveal so it is scheduled and fired exactly once per open.
+    private var contentRevealScheduled = false
+
+    private fun scheduleContentReveal(source: String) {
+        val rv = binding.recyclerViewMessages
+        if (rv.alpha >= 0.99f) return // already visible (e.g. warm re-entry path)
+        if (contentRevealScheduled) return
+        contentRevealScheduled = true
+        ChatOpenTrace.event(chatId, "chat_content_gate_ready", "source=$source")
+        // Fire on the first layout AFTER the prefill commit, so bound content is
+        // on screen before the reveal (no reveal-of-empty-then-pop).
+        rv.doOnNextLayout {
+            if (!isFinishing && !isDestroyed) revealMessageList("$source layout")
+        }
+        // Safety net: never let the list stay invisible past 200ms.
+        rv.postDelayed({
+            if (!isFinishing && !isDestroyed &&
+                binding.recyclerViewMessages.alpha < 0.99f
+            ) {
+                revealMessageList("$source timeout")
+            }
+        }, 200L)
+    }
+
+    private fun revealMessageList(reason: String) {
+        if (!contentRevealScheduled) return
+        contentRevealScheduled = false
+        val rv = binding.recyclerViewMessages
+        if (rv.alpha >= 0.99f && rv.visibility == View.VISIBLE) return
+        val elapsedAtReveal = SystemClock.elapsedRealtime() - chatOpenStartElapsedMs
+        ChatOpenTrace.event(chatId, "chat_reveal_start", "reason=$reason elapsed=${elapsedAtReveal}ms")
+        // Telegram principle: the list pre-rendered (laid out + bound) while it
+        // was invisible, so reveal it INSTANTLY — no alpha fade. A fade would
+        // reintroduce the "message list displays after a delay" feel; the first
+        // visible frame here already shows fully-rendered messages.
+        rv.animate().cancel()
+        rv.visibility = View.VISIBLE
+        rv.alpha = 1f
+        ChatOpenTrace.event(
+            chatId, "chat_reveal_end",
+            "reason=$reason elapsed=${SystemClock.elapsedRealtime() - chatOpenStartElapsedMs}ms"
+        )
     }
 
     /** Ensures TextLayoutPrecomputer has params captured for subsequent scrolls. */
@@ -10645,6 +10710,12 @@ class ChatActivity : AppCompatActivity(),
         StartupTrace.logStage(
             "chat_first_visible_content",
             "chatId=${chatId ?: "unknown"} source=$source items=$itemCount elapsed=${elapsedMs}ms"
+        )
+        // Mirror into the per-chat ChatOpenTrace sequence so first-content appears
+        // alongside chat_content_gate_ready / chat_reveal_start for ordering checks.
+        ChatOpenTrace.event(
+            chatId, "chat_first_visible_content",
+            "source=$source items=$itemCount elapsed=${elapsedMs}ms"
         )
     }
 
