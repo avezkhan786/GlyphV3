@@ -51,6 +51,7 @@
                     android:layout_height="wrap_content"
                     android:textColor="?attr/glyphBubbleOtherText"
                     android:textSize="17sp"
+                    android:includeFontPadding="false"
                     android:paddingTop="2dp"
                     android:paddingBottom="2dp"
                     android:paddingStart="4dp"

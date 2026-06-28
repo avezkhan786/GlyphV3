@@ -436,6 +436,40 @@ internal class MediaController(
         return copyDrawableForSeed(drawable)
     }
 
+    /**
+     * Called just before the RecyclerView's first layout pass (from the prefill path).
+     * For the first [maxItems] media messages (those most likely visible in the viewport),
+     * checks if retained preloads exist. If a preload isn't done yet, waits briefly
+     * ([timeoutMs] per item) for Glide to finish decoding.
+     *
+     * When primeChatOpen has already completed (called before startActivity with a 150ms
+     * timeout), all targets are done and this is a no-op (~0ms). On cache miss or slow
+     * devices, it adds at most [timeoutMs] * [maxItems] ms to the prefill path.
+     *
+     * This eliminates the "media pop-in" on the first frame: visible images are already
+     * decoded in the Glide memory cache and will be delivered synchronously during bind.
+     */
+    fun tryFinalizeFirstPaintPreloads(
+        messages: List<Message>,
+        maxItems: Int = 8,
+        timeoutMs: Long = 30L
+    ) {
+        var waited = 0
+        for (msg in messages.asReversed()) { // newest first (visible in viewport)
+            if (waited >= maxItems) break
+            val key = retainedPreloadByMessageId[msg.id] ?: continue
+            if (key.target.isDone || key.target.isCancelled) continue
+            try {
+                key.target.get(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+                waited++
+            } catch (_: Exception) {
+                // Timeout or cancellation — preload wasn't ready in time.
+                // The bind will fall through to Glide (shows placeholder briefly).
+                waited++
+            }
+        }
+    }
+
     private fun copyDrawableForSeed(drawable: Drawable): Drawable? {
         if (drawable is BitmapDrawable) {
             val bitmap = drawable.bitmap ?: return null

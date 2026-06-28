@@ -82,7 +82,7 @@ class ChatListComposeFragment : Fragment() {
     private val groupTypingUsersStateFlow = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
     private val groupSenderNamesStateFlow = MutableStateFlow<Map<String, String>>(emptyMap())
     private var currentUserIds: List<String> = emptyList()
-    private var lastPredictivePrefetchChatIds: List<String> = emptyList()
+    private var lastPredictivePrefetchChatIds: Set<String> = emptySet()
     private val requestedUserInfoChatIds = ConcurrentHashMap.newKeySet<String>()
     private val requestedAvatarPreloadKeys = ConcurrentHashMap.newKeySet<String>()
     private val requestedGroupSenderIds = ConcurrentHashMap.newKeySet<String>()
@@ -1008,37 +1008,31 @@ class ChatListComposeFragment : Fragment() {
         lastNavigationChatId = chatId
         lastNavigationUptimeMs = now
 
-        // Mark this chat as opening BEFORE startActivity so ChatOpenPrefetcher suppresses
-        // predictive-retained overwrites for this chatId and ChatActivity's consume call
-        // sees the correct retained preloads from warmChatsAsync (if they exist).
         ChatOpenPrefetcher.noteChatOpenStarting(chatId)
+
+        // Fire-and-forget: prime cache in background. ChatActivity's prefill
+        // handles its own three-layer cache independently. This just increases
+        // the chance retained media preloads are decoded before first bind.
+        val primeSource = if (isCompose) "chat_list_compose_tap" else "chat_list_tap"
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                ChatOpenPrefetcher.primeChatOpen(
+                    context = appContext,
+                    repository = repository,
+                    chatId = chatId,
+                    source = primeSource,
+                    peerUserId = otherUserId,
+                    peerAvatarUrl = otherUserAvatar
+                )
+            }
+        }
+
         val intent = ChatActivity.newIntent(hostActivity, chatId, otherUserId, otherUsername, otherUserAvatar)
         ChatOpenTrace.event(chatId, "start_activity", "username=${otherUsername.isNotBlank()} avatar=${otherUserAvatar.isNotBlank()}")
         hostActivity.startActivity(intent)
 
         ChatOpenTrace.event(chatId, "transport_prewarm_queue", "source=fragment_navigate")
         ChatConnectionPrewarmer.prewarmForChatOpen(repository, chatId, otherUserId)
-
-        // Run primeChatOpen in background so navigation does not wait for prefetch work.
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            val primeStartedAt = SystemClock.elapsedRealtime()
-            ChatOpenTrace.event(chatId, "open_prefetch_prime_start_async", "source=background")
-            runCatching {
-                ChatOpenPrefetcher.primeChatOpen(
-                    context = appContext,
-                    repository = repository,
-                    chatId = chatId,
-                    source = if (isCompose) "chat_list_compose_tap" else "chat_list_tap",
-                    peerUserId = otherUserId,
-                    peerAvatarUrl = otherUserAvatar
-                )
-            }
-            ChatOpenTrace.event(
-                chatId,
-                "open_prefetch_prime_end_async",
-                "elapsed=${SystemClock.elapsedRealtime() - primeStartedAt}ms"
-            )
-        }
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             runCatching { repository.clearUnreadCount(chatId) }
@@ -1050,20 +1044,19 @@ class ChatListComposeFragment : Fragment() {
         val candidates = localChats
             .asSequence()
             .filter { !it.isArchived }
-            .take(2)
+            .take(6)  // Warm top 6 chats so most taps hit a pre-cached snapshot
             .toList()
         val candidateIds = candidates.map { it.id }
-        if (candidateIds.isEmpty() || candidateIds == lastPredictivePrefetchChatIds) return
+        if (candidateIds.isEmpty()) return
+        val deduped = candidateIds.filter { it !in lastPredictivePrefetchChatIds }
+        if (deduped.isEmpty()) return
 
-        lastPredictivePrefetchChatIds = candidateIds
+        lastPredictivePrefetchChatIds = candidateIds.toSet()
         val appContext = context?.applicationContext ?: return
 
-        // Pre-warm real-time transport paths for the top visible chats so that,
-        // if the user taps any of them, the RTDB WebSocket handshake is already
-        // complete before ChatActivity even starts.
         ChatConnectionPrewarmer.prewarmChats(
             repository = repository,
-            chats = candidates.take(2).map { it.id to it.otherUserId }
+            chats = candidates.map { it.id to it.otherUserId }
         )
 
         ChatOpenPrefetcher.warmChatsAsync(
@@ -1083,7 +1076,7 @@ class ChatListComposeFragment : Fragment() {
         repositoryInitJob = null
         hasStartedChatListData = false
         hasRequestedSecondaryTabPreload = false
-        lastPredictivePrefetchChatIds = emptyList()
+        lastPredictivePrefetchChatIds = emptySet()
         requestedUserInfoChatIds.clear()
         requestedAvatarPreloadKeys.clear()
         composeView = null

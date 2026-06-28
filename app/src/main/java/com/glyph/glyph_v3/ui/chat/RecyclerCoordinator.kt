@@ -18,6 +18,11 @@ internal class RecyclerCoordinator(
     private val adapter: ChatAdapter
 ) {
     fun configureRecyclerView() {
+        // Set adapter state restoration policy BEFORE setting the adapter on RecyclerView,
+        // so the policy is in effect for the initial layout pass. PREVENT_WHEN_EMPTY avoids
+        // wasted state-restoration work during configuration changes when no items are loaded.
+        adapter.stateRestorationPolicy = RecyclerView.Adapter.StateRestorationPolicy.PREVENT_WHEN_EMPTY
+
         recyclerView.apply {
             isClickable = true
             isFocusable = true
@@ -30,6 +35,12 @@ internal class RecyclerCoordinator(
             setItemViewCacheSize(OFFSCREEN_VIEW_CACHE_SIZE)
             setHasFixedSize(true)
             itemAnimator = null
+            // Chat list doesn't participate in nested scrolling — disabling it removes
+            // unnecessary touch-dispatch overhead during every scroll event.
+            isNestedScrollingEnabled = false
+            // Reduce overscroll to only when content exceeds viewport — avoids rendering
+            // the edge glow/effect on every fling when content fits on screen.
+            overScrollMode = android.view.View.OVER_SCROLL_IF_CONTENT_SCROLLS
             layoutManager = BufferedLinearLayoutManager(context).apply {
                 stackFromEnd = true
                 isItemPrefetchEnabled = true
@@ -101,17 +112,22 @@ internal class RecyclerCoordinator(
         // cheap) rather than inflating new bubbles (expensive). Caps are raised so a fast
         // media-heavy fling recycles existing bubbles instead of inflating mid-frame.
         // NOTE: types 5, 6 are dead (getItemViewType() maps VIDEO to IMAGE types 3, 4).
-        pool.setMaxRecycledViews(1, 30)
-        pool.setMaxRecycledViews(2, 30)
-        pool.setMaxRecycledViews(3, 16)
-        pool.setMaxRecycledViews(4, 16)
-        pool.setMaxRecycledViews(9, 8)
-        pool.setMaxRecycledViews(10, 8)
-        pool.setMaxRecycledViews(13, 6)
-        pool.setMaxRecycledViews(17, 4)
-        pool.setMaxRecycledViews(18, 4)
-        pool.setMaxRecycledViews(19, 6)
-        pool.setMaxRecycledViews(20, 6)
+        // NOTE: types 15, 16 are dead (STICKER/KLIPY_EMOJI mapped to IMAGE types 3, 4).
+        pool.setMaxRecycledViews(1, 30)   // incoming text
+        pool.setMaxRecycledViews(2, 30)   // outgoing text
+        pool.setMaxRecycledViews(3, 16)   // incoming image/media
+        pool.setMaxRecycledViews(4, 16)   // outgoing image/media
+        pool.setMaxRecycledViews(7, 6)    // incoming audio
+        pool.setMaxRecycledViews(8, 6)    // outgoing audio
+        pool.setMaxRecycledViews(9, 8)    // incoming collage/media group
+        pool.setMaxRecycledViews(10, 8)   // outgoing collage/media group
+        pool.setMaxRecycledViews(11, 4)   // incoming contact
+        pool.setMaxRecycledViews(12, 4)   // outgoing contact
+        pool.setMaxRecycledViews(13, 6)   // date headers
+        pool.setMaxRecycledViews(17, 4)   // incoming video note
+        pool.setMaxRecycledViews(18, 4)   // outgoing video note
+        pool.setMaxRecycledViews(19, 6)   // incoming document
+        pool.setMaxRecycledViews(20, 6)   // outgoing document
     }
 
     private fun warmCriticalViewHolders(
@@ -258,7 +274,10 @@ internal class RecyclerCoordinator(
     // ── Companion: constants, targets, stages ────────────────────────────────────────
 
     internal companion object {
-        const val OPENING_PREFETCH_ITEM_COUNT = 6
+        // Prefetch a reasonable number of items for smooth scrolling.
+        // Increased from 0 to 10 to prevent initial scroll jank by ensuring items
+        // are ready before they come into view during the first scroll.
+        const val OPENING_PREFETCH_ITEM_COUNT = 10
 
         // Off-screen ready-bound view cache (RecyclerView.setItemViewCacheSize). Kept small on
         // purpose: a large cache delays views' return to the shared RecycledViewPool during a fast
@@ -278,14 +297,14 @@ internal class RecyclerCoordinator(
         // Minimum count per view-type pair in the adaptive warm (ensures every type gets at least 1).
         private const val ADAPTIVE_WARM_MIN_PER_PAIR = 1
 
-        // SYNCHRONOUS safety batch inflated before the first scroll. 26 VHs covering all
-        // active view types. Text dominates most chats, so it gets 16 slots (was 12) to
-        // keep the pool stocked during the very first fast fling before progressive warming
-        // can backfill the pool.
+        // SYNCHRONOUS safety batch inflated before the first scroll. 30+ VHs covering all
+        // active view types, heavy on incoming text (type 1) which logs show is the #1
+        // inflation source during first scroll (20+ per session, pool starts at 15 and runs dry).
         // Used as a fallback when adaptive warming doesn't have enough message history.
         val FIRST_FLING_WARM_VIEW_TYPES = intArrayOf(
             1, 2, 1, 2, 1, 2, 1, 2, 1, 2,  // 10 text (5 in + 5 out)
-            1, 2, 1, 2, 1, 2,                // +6 text (3 in + 3 out)
+            1, 2, 1, 2, 1, 2, 1, 2, 1, 2,  // +10 text (5 in + 5 out)
+            1, 1, 1, 1, 1,                   // +5 incoming text (type 1 most demanded)
             3, 4, 3, 4,                      // 4 media (2 in + 2 out)
             13, 13,                          // 2 date headers
             9, 10,                           // 2 collage (1 in + 1 out)
@@ -477,9 +496,9 @@ internal class RecyclerCoordinator(
      * all targets in the current stage are met.
      */
     enum class WarmStage(val targetMap: Map<Int, Int>) {
-        /** Minimum for a smooth first fling. ~30 VHs, mostly text. */
+        /** Minimum for a smooth first fling. ~40 VHs, heavy on incoming text. */
         STAGE1_CRITICAL(mapOf(
-            1 to 10, 2 to 10,   // text: 10 each (covers ~15-message fling)
+            1 to 15, 2 to 15,   // text: 15 each (covers ~20-message fling without inflation)
             3 to 4, 4 to 4,     // media: 4 each
             13 to 4,            // date headers
             9 to 2, 10 to 2     // collage

@@ -20,7 +20,17 @@ sealed class ChatListItem {
         val translatedText: String? = null,
         val isShowingTranslation: Boolean = false,
         val isTranslating: Boolean = false
-    ) : ChatListItem()
+    ) : ChatListItem() {
+        /**
+         * Pre-measured text height in pixels. Stored as a mutable property (NOT a
+         * constructor parameter) so it does not affect data-class equals/hashCode.
+         * Otherwise DiffUtil would see cached items (height=0) as different from
+         * live-flow items (height=computed) and rebind every item, causing layout shifts.
+         *
+         * Computed on a background thread via [TextLayoutPrecomputer].
+         */
+        var premeasuredTextHeightPx: Int = 0
+    }
 
     @Immutable
     data class GroupIntroItem(

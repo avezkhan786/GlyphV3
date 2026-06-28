@@ -17,12 +17,14 @@ import java.util.concurrent.Executors
  */
 object MessageCacheManager {
 
-    private const val MAX_CHAT_SNAPSHOTS = 12
-    // Fast opening: Keep cache snapshot small so serialization/restoration on open is cheap.
-    // 500-message snapshots made opening heavy (2289ms). 150 covers the initial view + a
-    // small scroll buffer; pagination handles anything beyond smoothly during scroll.
-    private const val MAX_RENDER_SNAPSHOT_MESSAGES = 150
-    private const val MEMORY_SNAPSHOT_TTL_MS = 10 * 60 * 1000L
+    // 30 chats in memory covers most users' active conversation set. Previously 12
+    // meant that with 20+ frequent chats, 8 would miss the memory cache on navigation,
+    // causing inconsistent opening speed (instant for cached chats, delayed for others).
+    private const val MAX_CHAT_SNAPSHOTS = 30
+    private const val MAX_RENDER_SNAPSHOT_MESSAGES = 500
+    // Keep snapshots in memory for 30 minutes (was 10). Extends the "instant reopen"
+    // window for users who return to chats after brief periods in other apps.
+    private const val MEMORY_SNAPSHOT_TTL_MS = 30 * 60 * 1000L
     private const val DISK_SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000L
     private const val ROOT_DIR = "chat_render_snapshots"
 
@@ -55,7 +57,8 @@ object MessageCacheManager {
         val messageId: String? = null,
         val dateString: String? = null,
         val groupPosition: String? = null,
-        val isEmojiContent: Boolean = false
+        val isEmojiContent: Boolean = false,
+        val premeasuredTextHeightPx: Int = 0
     )
 
     private val lock = Any()
@@ -171,6 +174,15 @@ object MessageCacheManager {
         return getSnapshot(chatId) != null
     }
 
+    /**
+     * Load a snapshot from disk on a background thread. Public so ChatActivity can call
+     * this from `withContext(Dispatchers.IO)` to avoid blocking the main thread with
+     * File.readText() + Gson parsing.
+     */
+    fun loadSnapshotFromDiskForPrefill(chatId: String): ChatRenderSnapshot? {
+        return loadSnapshotFromDisk(chatId)
+    }
+
     private fun persistSnapshotAsync(chatId: String, snapshot: ChatRenderSnapshot) {
         val snapshotDir = rootDir ?: return
         val persisted = buildPersistedSnapshot(snapshot)
@@ -228,7 +240,8 @@ object MessageCacheManager {
                         messageId = item.message.id,
                         dateString = item.dateString,
                         groupPosition = item.groupPosition.name,
-                        isEmojiContent = item.isEmojiContent
+                        isEmojiContent = item.isEmojiContent,
+                        premeasuredTextHeightPx = item.premeasuredTextHeightPx
                     )
                 }
                 is ChatListItem.TypingIndicator -> Unit
@@ -296,7 +309,7 @@ object MessageCacheManager {
                 }
                 "message" -> {
                     val message = messagesById[item.messageId] ?: return@forEach
-                    restoredItems += ChatListItem.MessageItem(
+                    val restored = ChatListItem.MessageItem(
                         message = message,
                         groupPosition = item.groupPosition
                             ?.let { runCatching { BubbleGroupPosition.valueOf(it) }.getOrNull() }
@@ -304,6 +317,11 @@ object MessageCacheManager {
                         dateString = item.dateString.orEmpty(),
                         isEmojiContent = item.isEmojiContent
                     )
+                    // Restore precomputed text height so the first bind skips measurement
+                    if (item.premeasuredTextHeightPx > 0) {
+                        restored.premeasuredTextHeightPx = item.premeasuredTextHeightPx
+                    }
+                    restoredItems += restored
                 }
             }
         }

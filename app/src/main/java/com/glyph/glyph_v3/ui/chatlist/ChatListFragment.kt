@@ -46,7 +46,7 @@ class ChatListFragment : Fragment() {
     
     private var chatsJob: Job? = null
     private var presenceJob: Job? = null
-    private var lastPredictivePrefetchChatIds: List<String> = emptyList()
+    private var lastPredictivePrefetchChatIds: Set<String> = emptySet()
     
     // Store presence data in a StateFlow for combining with chats
     private val presenceStateFlow = MutableStateFlow<Map<String, PresenceManager.PresenceStatus>>(emptyMap())
@@ -277,15 +277,12 @@ class ChatListFragment : Fragment() {
             otherUsername,
             otherUserAvatar
         )
-        StartupTrace.logStage("chat_list_open_start_activity", "chatId=$chatId")
-        startActivity(intent)
-
-        ChatConnectionPrewarmer.prewarmForChatOpen(repository, chatId, otherUserId)
-
-        // Run primeChatOpen in background so navigation does not wait for prefetch work.
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            val primeStartedAt = android.os.SystemClock.elapsedRealtime()
-            StartupTrace.logStage("chat_list_open_prime_start_async", "chatId=$chatId")
+        // Fire-and-forget: prime the cache in background WITHOUT blocking navigation.
+        // ChatActivity's prefillRecentMessagesAsync handles the three-layer cache
+        // (memory → disk → Room) independently. The prime just increases the chance
+        // that retained media preloads are ready by the time the first bind runs.
+        ChatOpenPrefetcher.noteChatOpenStarting(chatId)
+        lifecycleScope.launch(Dispatchers.IO) {
             runCatching {
                 ChatOpenPrefetcher.primeChatOpen(
                     context = appContext,
@@ -296,11 +293,12 @@ class ChatListFragment : Fragment() {
                     peerAvatarUrl = otherUserAvatar
                 )
             }
-            StartupTrace.logStage(
-                "chat_list_open_prime_end_async",
-                "chatId=$chatId elapsed=${android.os.SystemClock.elapsedRealtime() - primeStartedAt}ms"
-            )
         }
+
+        StartupTrace.logStage("chat_list_open_start_activity", "chatId=$chatId")
+        startActivity(intent)
+
+        ChatConnectionPrewarmer.prewarmForChatOpen(repository, chatId, otherUserId)
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             runCatching { repository.clearUnreadCount(chatId) }
@@ -308,10 +306,15 @@ class ChatListFragment : Fragment() {
     }
 
     private fun warmLikelyNextChats(chats: List<Chat>) {
-        val candidateIds = chats.take(2).map { it.id }
-        if (candidateIds.isEmpty() || candidateIds == lastPredictivePrefetchChatIds) return
+        // Warm the top 6 visible chats so most taps hit a pre-cached snapshot.
+        // Previously only 2 were warmed — any chat beyond position 2 had no
+        // snapshot and navigation fell through to the slow Room query path.
+        val candidateIds = chats.take(6).map { it.id }
+        if (candidateIds.isEmpty()) return
+        val deduped = candidateIds.filter { it !in lastPredictivePrefetchChatIds }
+        if (deduped.isEmpty()) return
 
-        lastPredictivePrefetchChatIds = candidateIds
+        lastPredictivePrefetchChatIds = candidateIds.toSet()
         ChatOpenPrefetcher.warmChatsAsync(
             context = requireContext().applicationContext,
             repository = repository,

@@ -535,6 +535,11 @@ class ChatAdapter(
     // so the first frame paints in ~50ms instead of ~500ms.
     var isFirstLayout: Boolean = false
 
+    // Unified fast-path flag: true when scrolling OR during first layout.
+    // All ViewHolder bind methods check this to skip Glide loads, link
+    // previews, translation labels, and reactions.
+    private val isFastBind: Boolean get() = isScrolling || isFirstLayout
+
     // --- Scroll work instrumentation (DEBUG only) -----------------------------------------
     // Counts the expensive RecyclerView work that happens while a finger/fling is moving the
     // list. A smooth fling should show ~0 inflations and very few full binds (the off-screen
@@ -708,7 +713,7 @@ class ChatAdapter(
      * Notify only visible items with a lightweight payload to avoid full-list flicker.
      * This replaces notifyDataSetChanged() for metadata-only updates (avatars, username, etc.).
      */
-    private fun notifyVisibleItemsChanged(payload: String) {
+    internal fun notifyVisibleItemsChanged(payload: String) {
         val rv = recyclerView ?: run {
             // Fallback: If RecyclerView not attached yet, items will pick up state on next bind
             return
@@ -986,22 +991,68 @@ class ChatAdapter(
         return getItem(position).id.hashCode().toLong()
     }
 
+    // ── ViewHolder pre-inflation cache ──────────────────────────────────────────
+    // Telegram's ChatMessageCell is created programmatically (new ChatMessageCell(ctx)),
+    // avoiding XML inflation entirely. We can't do that without a rewrite, but we CAN
+    // pre-inflate ViewHolders into a cache so onCreateViewHolder returns them instantly.
+    // This is more reliable than RecycledViewPool.putRecycledView() which may silently
+    // fail if the pool caps aren't configured or the VH isn't in a valid state.
+    private val preWarmedViewHolders = android.util.SparseArray<ArrayDeque<BaseViewHolder>>()
+
+    /**
+     * Pre-inflate [count] ViewHolders of [viewType] into the internal cache. These are
+     * returned instantly by [onCreateViewHolder], bypassing XML inflation entirely.
+     * Must be called on the main thread before [submitList].
+     */
+    fun preInflateViewHolders(parent: RecyclerView, viewType: Int, count: Int) {
+        val deque = preWarmedViewHolders.get(viewType) ?: run {
+            val d = ArrayDeque<BaseViewHolder>(count)
+            preWarmedViewHolders.put(viewType, d)
+            d
+        }
+        repeat(count) {
+            try {
+                val holder = createViewHolderInternal(parent, viewType)
+                // Detach the itemView so RecyclerView can attach it properly later
+                (holder.itemView.parent as? ViewGroup)?.removeView(holder.itemView)
+                deque.addLast(holder)
+            } catch (_: Exception) { /* best-effort */ }
+        }
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BaseViewHolder {
+        // Check pre-warmed cache first — instant return, zero XML inflation
+        val deque = preWarmedViewHolders.get(viewType)
+        if (deque != null && deque.isNotEmpty()) {
+            val cached = deque.removeFirst()
+            if (BuildConfig.DEBUG) {
+                dbgCreateCount += 1  // still counts as a "create" but was instant
+                dbgCreateCountByType[viewType] = (dbgCreateCountByType[viewType] ?: 0) + 1
+            }
+            return cached
+        }
         val createStartNs = if (BuildConfig.DEBUG) System.nanoTime() else 0L
         val holder = createViewHolderInternal(parent, viewType)
         if (BuildConfig.DEBUG) {
             dbgCreateCount += 1
             dbgCreateTimeNs += System.nanoTime() - createStartNs
             dbgCreateCountByType[viewType] = (dbgCreateCountByType[viewType] ?: 0) + 1
-            if (isScrolling) {
+            if (isFastBind) {
                 Log.w(
                     "ChatPerfDebug",
-                    "INFLATE during scroll viewType=$viewType (pool/cache exhausted) totalCreates=$dbgCreateCount"
+                    "INFLATE during scroll viewType=$viewType (cache/pool exhausted) totalCreates=$dbgCreateCount"
                 )
             }
         }
         return holder
     }
+
+    /** Returns the number of pre-warmed ViewHolders remaining for [viewType]. */
+    fun preWarmedCount(viewType: Int): Int = preWarmedViewHolders.get(viewType)?.size ?: 0
+
+    /** Peeks at a pre-warmed ViewHolder without removing it from the deque. */
+    fun preWarmedViewHolder(viewType: Int): BaseViewHolder? =
+        preWarmedViewHolders.get(viewType)?.firstOrNull()
 
     private fun createViewHolderInternal(parent: ViewGroup, viewType: Int): BaseViewHolder {
         val inflater = LayoutInflater.from(parent.context)
@@ -1150,6 +1201,10 @@ class ChatAdapter(
                 } else if (payloads.contains("GROUP_SENDER")) {
                     holder.refreshAvatar(getItem(position))
                     applyGroupSenderName(holder.itemView, getItem(position))
+                } else if (payloads.contains("TEXT_HEIGHT_UPDATE")) {
+                    // Background precomputation finished — apply fixed heights to
+                    // visible text bubbles so subsequent scroll binds skip measurement.
+                    holder.applyTextHeight(getItem(position))
                 } else {
                     super.onBindViewHolder(holder, position, payloads)
                     applyGroupSenderName(holder.itemView, getItem(position))
@@ -1332,6 +1387,12 @@ class ChatAdapter(
 
         open fun onViewDetached() {}
 
+        /**
+         * Applies precomputed text height to the message TextView if available.
+         * Overridden by text ViewHolders; no-op for media/audio/contact/etc.
+         */
+        open fun applyTextHeight(item: ChatListItem) {}
+
         open fun highlight() {
             val bubbleView = itemView.findViewById<View>(R.id.cardMessage) 
                 ?: itemView.findViewById<View>(R.id.messageBubble)
@@ -1480,7 +1541,7 @@ class ChatAdapter(
         
         internal fun bindSelection(item: ChatListItem, animate: Boolean = false) {
             if (item is ChatListItem.MessageItem) {
-                if (isScrolling) {
+                if (isFastBind) {
                     // Reaction chips must render reliably even when a row is bound mid-fling.
                     // They are part of the already-loaded message model (no fetch) and are rare
                     // + lightweight (a single TextView), so always create/lay them out — deferring
@@ -1664,7 +1725,7 @@ class ChatAdapter(
             }
             chip.text = display
 
-            val bg = if (isScrolling && chip.background is android.graphics.drawable.GradientDrawable) {
+            val bg = if (isFastBind && chip.background is android.graphics.drawable.GradientDrawable) {
                 // During scroll, mutate the existing drawable instead of allocating a new one.
                 // A new GradientDrawable allocation + native paint setup costs ~2-4ms per bind;
                 // reusing the existing background cuts that to near-zero. The animation gap
@@ -2732,7 +2793,8 @@ class ChatAdapter(
         resolvedImageSource: Any?,
         widthPx: Int,
         heightPx: Int,
-        directionLabel: String
+        directionLabel: String,
+        skipBlurredPreview: Boolean = false
     ) {
         val previewSource = resolveSingleMediaPreviewSource(message, resolvedImageSource)
         val existingPlaceholder = preserveVisibleDrawablePlaceholder(imageView)
@@ -2765,7 +2827,11 @@ class ChatAdapter(
                 }
             })
 
-        val requestWithPreview = if (previewSource != null) {
+        // When skipBlurredPreview is true (first layout / chat open), skip the low-res
+        // blurred thumbnail and go straight to the full image. The blurred 96px preview
+        // is useful during scroll (motion hides the blur) but looks broken on a static
+        // first frame where the user expects clear images immediately.
+        val requestWithPreview = if (previewSource != null && !skipBlurredPreview) {
             applyBlur(imageView, true)
             mainRequest.thumbnail(
                 Glide.with(context)
@@ -3225,7 +3291,7 @@ class ChatAdapter(
     ) {
         val replyContainer = root.findViewById<View>(R.id.includeReplyPreview) ?: return
 
-        if (isScrolling && bindReplyPreviewLightweight(replyContainer, message)) {
+        if (isFastBind && bindReplyPreviewLightweight(replyContainer, message)) {
             return
         }
 
@@ -3536,7 +3602,7 @@ class ChatAdapter(
                 val previouslyBoundMessageId = boundMessageId
                 // FAST-REBIND PATH: during active scroll, when rebinding the same message and
                 // we already have a drawable, skip every per-bind allocation/disk-syscall.
-                if (isScrolling && previouslyBoundMessageId == msg.id && binding.ivImage.drawable != null) {
+                if (isFastBind && previouslyBoundMessageId == msg.id && binding.ivImage.drawable != null) {
                     return
                 }
                 boundMessageId = msg.id
@@ -3606,7 +3672,7 @@ class ChatAdapter(
                         drawablePresent
                 val shouldLoad = when {
                     skipImageLoad && drawablePresent -> false
-                    sourceUnchanged && !isScrolling && !boundWasScrolling -> false
+                    sourceUnchanged && !isFastBind&& !boundWasScrolling -> false
                     sourceUnchanged && isScrolling && boundWasScrolling -> false
                     else -> true
                 }
@@ -3616,6 +3682,7 @@ class ChatAdapter(
                     val isGif = msg.type == MessageType.GIF || msg.type == MessageType.MEME
 
                     if (isScrolling) {
+                        // During actual scroll: low-res preview. During first layout: fall through to full quality.
                         if (!tryBindSeededMediaWhileScrolling(binding.ivImage, msg, resolvedImageSource, "IN ")) {
                             loadScrollingMediaPreview(
                                 context = context,
@@ -3685,7 +3752,8 @@ class ChatAdapter(
                                 resolvedImageSource = resolvedImageSource,
                                 widthPx = glideWIn,
                                 heightPx = glideHIn,
-                                directionLabel = "IN"
+                                directionLabel = "IN",
+                                skipBlurredPreview = isFirstLayout
                             )
                         }
                         boundWasScrolling = false
@@ -3693,12 +3761,40 @@ class ChatAdapter(
                     boundImageSource = resolvedImageSource
                 }
 
-                if (isScrolling) {
+                if (isFastBind) {
                     bindScrollingChrome(msg, isSticker, position)
                     bindSelection(item, animate = false)
+                    // During first layout (chat just opened), re-attach click listeners
+                    // that bindScrollingChrome preserved. Freshly-inflated ViewHolders need
+                    // them set up to be tappable. During scroll, they stay null.
+                    if (isFirstLayout) {
+                        binding.ivDownloadButton.setOnClickListener { mediaDownloadListener?.onDownloadClicked(msg) }
+                        val hasLocal = !cachedLocalFilePath(msg.chatId, msg.id, msg.type).isNullOrEmpty()
+                        binding.messageBubble.setOnClickListener {
+                            if (selectionManager.hasSelection()) {
+                                selectionManager.toggleSelection(msg.id)
+                            } else if (hasLocal || mediaLocalFileResolver?.isReadyForPlayback(msg) == true) {
+                                if (msg.type == MessageType.VIDEO) {
+                                    val intent = VideoPlayerActivity.newIntent(context, mediaLocalFileResolver?.getPlaybackUri(msg) ?: msg.videoUrl ?: "", "Video")
+                                    context.startActivity(intent)
+                                } else {
+                                    val intent = MediaViewerActivity.newIntent(
+                                        context,
+                                        mediaLocalFileResolver?.getPlaybackUri(msg) ?: msg.imageUrl ?: "",
+                                        msg.timestamp, msg.id, msg.chatId
+                                    )
+                                    onOpenMediaViewer?.invoke(intent) ?: context.startActivity(intent)
+                                }
+                            }
+                        }
+                        binding.messageBubble.setOnLongClickListener {
+                            handleBubbleLongPress(msg.id, itemView)
+                            true
+                        }
+                    }
                     return
                 }
-                
+
                 binding.tvTimestamp.text = formatTimestampWithEdited(msg, msg.formattedTime)
                 if (isSticker || msg.type == MessageType.GIF || msg.type == MessageType.MEME) {
                     binding.tvFileSize.visibility = View.GONE
@@ -3833,9 +3929,13 @@ class ChatAdapter(
             bindReplyPreview(binding.root.context, binding.root, msg)
             binding.ivDownloadButton.visibility = View.GONE
             binding.progressIndicator.visibility = View.GONE
-            binding.ivDownloadButton.setOnClickListener(null)
-            binding.messageBubble.setOnClickListener(null)
-            binding.messageBubble.setOnLongClickListener(null)
+            // During actual scroll: null click listeners prevent accidental taps.
+            // During first layout: preserve listeners so visible media is tappable.
+            if (!isFirstLayout) {
+                binding.ivDownloadButton.setOnClickListener(null)
+                binding.messageBubble.setOnClickListener(null)
+                binding.messageBubble.setOnLongClickListener(null)
+            }
             updateGrouping(position)
         }
 
@@ -3878,7 +3978,7 @@ class ChatAdapter(
         }
 
         override fun refreshMedia(item: ChatListItem) {
-            if (isScrolling) return
+            if (isFastBind) return
             if (item is ChatListItem.MessageItem) {
                 val msg = item.message
                 // Compute the current best imageSource the same way bind() does
@@ -3947,7 +4047,7 @@ class ChatAdapter(
                 val previouslyBoundMessageId = boundMessageId
                 // FAST-REBIND PATH: during active scroll, when rebinding the same message and
                 // we already have a drawable, skip every per-bind allocation/disk-syscall.
-                if (isScrolling && previouslyBoundMessageId == msg.id && binding.ivImage.drawable != null) {
+                if (isFastBind && previouslyBoundMessageId == msg.id && binding.ivImage.drawable != null) {
                     // Still update the status icon — it's cheap and must never be stale.
                     setStatus(displayStatus)
                     return
@@ -4014,7 +4114,7 @@ class ChatAdapter(
                         drawablePresent
                 val shouldLoad = when {
                     skipImageLoad && drawablePresent -> false
-                    sourceUnchanged && !isScrolling && !boundWasScrolling -> false
+                    sourceUnchanged && !isFastBind&& !boundWasScrolling -> false
                     sourceUnchanged && isScrolling && boundWasScrolling -> false
                     else -> true
                 }
@@ -4024,6 +4124,7 @@ class ChatAdapter(
                     val isGif = msg.type == MessageType.GIF || msg.type == MessageType.MEME
 
                     if (isScrolling) {
+                        // During actual scroll: low-res preview. During first layout: fall through to full quality.
                         if (!tryBindSeededMediaWhileScrolling(binding.ivImage, msg, resolvedImageSource, "OUT")) {
                             loadScrollingMediaPreview(
                                 context = context,
@@ -4093,7 +4194,8 @@ class ChatAdapter(
                                 resolvedImageSource = resolvedImageSource,
                                 widthPx = glideWOut,
                                 heightPx = glideHOut,
-                                directionLabel = "OUT"
+                                directionLabel = "OUT",
+                                skipBlurredPreview = isFirstLayout
                             )
                         }
                         boundWasScrolling = false
@@ -4101,12 +4203,43 @@ class ChatAdapter(
                     boundImageSource = resolvedImageSource
                 }
 
-                if (isScrolling) {
+                if (isFastBind) {
                     bindScrollingChrome(msg, isSticker, displayStatus, position)
                     bindSelection(item, animate = false)
+                    // During first layout: re-attach click listeners preserved by bindScrollingChrome.
+                    if (isFirstLayout) {
+                        binding.messageBubble.setOnClickListener {
+                            if (selectionManager.hasSelection()) {
+                                selectionManager.toggleSelection(msg.id)
+                            } else {
+                                val uploadProg = MediaProgressManager.getProgress(msg.id)
+                                val isUploadActive = (uploadProg != null && uploadProg.isUploading && !uploadProg.isComplete)
+                                    || displayStatus == MessageStatus.SENDING
+                                if (isUploadActive) return@setOnClickListener
+                                val playbackUri = mediaLocalFileResolver?.getPlaybackUri(msg)
+                                if (msg.type == MessageType.VIDEO) {
+                                    val uri = playbackUri ?: msg.localUri ?: msg.videoUrl ?: ""
+                                    if (uri.isNotEmpty()) {
+                                        val intent = VideoPlayerActivity.newIntent(context, uri, "Video")
+                                        context.startActivity(intent)
+                                    }
+                                } else {
+                                    val uri = playbackUri ?: msg.localUri ?: msg.imageUrl ?: ""
+                                    if (uri.isNotEmpty()) {
+                                        val intent = MediaViewerActivity.newIntent(context, uri, msg.timestamp, msg.id, msg.chatId)
+                                        onOpenMediaViewer?.invoke(intent) ?: context.startActivity(intent)
+                                    }
+                                }
+                            }
+                        }
+                        binding.messageBubble.setOnLongClickListener {
+                            handleBubbleLongPress(msg.id, itemView)
+                            true
+                        }
+                    }
                     return
                 }
-                
+
                 binding.tvTimestamp.text = formatTimestampWithEdited(msg, msg.formattedTime)
                 if (isSticker || msg.type == MessageType.GIF || msg.type == MessageType.MEME) {
                     binding.tvFileSize.visibility = View.GONE
@@ -4261,8 +4394,12 @@ class ChatAdapter(
 
             bindReplyPreview(binding.root.context, binding.root, msg)
             setStatus(displayStatus)
-            binding.messageBubble.setOnClickListener(null)
-            binding.messageBubble.setOnLongClickListener(null)
+            // During actual scroll: null click listeners prevent accidental taps.
+            // During first layout: preserve listeners so visible media is tappable.
+            if (!isFirstLayout) {
+                binding.messageBubble.setOnClickListener(null)
+                binding.messageBubble.setOnLongClickListener(null)
+            }
             updateGrouping(position)
         }
 
@@ -4320,7 +4457,7 @@ class ChatAdapter(
         }
 
         override fun refreshMedia(item: ChatListItem) {
-            if (isScrolling) return
+            if (isFastBind) return
             if (item is ChatListItem.MessageItem) {
                 val msg = item.message
                 // Compute the current best imageSource the same way bind() does
@@ -4474,7 +4611,7 @@ class ChatAdapter(
                     if (tryBindPreloadedVideoNoteThumbnail(binding.ivThumbnail, msg, thumbnailModel, "OUT")) {
                         boundThumbnailModel = thumbnailModel
                         boundThumbnailWasScrolling = false
-                    } else if (isScrolling) {
+                    } else if (isFastBind) {
                         // Low-res blurred thumbnail only during scroll; SCROLL_STOPPED triggers refreshMedia → full quality.
                         Glide.with(context)
                             .asBitmap()
@@ -4520,7 +4657,7 @@ class ChatAdapter(
                     boundThumbnailWasScrolling = false
                 }
 
-                if (isScrolling) {
+                if (isFastBind) {
                     bindScrollingChrome(msg)
                     bindSelection(item, animate = false)
                     return
@@ -4843,7 +4980,7 @@ class ChatAdapter(
         }
 
         override fun refreshMedia(item: ChatListItem) {
-            if (isScrolling) return
+            if (isFastBind) return
             // Only rebind if the thumbnail was loaded at low-res while scrolling.
             if (!boundThumbnailWasScrolling && !boundChromeWasScrolling) return
             val pos = bindingAdapterPosition
@@ -4900,7 +5037,7 @@ class ChatAdapter(
                     if (tryBindPreloadedVideoNoteThumbnail(binding.ivThumbnail, msg, thumbnailModel, "IN")) {
                         boundThumbnailModel = thumbnailModel
                         boundThumbnailWasScrolling = false
-                    } else if (isScrolling) {
+                    } else if (isFastBind) {
                         // Low-res blurred thumbnail only during scroll; SCROLL_STOPPED triggers refreshMedia → full quality.
                         Glide.with(context)
                             .asBitmap()
@@ -4946,7 +5083,7 @@ class ChatAdapter(
                     boundThumbnailWasScrolling = false
                 }
 
-                if (isScrolling) {
+                if (isFastBind) {
                     bindScrollingChrome(msg)
                     bindSelection(item, animate = false)
                     return
@@ -5263,7 +5400,7 @@ class ChatAdapter(
         }
 
         override fun refreshMedia(item: ChatListItem) {
-            if (isScrolling) return
+            if (isFastBind) return
             // Only rebind if the thumbnail was loaded at low-res while scrolling.
             if (!boundThumbnailWasScrolling && !boundChromeWasScrolling) return
             val pos = bindingAdapterPosition
@@ -5319,10 +5456,10 @@ class ChatAdapter(
                     items = mediaItems,
                     messageId = msg.id,
                     scrolling = isScrolling,
-                    onClick = if (isScrolling) null else { index ->
+                    onClick = if (isFastBind) null else { index ->
                         openImageViewer(msg, index)
                     },
-                    onLongClick = if (isScrolling) null else { _ ->
+                    onLongClick = if (isFastBind) null else { _ ->
                         handleBubbleLongPress(msg.id, itemView)
                         true
                     }
@@ -5342,7 +5479,7 @@ class ChatAdapter(
                 
                 binding.ivAvatar.visibility = View.GONE
 
-                if (isScrolling) {
+                if (isFastBind) {
                     bindReplyPreview(binding.root.context, binding.root, msg)
                     binding.progressIndicator.visibility = View.GONE
                     binding.tvProgressText.visibility = View.GONE
@@ -5527,14 +5664,14 @@ class ChatAdapter(
                     items = mediaItems,
                     messageId = msg.id,
                     scrolling = isScrolling,
-                    onClick = if (isScrolling) null else { index ->
+                    onClick = if (isFastBind) null else { index ->
                         if (selectionManager.hasSelection()) {
                             selectionManager.toggleSelection(msg.id)
                         } else {
                             openImageViewer(msg, index)
                         }
                     },
-                    onLongClick = if (isScrolling) null else { _ ->
+                    onLongClick = if (isFastBind) null else { _ ->
                         handleBubbleLongPress(msg.id, itemView)
                         true
                     }
@@ -5553,7 +5690,7 @@ class ChatAdapter(
                 binding.tvTimestamp.text = formatTimestampWithEdited(msg, msg.formattedTime)
                 updateMessageStatus(binding.ivStatus, rememberStrongestOutgoingStatus(msg))
 
-                if (isScrolling) {
+                if (isFastBind) {
                     bindReplyPreview(binding.root.context, binding.root, msg)
                     binding.progressIndicator.visibility = View.GONE
                     binding.tvProgressText.visibility = View.GONE
@@ -6568,12 +6705,18 @@ class ChatAdapter(
     }
 
     inner class IncomingTextViewHolder(private val binding: ItemMessageIncomingTextBinding) : BaseViewHolder(binding) {
+        override fun applyTextHeight(item: ChatListItem) {
+            if (item is ChatListItem.MessageItem && !item.isEmojiContent) {
+                TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
+            }
+        }
+
         override fun bind(item: ChatListItem, position: Int, skipImageLoad: Boolean) {
             if (item is ChatListItem.MessageItem) {
                 val msg = item.message
                 initializeColors(binding.root.context)
                 bindForwardedLabel(msg, isIncoming = true)
-                
+
                 if (isPastelTheme) {
                     binding.cardMessage.setBackgroundResource(R.drawable.bg_pastel_bubble_incoming)
                     binding.cardMessage.backgroundTintList = null
@@ -6584,7 +6727,27 @@ class ChatAdapter(
                     binding.cardMessage.backgroundTintList = tintOtherBubble
                 }
                 binding.tvMessage.setTextColor(colorOtherText)
-                
+
+                // Capture text layout params once for background-thread precomputation.
+                // Set correct text size first: XML default is 17sp but normal messages
+                // use 15sp. Without this the precomputed height is 13% too tall.
+                if (!TextLayoutPrecomputer.isReady()) {
+                    binding.tvMessage.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, normalMessageTextSizeSp)
+                    TextLayoutPrecomputer.captureParams(binding.tvMessage)
+                }
+
+                // Apply pre-measured height BEFORE setting text so onMeasure skips
+                // the internal StaticLayout creation pass.
+                // For emoji-only messages: reset any fixed height from a previous bind
+                // (ViewHolder recycling). Emojis use 24sp font but premeasured height is
+                // computed at 15sp — applying it would clip the bottom of emoji glyphs.
+                if (item.isEmojiContent) {
+                    binding.tvMessage.minHeight = 0
+                    binding.tvMessage.maxHeight = Int.MAX_VALUE
+                } else {
+                    TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
+                }
+
                 if (msg.isDeletedForAll) {
                     binding.tvMessage.text = " This message was deleted "
                     binding.tvMessage.typeface = typefaceItalic
@@ -6596,7 +6759,7 @@ class ChatAdapter(
                     binding.tvMessage.alpha = 1.0f
                 }
 
-                if (isScrolling || isFirstLayout) {
+                if (isFastBind || isFirstLayout) {
                     binding.tvTranslationLabel.visibility = View.GONE
                     val linkPreviewVisible = bindLinkPreview(
                         binding.root,
@@ -6619,7 +6782,7 @@ class ChatAdapter(
                 val linkPreviewVisible = bindLinkPreview(binding.root, msg, binding.tvMessage)
 
                 binding.tvTimestamp.text = formatTimestampWithEdited(msg, msg.formattedTime)
-                
+
                 bindReplyPreview(binding.root.context, binding.root, msg)
 
                 val replyVisible = binding.root.findViewById<View>(R.id.includeReplyPreview)?.visibility == View.VISIBLE
@@ -6666,6 +6829,12 @@ class ChatAdapter(
     inner class OutgoingTextViewHolder(private val binding: ItemMessageOutgoingTextBinding) : BaseViewHolder(binding) {
         private var lastStatus: MessageStatus? = null
 
+        override fun applyTextHeight(item: ChatListItem) {
+            if (item is ChatListItem.MessageItem && !item.isEmojiContent) {
+                TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
+            }
+        }
+
         override fun bind(item: ChatListItem, position: Int, skipImageLoad: Boolean) {
             if (item is ChatListItem.MessageItem) {
                 val msg = item.message
@@ -6683,7 +6852,24 @@ class ChatAdapter(
                 }
                 
                 binding.tvMessage.setTextColor(colorOwnText)
-                
+
+                // Capture text layout params once for background-thread precomputation.
+                // Set correct text size first (see IncomingTextViewHolder comment).
+                if (!TextLayoutPrecomputer.isReady()) {
+                    binding.tvMessage.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, normalMessageTextSizeSp)
+                    TextLayoutPrecomputer.captureParams(binding.tvMessage)
+                }
+
+                // Apply pre-measured height BEFORE setting text so onMeasure skips
+                // the internal StaticLayout creation pass.
+                // For emoji-only: reset fixed height from recycled ViewHolder (see IncomingTextViewHolder).
+                if (item.isEmojiContent) {
+                    binding.tvMessage.minHeight = 0
+                    binding.tvMessage.maxHeight = Int.MAX_VALUE
+                } else {
+                    TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
+                }
+
                 if (msg.isDeletedForAll) {
                     binding.tvMessage.text = " This message was deleted "
                     binding.tvMessage.typeface = typefaceItalic
@@ -6694,7 +6880,7 @@ class ChatAdapter(
                     binding.tvMessage.alpha = 1.0f
                 }
 
-                if (isScrolling || isFirstLayout) {
+                if (isFastBind || isFirstLayout) {
                     binding.tvTranslationLabel.visibility = View.GONE
                     val linkPreviewVisible = bindLinkPreview(
                         binding.root,
@@ -6723,7 +6909,7 @@ class ChatAdapter(
                 val linkPreviewVisible = bindLinkPreview(binding.root, msg, binding.tvMessage)
 
                 binding.tvTimestamp.text = formatTimestampWithEdited(msg, msg.formattedTime)
-                
+
                 bindReplyPreview(binding.root.context, binding.root, msg)
 
                 val replyVisible = binding.root.findViewById<View>(R.id.includeReplyPreview)?.visibility == View.VISIBLE
@@ -6737,7 +6923,7 @@ class ChatAdapter(
                 } else {
                     binding.ivStatus.visibility = View.GONE
                 }
-                
+
                 updateGrouping(position)
                 maybeBounceIncoming(item, binding.cardMessage)
                 bindSelection(item, animate = false)
