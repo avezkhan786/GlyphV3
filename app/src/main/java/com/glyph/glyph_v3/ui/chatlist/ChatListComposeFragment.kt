@@ -313,14 +313,18 @@ class ChatListComposeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         StartupTrace.logStage("chat_list_fragment_onViewCreated")
 
-        // Start data loading after first frame
+        // ULTRA-OPTIMIZATION: Start data loading IMMEDIATELY for instant scrollability
+        // Don't defer to view.post - that creates 100-300ms delay before user can interact
+        // This eliminates the delay on mid-range devices before user can scroll
+        observeChatListReadyForSecondaryPreload()
+        ensureRepositoryReadyAndStart()
+
+        // Defer only non-critical UI operations to after first frame
         view.post {
             if (isViewDestroyed()) return@post
-            StartupTrace.logStage("chat_list_deferred_data_setup_start")
-            observeChatListReadyForSecondaryPreload()
-            ensureRepositoryReadyAndStart()
+            StartupTrace.logStage("chat_list_first_frame_ready")
 
-            // Refresh "hide locked chats" state (readable from SharedPreferences, updated on resume)
+            // These can wait - they don't affect scrollability
             if (!isLockedMode && !isArchivedMode) {
                 refreshLockedChatsHiddenState()
             }
