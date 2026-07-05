@@ -220,13 +220,29 @@ internal class MediaController(
     }
 
     fun clearRetainedMediaPreloadFutures() {
+        // BITMAP LEAK FIX: Before clearing the maps, collect all FutureTargets
+        // (each holds a decoded Drawable/bitmap) and tell Glide to release them.
+        // Previously the maps were cleared without releasing the futures, so
+        // Glide kept the decoded bitmaps in its active-resource pool until the
+        // next trimMemory — appearing as leaked bitmaps in the profiler.
+        val allFutures = mutableSetOf<FutureTarget<Drawable>>()
+
+        // Collect from the three indexed maps
+        retainedPreloadByKey.values.forEach { allFutures.add(it.target) }
+        retainedPreloadByModelType.values.forEach { allFutures.add(it.target) }
+        retainedPreloadByMessageId.values.forEach { allFutures.add(it.target) }
         retainedPreloadByKey.clear()
         retainedPreloadByModelType.clear()
         retainedPreloadByMessageId.clear()
-        if (retainedMediaPreloadFutures.isEmpty()) return
-        val toClear = retainedMediaPreloadFutures.toList()
-        retainedMediaPreloadFutures.clear()
-        toClear.forEach { target ->
+
+        // Collect from the flat futures list
+        if (retainedMediaPreloadFutures.isNotEmpty()) {
+            allFutures.addAll(retainedMediaPreloadFutures)
+            retainedMediaPreloadFutures.clear()
+        }
+
+        // Release all futures back to Glide's pool so the bitmaps can be recycled
+        allFutures.forEach { target ->
             runCatching { Glide.with(appContext).clear(target) }
         }
     }

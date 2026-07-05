@@ -506,6 +506,10 @@ class ChatFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // MEMORY LEAK FIX: Clear cached data so the Fragment doesn't hold stale
+        // references through its fields after the view is destroyed.
+        lastKnownProcessedMessageIds = emptySet()
+        cachedHeaderProcessedItems = emptyList()
         _binding = null
     }
 }

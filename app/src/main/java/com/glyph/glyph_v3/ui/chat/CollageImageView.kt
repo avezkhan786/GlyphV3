@@ -709,6 +709,15 @@ class CollageImageView @JvmOverloads constructor(
         }
     }
 
+    // BITMAP LEAK FIX: Override onDetachedFromWindow to clear all Glide CustomTargets.
+    // Without this, when the Activity is destroyed the previewTargets and fullResTargets
+    // arrays still hold CustomTarget references that each contain a decoded Bitmap,
+    // preventing GC of the entire view tree + bitmaps.
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        clearForRecycle()
+    }
+
     fun clearForRecycle() {
         loadGeneration += 1
         pendingFullResUpgrade = false

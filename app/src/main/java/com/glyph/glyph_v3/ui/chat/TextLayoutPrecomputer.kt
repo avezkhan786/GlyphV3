@@ -103,6 +103,16 @@ object TextLayoutPrecomputer {
     fun isReady(): Boolean = cachedPaint != null && maxBubbleWidthPx > 0
 
     /**
+     * Release cached TextPaint and measurement params. Call when the app is
+     * backgrounded or on configuration changes to release font metric references.
+     * Safe to call multiple times; [captureParams] can be called again afterwards.
+     */
+    fun release() {
+        cachedPaint = null
+        maxBubbleWidthPx = 0
+    }
+
+    /**
      * Precompute text heights for all text messages in [items].
      *
      * Runs on the current dispatcher (caller should use Dispatchers.Default).

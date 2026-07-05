@@ -122,11 +122,10 @@ class ChatListComposeFragment : Fragment() {
         enterTransition = null
         returnTransition = null
 
-        // Start repository pre-warming as early as possible (onCreate instead of
-        // onCreateView) so DB creation + repository init overlap with layout
-        // inflation and Compose setup rather than blocking the first frame.
-        val app = requireContext().applicationContext as GlyphApplication
-        app.ensureSharedRepositoryStartup(reason = "chat_list_compose_open")
+        // STARTUP OPTIMIZATION: Removed eager repository pre-warming
+        // Previously this called ensureSharedRepositoryStartup() which blocked
+        // on Room database creation (200-500ms). Now the repository initializes
+        // lazily on-demand in the background when first needed.
     }
 
     override fun onCreateView(
@@ -137,8 +136,10 @@ class ChatListComposeFragment : Fragment() {
         StartupTrace.logStage("chat_list_fragment_onCreateView_start")
 
         val app = requireContext().applicationContext as GlyphApplication
-        repository = app.repository
-        groupRepository = app.getOrCreateGroupChatRepository()
+        // STARTUP OPTIMIZATION: Don't eagerly get repositories - let them initialize lazily
+        // This avoids blocking on Room database creation during first layout
+        repository = app.repository  // May be null initially, will be created in background
+        // groupRepository will be created on-demand when needed
 
         DraftMessageStore.init(requireContext().applicationContext)
 
@@ -171,6 +172,11 @@ class ChatListComposeFragment : Fragment() {
         if (composeViewLocal.childCount > 0) return // Already set up
 
         StartupTrace.logStage("chat_list_compose_setup_start")
+
+        // STARTUP OPTIMIZATION: Initialize Coil on-demand when Compose UI is first displayed
+        // Coil is only needed for Compose screens, so we defer until first Compose render
+        val app = requireContext().applicationContext as GlyphApplication
+        app.ensureCoilInitialized()
 
         composeViewLocal.setContent {
             GlyphThemeProvider {
@@ -381,13 +387,16 @@ class ChatListComposeFragment : Fragment() {
         }
 
         repositoryInitJob?.cancel()
-        repositoryInitJob = viewLifecycleOwner.lifecycleScope.launch {
+        repositoryInitJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             val app = requireContext().applicationContext as GlyphApplication
 
-            // OPTIMIZATION: Don't block on repository creation - the Application
-            // class should have already prewarmed it. If not, create it async.
-            val readyRepository = repository ?: app.getOrCreateRealtimeRepository()
+            // STARTUP OPTIMIZATION: Create repository on IO thread to avoid blocking main thread
+            // Room database creation can take 200-500ms on first launch - this must not block UI
+            val readyRepository = withContext(Dispatchers.IO) {
+                repository ?: app.getOrCreateRealtimeRepository()
+            }
 
+            // Switch back to main thread only for UI updates
             withContext(Dispatchers.Main.immediate) {
                 repository = readyRepository
                 viewModel.attachRepository(readyRepository)
@@ -1122,13 +1131,16 @@ class ChatListComposeFragment : Fragment() {
         chatsJob?.cancel()
         presenceJob?.cancel()
         typingJob?.cancel()
+        groupTypingJob?.cancel()
         repositoryInitJob?.cancel()
         repositoryInitJob = null
         hasStartedChatListData = false
         hasRequestedSecondaryTabPreload = false
         lastPredictivePrefetchChatIds = emptySet()
+        currentGroupTypingChatIds = emptyList()
         requestedUserInfoChatIds.clear()
         requestedAvatarPreloadKeys.clear()
+        requestedGroupSenderIds.clear()
         composeView = null
     }
 }

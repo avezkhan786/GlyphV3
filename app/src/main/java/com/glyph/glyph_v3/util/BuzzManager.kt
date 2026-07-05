@@ -13,6 +13,8 @@ import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -39,6 +41,11 @@ object BuzzManager {
     private var isSoundLoaded = false
     private var lastReceivedTime = 0L
 
+    // MEMORY LEAK FIX: Single shared scope for buzz operations instead of
+    // creating new CoroutineScope(Dispatchers.X) on every call.
+    private val buzzScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
     interface BuzzUiListener {
         fun onBuzzReceived(buzzChatId: String, senderName: String)
     }
@@ -51,7 +58,7 @@ object BuzzManager {
 
     fun primeTransport() {
         val currentUser = FirebaseAuth.getInstance().currentUser ?: return
-        CoroutineScope(Dispatchers.IO).launch {
+        buzzScope.launch {
             runCatching { currentUser.getIdToken(false).await() }
                 .onFailure { error -> Log.w(TAG, "Buzz auth prime failed", error) }
         }
@@ -128,7 +135,7 @@ object BuzzManager {
 
         lastBuzzMap[chatId] = System.currentTimeMillis()
 
-        CoroutineScope(Dispatchers.IO).launch {
+        buzzScope.launch {
             try {
                 // Warm auth without forcing a token refresh on every buzz tap.
                 currentUser.getIdToken(false).await()
@@ -248,7 +255,7 @@ object BuzzManager {
         // 3. Trigger UI effects if listener attached
         val listener = uiListener
         if (listener != null) {
-            CoroutineScope(Dispatchers.Main).launch {
+            mainScope.launch {
                 listener.onBuzzReceived(buzzChatId, senderName)
             }
             return true
@@ -317,5 +324,8 @@ object BuzzManager {
         uiListener = null
         isSoundLoaded = false
         buzzSoundId = 0
+        // Cancel coroutine scopes to clean up any pending operations
+        buzzScope.cancel()
+        mainScope.cancel()
     }
 }

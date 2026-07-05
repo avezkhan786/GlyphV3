@@ -15,9 +15,10 @@ import com.glyph.glyph_v3.utils.ThemeManager
 import com.glyph.glyph_v3.util.StartupTrace
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.CoroutineScope
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 class SplashActivity : AppCompatActivity() {
@@ -37,7 +38,7 @@ class SplashActivity : AppCompatActivity() {
 
         // OPTIMIZATION: Navigate immediately, defer health check to background
         // This removes 50-200ms from splash time on cold starts
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 FirebaseFirestore.getInstance().collection("_health_check_").document("doc").get()
                     .addOnSuccessListener { }
@@ -71,7 +72,7 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun checkForBackupAndRoute() {
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 if (!BackupPreferences.shouldShowRestoreOffer(this@SplashActivity)) {
                     goToMain(); return@launch

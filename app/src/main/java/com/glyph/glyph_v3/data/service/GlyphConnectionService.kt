@@ -169,7 +169,7 @@ class GlyphConnectionService : ConnectionService() {
         }
 
         override fun onShowIncomingCallUi() {
-            CoroutineScope(Dispatchers.Main).launch {
+            scope.launch {
                 if (info.sessionKind == "walkie_talkie") {
                     WalkieTalkieIncomingNotificationHelper.show(
                         context = appContext,
@@ -203,7 +203,7 @@ class GlyphConnectionService : ConnectionService() {
 
         override fun onReject() {
             if (info.sessionKind == "walkie_talkie") {
-                CoroutineScope(Dispatchers.IO).launch {
+                scope.launch(Dispatchers.IO) {
                     runCatching { WalkieTalkieRepository().rejectSession(info.callId) }
                 }
             } else {
@@ -214,7 +214,7 @@ class GlyphConnectionService : ConnectionService() {
 
         override fun onDisconnect() {
             if (info.sessionKind == "walkie_talkie") {
-                CoroutineScope(Dispatchers.IO).launch {
+                scope.launch(Dispatchers.IO) {
                     runCatching { WalkieTalkieRepository().cancelSession(info.callId) }
                 }
             } else {
