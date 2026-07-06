@@ -26,6 +26,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -178,7 +180,7 @@ fun ChatHeader(
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_arrow_back),
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = theme.textPrimary,
                             modifier = Modifier.size(24.dp)
@@ -194,7 +196,7 @@ fun ChatHeader(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(36.dp)
                                 .clip(CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -275,18 +277,18 @@ fun ChatHeader(
                     Row(
                         modifier = Modifier,
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy((-6).dp, Alignment.End)
+                        horizontalArrangement = Arrangement.spacedBy((-4).dp, Alignment.End)
                     ) {
                         if (showVideoCall) {
                             IconButton(
                                 onClick = onVideoCallClick,
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_videocam),
                                     contentDescription = "Video Call",
                                     tint = theme.textPrimary,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
@@ -294,31 +296,31 @@ fun ChatHeader(
                         if (showVoiceCall) {
                             IconButton(
                                 onClick = onVoiceCallClick,
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_call),
                                     contentDescription = "Voice Call",
                                     tint = theme.textPrimary,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
 
                         if (showGroupDropdown) {
                             Box(
-                                modifier = Modifier.size(32.dp),
+                                modifier = Modifier.size(28.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 IconButton(
                                     onClick = { showGroupCallMenu = true },
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(28.dp)
                                 ) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.ic_expand_more),
                                         contentDescription = "Call options",
                                         tint = theme.textPrimary,
-                                        modifier = Modifier.size(20.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                                 androidx.compose.material3.DropdownMenu(
@@ -362,7 +364,7 @@ fun ChatHeader(
                         if (walkieTalkieButtonState != null) {
                             IconButton(
                                 onClick = onWalkieTalkieClick,
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
                                     painter = painterResource(
@@ -372,24 +374,24 @@ fun ChatHeader(
                                     contentDescription = if (walkieTalkieButtonState) "End Walkie-Talkie" else "Start Walkie-Talkie",
                                     tint = if (walkieTalkieButtonState) androidx.compose.ui.graphics.Color(0xFFFFA726)
                                            else theme.textPrimary,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
 
                         Box(
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(36.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             IconButton(
                                 onClick = onMenuClick,
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_more_vert),
                                     contentDescription = "Menu",
                                     tint = theme.textPrimary,
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                             androidx.compose.material3.DropdownMenu(
@@ -544,14 +546,18 @@ fun ChatInputArea(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                    .padding(horizontal = 2.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onAttachClick) {
+                IconButton(
+                    onClick = onAttachClick,
+                    modifier = Modifier.size(38.dp)
+                ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_add_2),
                     contentDescription = "Attach",
-                    tint = theme.attachmentIcon
+                    tint = theme.attachmentIcon,
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
@@ -595,12 +601,13 @@ fun ChatInputArea(
             ) {
                 IconButton(
                     onClick = onEmojiClick,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_emoji),
                         contentDescription = "Emoji",
-                        tint = theme.emojiIcon
+                        tint = theme.emojiIcon,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -608,12 +615,13 @@ fun ChatInputArea(
                 if (!isTyping) {
                     IconButton(
                         onClick = onBuzzClick,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_bolt),
                             contentDescription = "Buzz",
-                            tint = theme.attachmentIcon
+                            tint = theme.attachmentIcon,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
@@ -622,9 +630,9 @@ fun ChatInputArea(
                 // delays) with simple animateFloatAsState on graphicsLayer. GPU-accelerated
                 // and produces fewer recompositions. During IME animation, transitions snap.
                 //
-                // Camera/AI swap — fixed 44dp slot
+                // Camera/AI swap — fixed 40dp slot
                 Box(
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(40.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     val animSpec: AnimationSpec<Float> = if (suppressAnimations) snap() else tween(durationMillis = 200, easing = FastOutSlowInEasing)
@@ -642,7 +650,7 @@ fun ChatInputArea(
 
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(40.dp)
                             .clickable {
                                 if (isTyping) onAiClick() else onCameraClick()
                             },

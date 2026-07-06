@@ -1,22 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Premium other first bubble with tail — refined stroke, polished corners -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Bubble Body (inset left side) -->
-    <item
-        android:left="8dp">
+    <!-- Bubble Body (inset left side for tail) -->
+    <item android:left="8dp">
         <shape android:shape="rectangle">
             <solid android:color="?attr/glyphBubbleOther" />
             <stroke
-              android:width="1.5dp"
-              android:color="?attr/glyphDivider" />
+                android:width="1dp"
+                android:color="#18000000" />
             <corners
                 android:topLeftRadius="0dp"
-                android:topRightRadius="12dp"
-                android:bottomLeftRadius="12dp"
-                android:bottomRightRadius="12dp" />
+                android:topRightRadius="16dp"
+                android:bottomLeftRadius="16dp"
+                android:bottomRightRadius="16dp" />
         </shape>
     </item>
-
-    <!-- Tail (Top Left) -->
+    <!-- Tail — positioned at top left -->
     <item
         android:drawable="@drawable/ic_tail_incoming"
         android:width="15dp"
@@ -24,5 +23,4 @@
         android:gravity="top|left"
         android:top="0dp"
         android:left="0dp" />
-
 </layer-list>

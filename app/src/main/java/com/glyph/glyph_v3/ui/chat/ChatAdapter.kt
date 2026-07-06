@@ -2071,8 +2071,8 @@ class ChatAdapter(
 
     private fun resolveBubbleCornerSizes(view: View, groupPosition: BubbleGroupPosition, isIncoming: Boolean): BubbleCornerSizes {
         val density = view.context.resources.displayMetrics.density
-        val fullPx = 12f * density
-        val reducedPx = 4f * density
+        val fullPx = 16f * density
+        val reducedPx = 6f * density
 
         var topLeft = fullPx
         var topRight = fullPx
@@ -6721,11 +6721,12 @@ class ChatAdapter(
                     binding.cardMessage.setBackgroundResource(R.drawable.bg_pastel_bubble_incoming)
                     binding.cardMessage.backgroundTintList = null
                 } else {
-                    if (binding.cardMessage.background == null) {
-                        binding.cardMessage.setBackgroundResource(R.drawable.bg_message_incoming)
-                    }
+                    binding.cardMessage.setBackgroundResource(R.drawable.bg_message_incoming)
                     binding.cardMessage.backgroundTintList = tintOtherBubble
                 }
+                // Reset the corner cache tag so applyBubbleCorners always runs fresh
+                // (prevents stale grouped corners from surviving ViewHolder recycling)
+                binding.cardMessage.setTag(R.id.tag_bubble_corner_key, null)
                 binding.tvMessage.setTextColor(colorOtherText)
 
                 // Capture text layout params once for background-thread precomputation.
@@ -6845,11 +6846,12 @@ class ChatAdapter(
                     binding.cardMessage.setBackgroundResource(R.drawable.bg_pastel_bubble_outgoing)
                     binding.cardMessage.backgroundTintList = null
                 } else {
-                    if (binding.cardMessage.background == null) {
-                        binding.cardMessage.setBackgroundResource(R.drawable.bg_message_outgoing)
-                    }
+                    binding.cardMessage.setBackgroundResource(R.drawable.bg_message_outgoing)
                     binding.cardMessage.backgroundTintList = tintOwnBubble
                 }
+                // Reset the corner cache tag so applyBubbleCorners always runs fresh
+                // (prevents stale grouped corners from surviving ViewHolder recycling)
+                binding.cardMessage.setTag(R.id.tag_bubble_corner_key, null)
                 
                 binding.tvMessage.setTextColor(colorOwnText)
 
@@ -7061,8 +7063,10 @@ class ChatAdapter(
                 } else {
                     binding.cardMessage.setCardBackgroundColor(colorOtherBubble)
                 }
+                // Reset corner tag so applyBubbleCorners runs fresh after recycling
+                binding.cardMessage.setTag(R.id.tag_bubble_corner_key, null)
                 binding.tvMessage.setTextColor(colorOtherText)
-                
+
                 setVisibility(binding.cardMessage, View.VISIBLE)
 
                 when (msg.type) {
@@ -7161,8 +7165,10 @@ class ChatAdapter(
                 } else {
                     binding.cardMessage.setCardBackgroundColor(colorOwnBubble)
                 }
+                // Reset corner tag so applyBubbleCorners runs fresh after recycling
+                binding.cardMessage.setTag(R.id.tag_bubble_corner_key, null)
                 binding.tvMessage.setTextColor(colorOwnText)
-                
+
                 setVisibility(binding.cardMessage, View.VISIBLE)
 
                 when (msg.type) {
