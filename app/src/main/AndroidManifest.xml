@@ -173,18 +173,18 @@
             android:exported="false" />
 
         <!-- OPTIMIZATION: MainActivity is now the launcher activity -->
-        <!-- Splash theme applied for initial display, switches to normal theme in onCreate -->
+        <!-- STARTUP FIX: No longer uses splash theme - removed double-theme rendering overhead -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.GlyphV3.SplashBranded">
+            android:theme="@style/Theme.GlyphV3">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-            
+
         <activity android:name=".ui.chatlist.ArchivedChatsActivity" />
         <activity android:name=".ui.chatlist.LockedChatsActivity" />
         <activity android:name=".ui.chatlist.ChatLockSettingsActivity" />
@@ -223,6 +223,28 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- STARTUP OPTIMIZATION: App Startup Initializer for efficient lazy initialization -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <!-- Critical path initializers (run early) -->
+            <meta-data
+                android:name="com.glyph.glyph_v3.startup.FirebaseInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="com.glyph.glyph_v3.startup.PresenceInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="com.glyph.glyph_v3.startup.ThemeInitializer"
+                android:value="androidx.startup" />
+            <!-- Background services (run in parallel with UI) -->
+            <meta-data
+                android:name="com.glyph.glyph_v3.startup.ServicesInitializer"
+                android:value="androidx.startup" />
+        </provider>
+
         <service
             android:name=".data.service.MyFirebaseMessagingService"
             android:exported="false"
@@ -231,7 +253,7 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-        
+
         <receiver
             android:name=".data.service.NotificationActionReceiver"
             android:exported="false"
@@ -267,7 +289,7 @@
             android:name=".ui.chat.map.routing.NavigationForegroundService"
             android:exported="false"
             android:foregroundServiceType="location" />
-        
+
         <!-- Routing notification receiver for "Stop Navigation" button -->
         <receiver
             android:name=".ui.chat.map.routing.RoutingNotificationBroadcastReceiver"
@@ -479,7 +501,7 @@
             tools:node="merge" />
 
         <!-- ═══════════════════════════════════════════════════════════ -->
-            
+
     </application>
 
 </manifest>

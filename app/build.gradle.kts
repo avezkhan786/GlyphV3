@@ -328,6 +328,9 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
     androidTestImplementation(platform(libs.androidx.compose.bom))
+    // App Startup library for efficient initialization
+    implementation("androidx.startup:startup-runtime:1.1.1")
+
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }
 

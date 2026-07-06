@@ -114,6 +114,7 @@ class ChatFragment : Fragment() {
 
         setupHeader()
         setupRecyclerView()
+        setupGlassmorphism() // Apply glassmorphism to app bar
 
         // If we don't have user info, fetch it
         if (otherUsername.isEmpty() && !otherUserId.isNullOrEmpty()) {
@@ -128,6 +129,52 @@ class ChatFragment : Fragment() {
         binding.btnSend.setOnClickListener {
             sendMessage()
         }
+    }
+
+    /**
+     * Setup glassmorphism effect for app bar
+     * Applies BlurredBackgroundDrawable to AppBarLayout
+     */
+    private fun setupGlassmorphism() {
+        // Create blurred background for app bar
+        val blurredDrawable = BlurredBackgroundDrawable(
+            binding.appBarLayout,
+            binding.root as? ViewGroup
+        )
+
+        // Get theme-based overlay color
+        val isDark = when (val theme = com.glyph.glyph_v3.utils.ThemeManager.getCurrentTheme(requireContext())) {
+            com.glyph.glyph_v3.utils.ThemeManager.THEME_DARK, com.glyph.glyph_v3.utils.ThemeManager.THEME_PASTEL_SKY -> {
+                // Check if it's actually dark mode (pastel sky is light)
+                val isNightMode = when (theme) {
+                    com.glyph.glyph_v3.utils.ThemeManager.THEME_PASTEL_SKY -> false
+                    else -> true
+                }
+                isNightMode
+            }
+            else -> false
+        }
+
+        val overlayColor = if (isDark) {
+            0x800B1014.toInt() // Semi-transparent dark
+        } else {
+            0xB3FFFFFF.toInt() // Semi-transparent white
+        }
+
+        blurredDrawable.setColor(overlayColor)
+        blurredDrawable.setBlurRadius(8f) // Telegram-style blur radius
+
+        binding.appBarLayout.background = blurredDrawable
+
+        // Update blur on scroll
+        binding.recyclerViewMessages.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                if (dy != 0) {
+                    blurredDrawable.updateBlur()
+                }
+            }
+        })
     }
 
     private fun setupHeader() {

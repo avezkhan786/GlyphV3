@@ -149,6 +149,18 @@ object DarkThemeTokens : GlyphThemeTokens {
     override val animationDurationMedium = 300
     override val animationDurationSlow = 400
     
+    // ========== TELEGRAM-SPECIFIC TOKENS ==========
+    override val telegramBubbleOutgoing = Color(0xFF005C4B) // Dark green for dark mode
+    override val telegramBubbleIncoming = Color(0xFF1F2C34) // Dark gray for incoming
+    override val telegramBubbleOutgoingText = Color(0xFFFFFFFF) // White text on outgoing
+    override val telegramBubbleIncomingText = Color(0xFFE6EEF1) // Light text on incoming
+    override val telegramTimestamp = Color(0x80FFFFFF) // 50% alpha white
+    override val telegramDateHeaderBackground = Color(0x331F2C34) // Semi-transparent dark
+    override val telegramDateHeaderText = Color(0xFFD8FDD2) // Light greenish white
+    override val telegramGlassOverlay = Color(0x4D000000) // 30% alpha black for dark mode
+    override val telegramInputBackground = Color(0x800B1014) // Semi-transparent dark surface
+    override val telegramAppBarBackground = Color(0x8D0B1014) // Semi-transparent dark surface
+
     // ========== THEME METADATA ==========
     override val themeName = "Dark"
     override val isDark = true
@@ -158,16 +170,144 @@ object DarkThemeTokens : GlyphThemeTokens {
 
 /**
  * 🌑 Deep Dark Theme - OLED Optimized Variant
- * 
+ *
  * Specifically designed for AI Agent and Chat screens with pure black/deep gray backgrounds.
  */
 @Immutable
-object DeepDarkThemeTokens : GlyphThemeTokens by DarkThemeTokens {
+object DeepDarkThemeTokens : GlyphThemeTokens {
     private val DeepDarkSurface = Color(0xFF0A0A0A)
-    
-    override val surfaceHeader = DeepDarkSurface
-    override val surfaceInput = DeepDarkSurface
+    private val DeepDarkBackground = Color(0xFF000000)
+
+    // Inherit all from DarkThemeTokens
+    private val base = DarkThemeTokens
+
+    // ========== SURFACES & BACKGROUNDS ==========
+    override val backgroundPrimary = DeepDarkBackground
     override val backgroundSecondary = DeepDarkSurface
-    
+    override val backgroundElevated = DeepDarkSurface
+    override val backgroundTinted = Color(0xFF0D1418)
+    override val backgroundWarm = Color(0xFF12100C)
+    override val surfaceChat = DeepDarkBackground
+    override val surfaceHeader = DeepDarkSurface
+    override val surfaceNavigation = DeepDarkSurface
+    override val surfaceInput = DeepDarkSurface
+    override val surfaceOverlay = Color.Black.copy(alpha = 0.85f)
+
+    // ========== NAVIGATION ==========
+    override val navIconActive = base.navIconActive
+    override val navIconInactive = base.navIconInactive
+    override val navTextActive = base.navTextActive
+    override val navTextInactive = base.navTextInactive
+    override val navActiveIndicator = base.navActiveIndicator
+    override val backgroundGradient = null
+
+    // ========== TEXT & TYPOGRAPHY ==========
+    override val textPrimary = Color(0xFFE6EEF1)
+    override val textSecondary = Color(0xFF9EA7AC)
+    override val textTertiary = Color(0xFF6E7580)
+    override val textInverse = Color(0xFF1F2937)
+    override val textLink = base.textLink
+    override val textMention = base.textMention
+    override val textPlaceholder = Color(0xFF6E7580)
+
+    // ========== ACTIONS & INTERACTIVITY ==========
+    override val actionPrimary = base.actionPrimary
+    override val actionSecondary = DeepDarkSurface
+    override val actionDestructive = base.actionDestructive
+    override val actionSuccess = base.actionSuccess
+    override val actionWarning = base.actionWarning
+    override val actionError = base.actionError
+    override val actionPressed = Color.White.copy(alpha = 0.08f)
+    override val actionHover = Color.White.copy(alpha = 0.03f)
+    override val actionRipple = base.actionRipple
+
+    // ========== CHAT BUBBLES ==========
+    override val bubbleOutgoingBackground = Color(0xFF004D3D)
+    override val bubbleOutgoingText = Color(0xFFFFFFFF)
+    override val bubbleIncomingBackground = DeepDarkSurface
+    override val bubbleIncomingText = Color(0xFFE6EEF1)
+    override val bubbleTimestamp = Color(0x80FFFFFF)
+    override val bubbleBorder = Color(0x1AFFFFFF)
+
+    // ========== ICONS & INDICATORS ==========
+    override val iconPrimary = base.iconPrimary
+    override val iconSecondary = Color(0xFF9EA7AC)
+    override val iconTertiary = Color(0xFF6E7580)
+    override val indicatorOnline = base.indicatorOnline
+    override val indicatorTyping = base.indicatorTyping
+    override val indicatorUnreadBackground = base.indicatorUnreadBackground
+    override val indicatorUnreadText = base.indicatorUnreadText
+    override val indicatorMessageStatus = base.indicatorMessageStatus
+
+    // ========== BORDERS & DIVIDERS ==========
+    override val borderPrimary = Color(0x1A2A3036)
+    override val borderSecondary = Color(0x0D2A3036)
+    override val borderInput = DeepDarkSurface
+    override val borderFocus = base.borderFocus
+    override val divider = Color(0x0D2A3036)
+
+    // ========== SPECIAL COMPONENTS ==========
+    override val dateHeaderBackground = Color(0xFF141A20)
+    override val dateHeaderText = Color(0xFF9EA7AC)
+    override val sendButtonBackground = base.sendButtonBackground
+    override val sendButtonIcon = base.sendButtonIcon
+    override val attachmentIcon = Color.White
+    override val emojiIcon = Color.White
+    override val aiIcon = Color.White
+    override val headerIcon = Color(0xFF9EA7AC)
+    override val cursorColor = base.cursorColor
+    override val selectionBackground = Color(0x4025D366)
+    override val selectionOverlay = Color(0x2025D366)
+    override val avatarPlaceholder = Color(0xFF1A2024)
+    override val imagePlaceholder = DeepDarkSurface
+
+    // ========== GRADIENTS ==========
+    override val gradientPrimary = null
+    override val gradientHeader = null
+    override val gradientInput = base.gradientInput
+    override val gradientAIComposer = base.gradientAIComposer
+    override val gradientBubbleOutgoing = null
+    override val gradientBubbleIncoming = null
+    override val gradientSendButton = null
+
+    // ========== TELEGRAM-SPECIFIC TOKENS ==========
+    override val telegramBubbleOutgoing = Color(0xFF004D3D) // Darker green for OLED
+    override val telegramBubbleIncoming = DeepDarkSurface // Pure black/dark gray
+    override val telegramBubbleOutgoingText = Color(0xFFFFFFFF) // White
+    override val telegramBubbleIncomingText = Color(0xFFE6EEF1) // Light text
+    override val telegramTimestamp = Color(0x80FFFFFF) // 50% alpha white
+    override val telegramDateHeaderBackground = Color(0x4D141A20) // Semi-transparent dark
+    override val telegramDateHeaderText = Color(0xFF9EA7AC) // Light gray
+    override val telegramGlassOverlay = Color(0x66000000) // 40% alpha black
+    override val telegramInputBackground = Color(0x8D0A0A0A) // Semi-transparent black
+    override val telegramAppBarBackground = Color(0x8D0A0A0A) // Semi-transparent black
+
+    // ========== ELEVATION & SHADOWS ==========
+    override val elevationLow = base.elevationLow
+    override val elevationMedium = base.elevationMedium
+    override val elevationHigh = base.elevationHigh
+
+    // ========== CORNER RADIUS ==========
+    override val cornerRadiusSmall = base.cornerRadiusSmall
+    override val cornerRadiusMedium = base.cornerRadiusMedium
+    override val cornerRadiusLarge = base.cornerRadiusLarge
+    override val cornerRadiusCircular = base.cornerRadiusCircular
+
+    // ========== SPACING ==========
+    override val spacingXs = base.spacingXs
+    override val spacingSmall = base.spacingSmall
+    override val spacingMedium = base.spacingMedium
+    override val spacingLarge = base.spacingLarge
+    override val spacingXl = base.spacingXl
+
+    // ========== ANIMATION DURATIONS ==========
+    override val animationDurationFast = base.animationDurationFast
+    override val animationDurationMedium = base.animationDurationMedium
+    override val animationDurationSlow = base.animationDurationSlow
+
+    // ========== THEME METADATA ==========
     override val themeName = "Deep Dark"
+    override val isDark = true
+    override val isPremium = false
+    override val hasGradients = false
 }

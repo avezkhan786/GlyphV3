@@ -79,16 +79,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // OPTIMIZATION: Apply splash theme on first launch, then switch to normal theme
-        if (!splashShown) {
-            setTheme(R.style.Theme_GlyphV3_SplashBranded)
-            splashShown = true
-        }
+        // STARTUP FIX: Eliminate splash screen flash on every app open
+        // CRITICAL: Apply theme BEFORE super.onCreate() to prevent white flash
+        ThemeManager.applyTheme(this)
 
         StartupTrace.logStage("main_onCreate_start")
-
-        // Apply saved theme before creating the activity (this will switch from splash theme)
-        ThemeManager.applyTheme(this)
 
         super.onCreate(savedInstanceState)
 

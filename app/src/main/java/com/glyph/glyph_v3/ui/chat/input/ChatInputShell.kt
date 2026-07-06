@@ -119,16 +119,19 @@ fun ChatInputShell(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Bottom
         ) {
-            // Main Input Container (Pill)
+            // Main Input Container (Telegram-style pill with glassmorphism)
             Surface(
                 modifier = Modifier
                     .weight(1f)
-                    .heightIn(min = 52.dp)
+                    .heightIn(min = 48.dp) // Telegram's compact 48dp height
                     .wrapContentHeight(),
-                shape = RoundedCornerShape(26.dp),
-                color = glyphTheme.surfaceInput,
-                border = androidx.compose.foundation.BorderStroke(1.dp, glyphTheme.borderInput),
-                shadowElevation = 0.dp
+                shape = RoundedCornerShape(24.dp), // Fully rounded pill (Telegram style)
+                color = glyphTheme.telegramInputBackground.copy(alpha = 0.8f), // Semi-transparent for glass effect
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    glyphTheme.telegramInputBackground.copy(alpha = 0.15f) // Subtle border (Telegram style)
+                ),
+                shadowElevation = 0.dp // Flat design (no elevation)
             ) {
                 Box(
                     modifier = Modifier.then(
@@ -520,9 +523,9 @@ private fun ActionSlot(
     
     Box(
         modifier = Modifier
-            .size(52.dp)
+            .size(48.dp) // Telegram's 48dp diameter
             .background(
-                brush = glyphTheme.gradientSendButton ?: SolidColor(glyphTheme.sendButtonBackground),
+                brush = SolidColor(glyphTheme.telegramBubbleOutgoing), // Telegram green color
                 shape = CircleShape
             )
             .pointerInput(hasText) {

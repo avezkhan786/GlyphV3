@@ -120,7 +120,19 @@ object LightThemeTokens : GlyphThemeTokens {
         colors = listOf(AIGradientStart, AIGradientEnd)
     )
     override val gradientSendButton: Brush? = null
-    
+
+    // ========== TELEGRAM-SPECIFIC TOKENS ==========
+    override val telegramBubbleOutgoing = Color(0xFFE1F2C3) // Telegram green (#A9BE5F adjusted for light mode)
+    override val telegramBubbleIncoming = Color(0xFFFFFFFF) // Pure white
+    override val telegramBubbleOutgoingText = Color(0xFF000000) // Black text on green
+    override val telegramBubbleIncomingText = Color(0xFF000000) // Black text on white
+    override val telegramTimestamp = Color(0x80000000) // 50% alpha black
+    override val telegramDateHeaderBackground = Color(0x33FFFFFF) // Semi-transparent white
+    override val telegramDateHeaderText = Color(0xFF000000) // Black text
+    override val telegramGlassOverlay = Color(0x66FFFFFF) // 40% alpha white
+    override val telegramInputBackground = Color(0x80FFFFFF) // Semi-transparent white
+    override val telegramAppBarBackground = Color(0xB3FFFFFF) // 70% alpha white
+
     // ========== ELEVATION & SHADOWS ==========
     override val elevationLow = 2.dp
     override val elevationMedium = 4.dp

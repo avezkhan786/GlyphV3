@@ -70,19 +70,25 @@ class ChatListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
+
         val app = requireContext().applicationContext as GlyphApplication
-        app.ensureSharedRepositoryStartup(reason = "chat_list_legacy_open")
-        repository = app.getOrCreateRealtimeRepository()
+
+        // STARTUP OPTIMIZATION: Lazy repository initialization on background thread
+        // Don't block onViewCreated on Room database creation
+        lifecycleScope.launch(Dispatchers.IO) {
+            val repo = app.getOrCreateRealtimeRepository()
+            withContext(Dispatchers.Main) {
+                repository = repo
+                setupRecyclerView()
+                loadLocalChatsWithPresence()
+
+                // Start listening for incoming messages
+                repo.startIncomingMessageSync()
+            }
+        }
 
         DraftMessageStore.init(requireContext().applicationContext)
-        
-        setupRecyclerView()
-        loadLocalChatsWithPresence()
-        
-        // Start listening for incoming messages
-        repository.startIncomingMessageSync()
-        
+
         binding.fabNewChat.setOnClickListener {
             startActivity(Intent(requireContext(), UserListActivity::class.java))
         }

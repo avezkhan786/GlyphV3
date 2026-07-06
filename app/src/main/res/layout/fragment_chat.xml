@@ -7,14 +7,15 @@
     android:background="@drawable/bg_glyph_gradient"
     android:fitsSystemWindows="true">
 
-    <!-- AppBar with Custom Chat Header -->
+    <!-- AppBar with Custom Chat Header - Glassmorphism -->
+    <!-- Glass effect applied programmatically in ChatFragment.kt -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fitsSystemWindows="true"
-        android:background="@drawable/bg_header_gradient"
-        app:elevation="4dp">
+        android:background="@android:color/transparent"
+        app:elevation="0dp">
 
         <!-- Custom Toolbar with User Info -->
         <androidx.constraintlayout.widget.ConstraintLayout

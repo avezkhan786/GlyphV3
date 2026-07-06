@@ -208,7 +208,19 @@ object PastelSkyThemeTokens : GlyphThemeTokens {
     override val gradientBubbleOutgoing = outgoingBubbleGradientBrush()
     override val gradientBubbleIncoming = incomingBubbleGradientBrush()
     override val gradientSendButton = sendButtonGradientBrush()
-    
+
+    // ========== TELEGRAM-SPECIFIC TOKENS ==========
+    override val telegramBubbleOutgoing = MintCloud // Pastel mint green for outgoing
+    override val telegramBubbleIncoming = CreamWhite // Cream white for incoming
+    override val telegramBubbleOutgoingText = Color(0xFF243338) // Dark text on mint
+    override val telegramBubbleIncomingText = Color(0xFF2D2445) // Dark indigo text on white
+    override val telegramTimestamp = Color(0x804A3D6D) // Semi-transparent purple-gray
+    override val telegramDateHeaderBackground = Color(0x66E6DDF2) // Semi-transparent lavender
+    override val telegramDateHeaderText = VibrantPurple // Vibrant purple text
+    override val telegramGlassOverlay = Color(0x66FFFFFF) // 40% alpha white
+    override val telegramInputBackground = Color(0x80FBFAF8) // Semi-transparent cream
+    override val telegramAppBarBackground = Color(0xB3FBFAF8) // 70% alpha cream
+
     // ========== ELEVATION & SHADOWS ==========
     override val elevationLow = 0.5.dp
     override val elevationMedium = 2.dp
