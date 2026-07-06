@@ -559,11 +559,17 @@ class ChatViewModel(
             val item = tempResult[i]
             if (item is ChatListItem.MessageItem) {
                 val msg = item.message
+                // Emoji-only messages have no visible bubble — always SINGLE,
+                // and they don't participate as neighbors in grouping.
+                if (item.isEmojiContent) {
+                    groupedResult.add(item.copy(groupPosition = BubbleGroupPosition.SINGLE))
+                    continue
+                }
                 val prev = if (i > 0) tempResult[i - 1] else null
                 val next = if (i < tempResult.size - 1) tempResult[i + 1] else null
 
-                val hasPrevSame = prev is ChatListItem.MessageItem && prev.message.senderId == msg.senderId
-                val hasNextSame = next is ChatListItem.MessageItem && next.message.senderId == msg.senderId
+                val hasPrevSame = prev is ChatListItem.MessageItem && !prev.isEmojiContent && prev.message.senderId == msg.senderId
+                val hasNextSame = next is ChatListItem.MessageItem && !next.isEmojiContent && next.message.senderId == msg.senderId
 
                 val groupPos = when {
                     !hasPrevSame && !hasNextSame -> BubbleGroupPosition.SINGLE

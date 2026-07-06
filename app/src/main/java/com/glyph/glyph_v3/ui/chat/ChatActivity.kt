@@ -8219,19 +8219,25 @@ class ChatActivity : AppCompatActivity(),
         for (i in tempResult.indices) {
             val item = tempResult[i]
             if (item is ChatListItem.MessageItem) {
+                // Emoji-only messages have no visible bubble — always SINGLE,
+                // and they don't participate as neighbors in grouping.
+                if (item.isEmojiContent) {
+                    tempResult[i] = item.copy(groupPosition = BubbleGroupPosition.SINGLE)
+                    continue
+                }
                 val prev = if (i > 0) tempResult[i - 1] else null
                 val next = if (i < tempResult.size - 1) tempResult[i + 1] else null
-                
-                val hasPrevSame = (prev is ChatListItem.MessageItem) && prev.message.senderId == item.message.senderId
-                val hasNextSame = (next is ChatListItem.MessageItem) && next.message.senderId == item.message.senderId
-                
+
+                val hasPrevSame = (prev is ChatListItem.MessageItem) && !prev.isEmojiContent && prev.message.senderId == item.message.senderId
+                val hasNextSame = (next is ChatListItem.MessageItem) && !next.isEmojiContent && next.message.senderId == item.message.senderId
+
                 val groupPos = when {
                     hasPrevSame && hasNextSame -> BubbleGroupPosition.MIDDLE
                     hasPrevSame && !hasNextSame -> BubbleGroupPosition.BOTTOM
                     !hasPrevSame && hasNextSame -> BubbleGroupPosition.TOP
                     else -> BubbleGroupPosition.SINGLE
                 }
-                
+
                 if (groupPos != BubbleGroupPosition.SINGLE) {
                     tempResult[i] = item.copy(groupPosition = groupPos)
                 }
@@ -8286,9 +8292,15 @@ class ChatActivity : AppCompatActivity(),
         }
 
         var appendedGroupPosition = BubbleGroupPosition.SINGLE
-        if (previousDate == appendedDate && lastMessageItem.message.senderId == appendedMessage.senderId) {
+        // Emoji-only messages have no visible bubble — don't participate in grouping.
+        val appendedIsEmoji = EmojiUtils.isEmojiOnlyMessage(appendedMessage.text)
+        if (previousDate == appendedDate
+            && lastMessageItem.message.senderId == appendedMessage.senderId
+            && !lastMessageItem.isEmojiContent
+            && !appendedIsEmoji) {
             val previousNeighbor = baseList.getOrNull(lastMessageIndex - 1) as? ChatListItem.MessageItem
-            val updatedLastPosition = if (previousNeighbor?.message?.senderId == appendedMessage.senderId) {
+            val updatedLastPosition = if (previousNeighbor?.message?.senderId == appendedMessage.senderId &&
+                !previousNeighbor.isEmojiContent) {
                 BubbleGroupPosition.MIDDLE
             } else {
                 BubbleGroupPosition.TOP
@@ -8406,10 +8418,16 @@ class ChatActivity : AppCompatActivity(),
         for (i in newItems.indices) {
             val item = newItems[i]
             if (item is ChatListItem.MessageItem) {
+                // Emoji-only messages have no visible bubble — always SINGLE,
+                // and they don't participate as neighbors in grouping.
+                if (item.isEmojiContent) {
+                    newItems[i] = item.copy(groupPosition = BubbleGroupPosition.SINGLE)
+                    continue
+                }
                 val prev = if (i > 0) newItems[i - 1] else null
                 val next = if (i < newItems.size - 1) newItems[i + 1] else null
-                val hasPrevSame = (prev is ChatListItem.MessageItem) && prev.message.senderId == item.message.senderId
-                val hasNextSame = (next is ChatListItem.MessageItem) && next.message.senderId == item.message.senderId
+                val hasPrevSame = (prev is ChatListItem.MessageItem) && !prev.isEmojiContent && prev.message.senderId == item.message.senderId
+                val hasNextSame = (next is ChatListItem.MessageItem) && !next.isEmojiContent && next.message.senderId == item.message.senderId
                 if (hasPrevSame || hasNextSame) {
                     val groupPos = when {
                         hasPrevSame && hasNextSame -> BubbleGroupPosition.MIDDLE
@@ -8437,8 +8455,10 @@ class ChatActivity : AppCompatActivity(),
         }
 
         // ── Boundary fixup: bubble grouping between last-new and first-existing ─
-        val lastNewMsgIdx = newItems.indexOfLast { it is ChatListItem.MessageItem }
-        val firstBaseMsgIdx = baseList.indexOfFirst { it is ChatListItem.MessageItem }
+        // Emoji-only messages have no visible bubble — skip them when finding
+        // the boundary neighbors so they don't participate in cross-block grouping.
+        val lastNewMsgIdx = newItems.indexOfLast { it is ChatListItem.MessageItem && !it.isEmojiContent }
+        val firstBaseMsgIdx = baseList.indexOfFirst { it is ChatListItem.MessageItem && !it.isEmojiContent }
         if (lastNewMsgIdx >= 0 && firstBaseMsgIdx >= 0) {
             val lastNew = newItems[lastNewMsgIdx] as ChatListItem.MessageItem
             val firstBase = baseList[firstBaseMsgIdx] as ChatListItem.MessageItem
@@ -8447,11 +8467,11 @@ class ChatActivity : AppCompatActivity(),
                 // The boundary merges two same-sender blocks — adjust both sides.
                 val newPrevIdx = if (lastNewMsgIdx > 0) lastNewMsgIdx - 1 else -1
                 val newPrev = newItems.getOrNull(newPrevIdx) as? ChatListItem.MessageItem
-                val hasPrevSameInNew = newPrev?.message?.senderId == lastNew.message.senderId
+                val hasPrevSameInNew = newPrev?.message?.senderId == lastNew.message.senderId && !newPrev.isEmojiContent
 
                 val baseNextIdx = if (firstBaseMsgIdx + 1 < baseList.size) firstBaseMsgIdx + 1 else -1
                 val baseNext = baseList.getOrNull(baseNextIdx) as? ChatListItem.MessageItem
-                val hasNextSameInBase = baseNext?.message?.senderId == firstBase.message.senderId
+                val hasNextSameInBase = baseNext?.message?.senderId == firstBase.message.senderId && !baseNext.isEmojiContent
 
                 val newLastGroup = if (hasPrevSameInNew) BubbleGroupPosition.MIDDLE
                                    else BubbleGroupPosition.TOP

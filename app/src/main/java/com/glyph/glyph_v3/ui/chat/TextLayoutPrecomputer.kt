@@ -73,8 +73,15 @@ object TextLayoutPrecomputer {
         // the precomputed line-count differs from actual and minHeight forces either
         // clipping (too short) or empty space (too tall).
         //
-        // Layout chain: screen → ConstraintLayout(-16dp) → card(wrap) →
+        // Layout chain: RecyclerView(match_parent) → ConstraintLayout(match_parent,
+        //   8dp start+end padding) → cardMessage(wrap) →
         //   MessageBubbleLayout(-17dp H-padding, 0.85f max fraction) → tvMessage(-8dp H-padding)
+        //
+        // ConstraintLayout subtracts its own padding before measuring children, so
+        // the MeasureSpec that MessageBubbleLayout receives is already reduced by
+        // 16dp (8dp start + 8dp end). MessageBubbleLayout then applies 0.85f and
+        // subtracts its own H-padding.  The final text-available width is:
+        //   (screenWidth - 16dp) * 0.85 - 17dp - 8dp
         //
         // Do NOT use sampleTextView.measuredWidth — it varies per message content
         // (short "Ok" = 60px, long message = full width). Using the short width would
@@ -91,7 +98,7 @@ object TextLayoutPrecomputer {
         val textHPaddingPx = (8f * density).toInt()
         // Bubble max width fraction (must match MessageBubbleLayout.maxBubbleWidthFraction)
         val bubbleFraction = 0.85f
-        // Available width for text content
+        // Available width for text content (matches ConstraintLayout→MessageBubbleLayout chain)
         val availableForBubble = screenWidthPx - rootPaddingPx
         val bubbleMaxWidth = (availableForBubble * bubbleFraction).toInt()
         maxBubbleWidthPx = (bubbleMaxWidth - bubbleHPaddingPx - textHPaddingPx).coerceAtLeast(1)

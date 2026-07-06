@@ -6739,13 +6739,13 @@ class ChatAdapter(
 
                 // Apply pre-measured height BEFORE setting text so onMeasure skips
                 // the internal StaticLayout creation pass.
-                // For emoji-only messages: reset any fixed height from a previous bind
-                // (ViewHolder recycling). Emojis use 24sp font but premeasured height is
-                // computed at 15sp — applying it would clip the bottom of emoji glyphs.
-                if (item.isEmojiContent) {
-                    binding.tvMessage.minHeight = 0
-                    binding.tvMessage.maxHeight = Int.MAX_VALUE
-                } else {
+                // Always reset minHeight before applying premeasured height.
+                // If applyToTextView returns false (no premeasured height available),
+                // a stale minHeight from a previous recycled ViewHolder would persist
+                // and leave large empty space below the text.
+                binding.tvMessage.minHeight = 0
+                binding.tvMessage.maxHeight = Int.MAX_VALUE
+                if (!item.isEmojiContent) {
                     TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
                 }
 
@@ -6862,13 +6862,13 @@ class ChatAdapter(
                     TextLayoutPrecomputer.captureParams(binding.tvMessage)
                 }
 
-                // Apply pre-measured height BEFORE setting text so onMeasure skips
-                // the internal StaticLayout creation pass.
-                // For emoji-only: reset fixed height from recycled ViewHolder (see IncomingTextViewHolder).
-                if (item.isEmojiContent) {
-                    binding.tvMessage.minHeight = 0
-                    binding.tvMessage.maxHeight = Int.MAX_VALUE
-                } else {
+                // Always reset minHeight before applying premeasured height.
+                // If applyToTextView returns false (no premeasured height available),
+                // a stale minHeight from a previous recycled ViewHolder would persist
+                // and leave large empty space below the text.
+                binding.tvMessage.minHeight = 0
+                binding.tvMessage.maxHeight = Int.MAX_VALUE
+                if (!item.isEmojiContent) {
                     TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
                 }
 
