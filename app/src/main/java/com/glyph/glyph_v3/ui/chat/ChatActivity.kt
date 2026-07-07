@@ -11846,27 +11846,40 @@ class ChatActivity : AppCompatActivity(),
     
     private fun startBlockStatusObservation() {
         val userId = otherUserId ?: return
+        Log.d("ChatActivity", "startBlockStatusObservation: userId=$userId — cancelling old job and starting new one")
         blockStatusJob?.cancel()
         blockStatusJob = lifecycleScope.launch {
-            com.glyph.glyph_v3.data.repo.BlockRepository.observeBlockStatus(userId).collectLatest { status ->
-                _blockStatus.value = status
-                if (status.isBlocked) {
-                    com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
+            try {
+                Log.d("ChatActivity", "startBlockStatusObservation: collecting observeBlockStatus flow...")
+                com.glyph.glyph_v3.data.repo.BlockRepository.observeBlockStatus(userId).collectLatest { status ->
+                    try {
+                        Log.d("ChatActivity", "startBlockStatusObservation RECEIVED: status=$status (iBlockedThem=${status.iBlockedThem}, isBlocked=${status.isBlocked})")
+                        _blockStatus.value = status
+                        Log.d("ChatActivity", "startBlockStatusObservation: _blockStatus updated to $status")
+                        if (status.isBlocked) {
+                            com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
+                        }
+                        applyOtherUserAvatarVisibility()
+                        updateHeaderStatus()
+                        updateInputBarForBlockStatus(status, animate = didPrimeInitialBlockUi)
+                        handleRealtimeBlockStateChanged(status)
+                        didPrimeInitialBlockUi = true
+                    } catch (e: Exception) {
+                        Log.e("ChatActivity", "Error applying block status update", e)
+                    }
                 }
-                applyOtherUserAvatarVisibility()
-                // Update header presence when block status changes
-                updateHeaderStatus()
-                // Update input bar visibility based on block state
-                updateInputBarForBlockStatus(status, animate = didPrimeInitialBlockUi)
-                handleRealtimeBlockStateChanged(status)
-                didPrimeInitialBlockUi = true
+            } catch (e: Exception) {
+                Log.e("ChatActivity", "Block status observation failed", e)
             }
         }
+        Log.d("ChatActivity", "startBlockStatusObservation: coroutine launched, job=$blockStatusJob")
     }
 
     private fun primeInitialBlockUiState() {
         val userId = otherUserId ?: return
+        Log.d("ChatActivity", "=== primeInitialBlockUiState: userId=$userId ===")
         val initialStatus = com.glyph.glyph_v3.data.repo.BlockRepository.getBlockStatus(userId)
+        Log.d("ChatActivity", "primeInitialBlockUiState: initialStatus=$initialStatus")
         _blockStatus.value = initialStatus
         if (initialStatus.isBlocked) {
             com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
@@ -11876,9 +11889,11 @@ class ChatActivity : AppCompatActivity(),
         handleRealtimeBlockStateChanged(initialStatus)
 
         lifecycleScope.launch {
+            Log.d("ChatActivity", "primeInitialBlockUiState: warming from Firestore local cache...")
             val warmedStatus = withContext(Dispatchers.IO) {
                 com.glyph.glyph_v3.data.repo.BlockRepository.warmBlockStatusFromLocalCache(userId)
             }
+            Log.d("ChatActivity", "primeInitialBlockUiState: warmedStatus=$warmedStatus")
             _blockStatus.value = warmedStatus
             if (warmedStatus.isBlocked) {
                 com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
@@ -11888,19 +11903,30 @@ class ChatActivity : AppCompatActivity(),
             updateInputBarForBlockStatus(warmedStatus, animate = false)
             handleRealtimeBlockStateChanged(warmedStatus)
             didPrimeInitialBlockUi = true
+            Log.d("ChatActivity", "primeInitialBlockUiState: warming complete, didPrimeInitialBlockUi=true")
         }
     }
 
+    /**
+     * Update input bar and blocked banner visibility based on block status.
+     *
+     * IMPORTANT: Must already be on the main thread.  All callers
+     * (startBlockStatusObservation, primeInitialBlockUiState,
+     * enforceBlockedInputUiState) run on the Main dispatcher / main thread,
+     * so we execute directly — no runOnUiThread hop — to keep the UI update
+     * synchronous with the state change.
+     */
     private fun updateInputBarForBlockStatus(
         status: com.glyph.glyph_v3.data.repo.BlockStatus,
         animate: Boolean = true
     ) {
-        runOnUiThread {
-            val inputContainer = binding.layoutInput
-            val blockBanner = binding.root.findViewById<View>(R.id.layoutBlockedBanner)
+        val inputContainer = binding.layoutInput
+        val blockBanner = binding.root.findViewById<View>(R.id.layoutBlockedBanner)
+        Log.d("ChatActivity", "updateInputBar: status=$status iBlockedThem=${status.iBlockedThem} animate=$animate inputVis=${inputContainer.visibility} bannerVis=${blockBanner?.visibility}")
 
             // Only show the banner and hide input when this user initiated the block.
             if (status.iBlockedThem) {
+                Log.d("ChatActivity", "updateInputBar: BLOCKED path — hiding input, showing banner")
                 if (blockBanner?.visibility != View.VISIBLE) {
                     inputContainer.visibility = View.GONE
                     binding.replyPreviewCard.visibility = View.GONE
@@ -11929,6 +11955,7 @@ class ChatActivity : AppCompatActivity(),
                     btnUnblock.setOnClickListener { showUnblockConfirmation() }
                 }
             } else {
+                Log.d("ChatActivity", "updateInputBar: NOT_BLOCKED path — showing input, hiding banner")
                 // Not blocked by me: show input, remove banner so the blocked user sees no hint.
                 if (inputContainer.visibility != View.VISIBLE) {
                     inputContainer.animate().cancel()
@@ -11960,7 +11987,6 @@ class ChatActivity : AppCompatActivity(),
 
             // Keep the map-interactive button above whichever bottom bar is active.
             binding.root.post { updateInteractiveMapButtonBottomMargin() }
-        }
     }
 
     /**
@@ -12003,6 +12029,8 @@ class ChatActivity : AppCompatActivity(),
 
     private fun showBlockConfirmation() {
         val username = otherUsername.ifEmpty { "this user" }
+        Log.d("ChatActivity", "=== showBlockConfirmation: username=$username otherUserId=$otherUserId ===")
+        Log.d("ChatActivity", "showBlockConfirmation: current _blockStatus=${_blockStatus.value}")
         android.app.AlertDialog.Builder(this)
             .setTitle("Block $username?")
             .setMessage(
@@ -12010,22 +12038,30 @@ class ChatActivity : AppCompatActivity(),
                 "Existing messages will not be deleted."
             )
             .setPositiveButton("Block") { _, _ ->
+                Log.d("ChatActivity", "showBlockConfirmation: user tapped BLOCK, launching coroutine...")
                 lifecycleScope.launch {
                     try {
+                        Log.d("ChatActivity", "showBlockConfirmation: calling BlockRepository.blockUser($otherUserId)...")
                         com.glyph.glyph_v3.data.repo.BlockRepository.blockUser(otherUserId!!)
+                        Log.d("ChatActivity", "showBlockConfirmation: blockUser() returned successfully")
+                        Log.d("ChatActivity", "showBlockConfirmation: _blockStatus AFTER block=${_blockStatus.value}")
                         Toast.makeText(this@ChatActivity, "$username blocked", Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
-                        Log.e("ChatActivity", "Failed to block user", e)
+                        Log.e("ChatActivity", "showBlockConfirmation: blockUser FAILED", e)
                         Toast.makeText(this@ChatActivity, "Failed to block. Try again.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton("Cancel") { _, _ ->
+                Log.d("ChatActivity", "showBlockConfirmation: user cancelled")
+            }
             .show()
     }
 
     private fun showUnblockConfirmation() {
         val username = otherUsername.ifEmpty { "this user" }
+        Log.d("ChatActivity", "=== showUnblockConfirmation: username=$username otherUserId=$otherUserId ===")
+        Log.d("ChatActivity", "showUnblockConfirmation: current _blockStatus=${_blockStatus.value}")
         val view = layoutInflater.inflate(R.layout.dialog_unblock_confirmation, null)
         view.findViewById<android.widget.TextView>(R.id.text_unblock_title)?.text = "Unblock $username?"
         view.findViewById<android.widget.TextView>(R.id.text_unblock_message)?.text =
@@ -12037,17 +12073,24 @@ class ChatActivity : AppCompatActivity(),
             .create()
 
         view.findViewById<com.google.android.material.button.MaterialButton>(R.id.button_unblock_cancel)
-            ?.setOnClickListener { dialog.dismiss() }
+            ?.setOnClickListener {
+                Log.d("ChatActivity", "showUnblockConfirmation: user cancelled")
+                dialog.dismiss()
+            }
 
         view.findViewById<com.google.android.material.button.MaterialButton>(R.id.button_unblock_confirm)
             ?.setOnClickListener {
+                Log.d("ChatActivity", "showUnblockConfirmation: user tapped UNBLOCK, launching coroutine...")
                 dialog.dismiss()
                 lifecycleScope.launch {
                     try {
+                        Log.d("ChatActivity", "showUnblockConfirmation: calling BlockRepository.unblockUser($otherUserId)...")
                         com.glyph.glyph_v3.data.repo.BlockRepository.unblockUser(otherUserId!!)
+                        Log.d("ChatActivity", "showUnblockConfirmation: unblockUser() returned successfully")
+                        Log.d("ChatActivity", "showUnblockConfirmation: _blockStatus AFTER unblock=${_blockStatus.value}")
                         showUnblockSuccessDialog(username)
                     } catch (e: Exception) {
-                        Log.e("ChatActivity", "Failed to unblock user", e)
+                        Log.e("ChatActivity", "showUnblockConfirmation: unblockUser FAILED", e)
                         Toast.makeText(this@ChatActivity, "Failed to unblock. Try again.", Toast.LENGTH_SHORT).show()
                     }
                 }
