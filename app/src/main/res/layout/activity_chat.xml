@@ -61,8 +61,8 @@
             <!-- Back Arrow -->
             <ImageButton
                 android:id="@+id/btnBack"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="41dp"
+                android:layout_height="41dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_arrow_back"
                 android:contentDescription="Back"
@@ -76,8 +76,8 @@
             <!-- Profile Picture -->
             <com.google.android.material.imageview.ShapeableImageView
                 android:id="@+id/ivProfilePicture"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="41dp"
+                android:layout_height="41dp"
                 android:layout_marginStart="-6dp"
                 android:background="@drawable/bg_avatar_circle"
                 android:contentDescription="Profile Picture"
@@ -90,8 +90,8 @@
 
             <TextView
                 android:id="@+id/tvProfilePictureInitial"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="41dp"
+                android:layout_height="41dp"
                 android:layout_marginStart="-6dp"
                 android:gravity="center"
                 android:text="?"
@@ -144,12 +144,12 @@
             <!-- Video Call Button -->
             <ImageButton
                 android:id="@+id/btnVideoCall"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="33dp"
+                android:layout_height="33dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_videocam"
                 android:contentDescription="Video Call"
-                android:padding="6dp"
+                android:padding="8dp"
                 app:tint="?attr/glyphScrollFabIcon"
                 app:layout_constraintEnd_toStartOf="@id/btnVoiceCall"
                 app:layout_constraintTop_toTopOf="parent"
@@ -158,12 +158,12 @@
             <!-- Voice Call Button -->
             <ImageButton
                 android:id="@+id/btnVoiceCall"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="33dp"
+                android:layout_height="33dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_call"
                 android:contentDescription="Voice Call"
-                android:padding="6dp"
+                android:padding="8dp"
                 app:tint="?attr/glyphScrollFabIcon"
                 app:layout_constraintEnd_toStartOf="@id/btnMenu"
                 app:layout_constraintTop_toTopOf="parent"
@@ -172,12 +172,12 @@
             <!-- Menu Button -->
             <ImageButton
                 android:id="@+id/btnMenu"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="33dp"
+                android:layout_height="33dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@drawable/ic_more_vert"
                 android:contentDescription="Menu"
-                android:padding="6dp"
+                android:padding="8dp"
                 app:tint="?attr/glyphScrollFabIcon"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -907,11 +907,11 @@
 
                 <ImageButton
                     android:id="@+id/btnAdd"
-                    android:layout_width="40dp"
+                    android:layout_width="48dp"
                     android:layout_height="0dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:contentDescription="Attach"
-                    android:padding="9dp"
+                    android:padding="11dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_add_2"
                     app:tint="?attr/glyphChatInputIcon"
@@ -954,11 +954,11 @@
 
                     <ImageButton
                         android:id="@+id/btnEmoji"
-                        android:layout_width="40dp"
+                        android:layout_width="48dp"
                         android:layout_height="match_parent"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="Emoji"
-                        android:padding="9dp"
+                        android:padding="11dp"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_emoji"
                         app:tint="?attr/glyphChatInputIcon"
@@ -969,11 +969,11 @@
                     <!-- Buzz Button — visible when input is empty, slides out when typing -->
                     <ImageButton
                         android:id="@+id/btnLightning"
-                        android:layout_width="40dp"
+                        android:layout_width="48dp"
                         android:layout_height="match_parent"
                         android:background="?attr/selectableItemBackgroundBorderless"
                         android:contentDescription="Buzz"
-                        android:padding="9dp"
+                        android:padding="11dp"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_bolt"
                         app:tint="?attr/glyphChatInputIcon"
@@ -985,7 +985,7 @@
                     <!-- Stabilized slot for Camera/AI swap to prevent layout shifting -->
                     <FrameLayout
                         android:id="@+id/iconSlot"
-                        android:layout_width="44dp"
+                        android:layout_width="48dp"
                         android:layout_height="match_parent"
                         app:layout_constraintStart_toEndOf="@id/btnLightning"
                         app:layout_constraintEnd_toEndOf="parent"
@@ -994,11 +994,11 @@
 
                         <ImageButton
                             android:id="@+id/btnAiComposer"
-                            android:layout_width="44dp"
+                            android:layout_width="48dp"
                             android:layout_height="match_parent"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="AI Composer"
-                            android:padding="9dp"
+                            android:padding="10dp"
                             android:scaleType="fitCenter"
                             android:src="@drawable/ic_ai_composer"
                             app:tint="?attr/glyphAiIcon"
@@ -1006,11 +1006,11 @@
 
                         <ImageButton
                             android:id="@+id/btnCamera"
-                            android:layout_width="44dp"
+                            android:layout_width="48dp"
                             android:layout_height="match_parent"
                             android:background="?attr/selectableItemBackgroundBorderless"
                             android:contentDescription="Camera"
-                            android:padding="9dp"
+                            android:padding="11dp"
                             android:scaleType="fitCenter"
                             android:src="@drawable/ic_camera"
                             app:tint="?attr/glyphChatInputIcon" />

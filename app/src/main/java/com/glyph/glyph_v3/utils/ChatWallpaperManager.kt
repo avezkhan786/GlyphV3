@@ -98,16 +98,6 @@ object ChatWallpaperManager {
 
     private suspend fun cacheWallpaperBitmap(context: Context, path: String) {
         withContext(Dispatchers.IO) {
-            // BITMAP LEAK FIX: Recycle the old cached bitmap before replacing it.
-            // Previous code assigned a new bitmap without recycling the old one,
-            // leaking a full screen-sized bitmap on every preload() call.
-            val oldBitmap = cachedWallpaperBitmap
-            if (oldBitmap != null && !oldBitmap.isRecycled) {
-                oldBitmap.recycle()
-            }
-            cachedWallpaperBitmap = null
-            cachedWallpaperBitmapPath = null
-
             val uri = assetUri(path)
             val width = context.resources.displayMetrics.widthPixels.coerceAtLeast(1)
             val height = context.resources.displayMetrics.heightPixels.coerceAtLeast(1)
@@ -119,11 +109,6 @@ object ChatWallpaperManager {
 
             try {
                 val decodedBitmap = target.get()
-                // CRITICAL: copy() is REQUIRED here. Glide.with(context).clear(target)
-                // in the finally block recycles decodedBitmap back into Glide's pool.
-                // Without copy(), cachedWallpaperBitmap would point to a recycled
-                // bitmap, causing "Canvas: trying to use a recycled bitmap" crash
-                // when the ImageView tries to draw it.
                 val safeConfig = decodedBitmap.config ?: Bitmap.Config.ARGB_8888
                 cachedWallpaperBitmap = decodedBitmap.copy(safeConfig, false)
                 cachedWallpaperBitmapPath = path

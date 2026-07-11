@@ -498,11 +498,11 @@ class SettingsFragment : Fragment() {
         binding.cameraBadge.visibility = View.GONE
         binding.uploadProgressText.text = "0%"
         
-        lifecycleScope.launch {
+        CoroutineScope(Dispatchers.Main).launch {
             try {
                 val downloadUrl = withContext(Dispatchers.IO) {
                     repository.uploadProfileImage(uri) { progress ->
-                        lifecycleScope.launch {
+                        CoroutineScope(Dispatchers.Main).launch {
                             binding.uploadProgressText.text = "${progress.toInt()}%"
                         }
                     }
@@ -558,7 +558,7 @@ class SettingsFragment : Fragment() {
                 binding.uploadOverlay.visibility = View.VISIBLE
                 binding.cameraBadge.visibility = View.GONE
                 
-                lifecycleScope.launch {
+                CoroutineScope(Dispatchers.Main).launch {
                     try {
                         withContext(Dispatchers.IO) {
                             repository.removeProfileImage()
@@ -608,7 +608,7 @@ class SettingsFragment : Fragment() {
         binding.cameraBadge.visibility = View.GONE
         lastRenderedAvatarKey = null
         
-        lifecycleScope.launch {
+        CoroutineScope(Dispatchers.Main).launch {
             try {
                 loadUserData(forceRefresh = true)
                 Toast.makeText(
@@ -726,7 +726,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun saveProfileField(field: String, value: String) {
-        lifecycleScope.launch {
+        CoroutineScope(Dispatchers.Main).launch {
             try {
                 withContext(Dispatchers.IO) {
                     if (field == "name") {

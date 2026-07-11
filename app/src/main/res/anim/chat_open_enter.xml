@@ -1,9 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Telegram-style chat-open enter: short travel + fast decelerate so the new
-     window settles quickly. 100% travel / 280ms (the platform default) reads as
-     "slow slide"; 15% / 180ms reads as an instant settle while still conveying
-     forward motion. The underlying chat list stays put (exit anim = 0), matching
-     Telegram's "old view remains visible beneath the incoming screen". -->
 <translate xmlns:android="http://schemas.android.com/apk/res/android"
     android:fromXDelta="15%"
     android:toXDelta="0%"

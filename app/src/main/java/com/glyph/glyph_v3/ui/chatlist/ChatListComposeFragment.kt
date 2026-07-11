@@ -27,7 +27,6 @@ import com.glyph.glyph_v3.data.repo.PresenceManager
 import com.glyph.glyph_v3.data.repo.RealtimeMessageRepository
 import com.glyph.glyph_v3.GlyphApplication
 import com.glyph.glyph_v3.ui.chat.ChatActivity
-import com.glyph.glyph_v3.util.StartupTrace
 import com.glyph.glyph_v3.ui.chat.ChatConnectionPrewarmer
 import com.glyph.glyph_v3.ui.chat.ChatOpenPrefetcher
 import com.glyph.glyph_v3.ui.aiagent.AiAgentActivity
@@ -49,7 +48,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import android.os.SystemClock
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
@@ -84,7 +82,7 @@ class ChatListComposeFragment : Fragment() {
     private val groupTypingUsersStateFlow = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
     private val groupSenderNamesStateFlow = MutableStateFlow<Map<String, String>>(emptyMap())
     private var currentUserIds: List<String> = emptyList()
-    private var lastPredictivePrefetchChatIds: Set<String> = emptySet()
+    private var lastPredictivePrefetchChatIds: List<String> = emptyList()
     private val requestedUserInfoChatIds = ConcurrentHashMap.newKeySet<String>()
     private val requestedAvatarPreloadKeys = ConcurrentHashMap.newKeySet<String>()
     private val requestedGroupSenderIds = ConcurrentHashMap.newKeySet<String>()
@@ -115,17 +113,16 @@ class ChatListComposeFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        StartupTrace.logStage("chat_list_fragment_onCreate", "archived=$isArchivedMode locked=$isLockedMode")
-
         isArchivedMode = arguments?.getBoolean("is_archived_mode") ?: false
         isLockedMode = arguments?.getBoolean("is_locked_mode") ?: false
         enterTransition = null
         returnTransition = null
 
-        // STARTUP OPTIMIZATION: Removed eager repository pre-warming
-        // Previously this called ensureSharedRepositoryStartup() which blocked
-        // on Room database creation (200-500ms). Now the repository initializes
-        // lazily on-demand in the background when first needed.
+        // Start repository pre-warming as early as possible (onCreate instead of
+        // onCreateView) so DB creation + repository init overlap with layout
+        // inflation and Compose setup rather than blocking the first frame.
+        val app = requireContext().applicationContext as GlyphApplication
+        app.ensureSharedRepositoryStartup(reason = "chat_list_compose_open")
     }
 
     override fun onCreateView(
@@ -133,13 +130,9 @@ class ChatListComposeFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        StartupTrace.logStage("chat_list_fragment_onCreateView_start")
-
         val app = requireContext().applicationContext as GlyphApplication
-        // STARTUP OPTIMIZATION: Don't eagerly get repositories - let them initialize lazily
-        // This avoids blocking on Room database creation during first layout
-        repository = app.repository  // May be null initially, will be created in background
-        // groupRepository will be created on-demand when needed
+        repository = app.repository
+        groupRepository = app.getOrCreateGroupChatRepository()
 
         DraftMessageStore.init(requireContext().applicationContext)
 
@@ -152,38 +145,14 @@ class ChatListComposeFragment : Fragment() {
         viewModel = ViewModelProvider(this, factory)[ChatListViewModel::class.java]
         repository?.let(viewModel::attachRepository)
 
-        // OPTIMIZATION: Create ComposeView immediately but defer setContent to after first frame
         val view = ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-        }
-
-        composeView = view
-
-        // Set up Compose UI immediately so content displays
-        setupComposeContent()
-
-        StartupTrace.logStage("chat_list_fragment_onCreateView_end")
-        return view
-    }
-
-    // Set up Compose UI with chat list content
-    private fun setupComposeContent() {
-        val composeViewLocal = composeView ?: return
-        if (composeViewLocal.childCount > 0) return // Already set up
-
-        StartupTrace.logStage("chat_list_compose_setup_start")
-
-        // STARTUP OPTIMIZATION: Initialize Coil on-demand when Compose UI is first displayed
-        // Coil is only needed for Compose screens, so we defer until first Compose render
-        val app = requireContext().applicationContext as GlyphApplication
-        app.ensureCoilInitialized()
-
-        composeViewLocal.setContent {
-            GlyphThemeProvider {
-                val uiState by viewModel.uiState.collectAsState()
-                val contactStatusGroups by StatusRepository.contactStatuses.collectAsState()
-                val groupSenderNames by groupSenderNamesStateFlow.collectAsState()
-                ChatListScreen(
+            setContent {
+                GlyphThemeProvider {
+                    val uiState by viewModel.uiState.collectAsState()
+                    val contactStatusGroups by StatusRepository.contactStatuses.collectAsState()
+                    val groupSenderNames by groupSenderNamesStateFlow.collectAsState()
+                    ChatListScreen(
                         title = "Glyph",
                         chats = uiState.chats,
                         groupSenderNamesByUserId = groupSenderNames,
@@ -307,8 +276,12 @@ class ChatListComposeFragment : Fragment() {
                     )
                 }
             }
-        StartupTrace.logStage("chat_list_compose_setup_end")
+        }
+
+        composeView = view
+        return view
     }
+
     private fun openContactStatusFromChatList(userId: String) {
         if (userId.isBlank()) return
         StatusNavigationBus.openContactStatus(userId)
@@ -317,28 +290,15 @@ class ChatListComposeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        StartupTrace.logStage("chat_list_fragment_onViewCreated")
 
-        // ULTRA-OPTIMIZATION: Start data loading IMMEDIATELY for instant scrollability
-        // Don't defer to view.post - that creates 100-300ms delay before user can interact
-        // This eliminates the delay on mid-range devices before user can scroll
         observeChatListReadyForSecondaryPreload()
+
         ensureRepositoryReadyAndStart()
 
-        // Defer only non-critical UI operations to after first frame
-        view.post {
-            if (isViewDestroyed()) return@post
-            StartupTrace.logStage("chat_list_first_frame_ready")
-
-            // These can wait - they don't affect scrollability
-            if (!isLockedMode && !isArchivedMode) {
-                refreshLockedChatsHiddenState()
-            }
+        // Refresh "hide locked chats" state (readable from SharedPreferences, updated on resume)
+        if (!isLockedMode && !isArchivedMode) {
+            refreshLockedChatsHiddenState()
         }
-    }
-
-    private fun isViewDestroyed(): Boolean {
-        return view == null || isDetached || (view != null && view?.parent == null)
     }
 
     override fun onResume() {
@@ -366,7 +326,6 @@ class ChatListComposeFragment : Fragment() {
                     .distinctUntilChanged()
                     .collect { isReady ->
                         if (isReady) {
-                            StartupTrace.logStage("chat_list_ui_ready", "chats=${viewModel.uiState.value.chats.size}")
                             requestSecondaryTabPreload()
                         }
                     }
@@ -387,21 +346,14 @@ class ChatListComposeFragment : Fragment() {
         }
 
         repositoryInitJob?.cancel()
-        repositoryInitJob = viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+        repositoryInitJob = viewLifecycleOwner.lifecycleScope.launch {
             val app = requireContext().applicationContext as GlyphApplication
-
-            // STARTUP OPTIMIZATION: Create repository on IO thread to avoid blocking main thread
-            // Room database creation can take 200-500ms on first launch - this must not block UI
             val readyRepository = withContext(Dispatchers.IO) {
-                repository ?: app.getOrCreateRealtimeRepository()
+                app.getOrCreateRealtimeRepository()
             }
-
-            // Switch back to main thread only for UI updates
-            withContext(Dispatchers.Main.immediate) {
-                repository = readyRepository
-                viewModel.attachRepository(readyRepository)
-                startChatListData()
-            }
+            repository = readyRepository
+            viewModel.attachRepository(readyRepository)
+            startChatListData()
         }
     }
 
@@ -411,15 +363,13 @@ class ChatListComposeFragment : Fragment() {
         hasStartedChatListData = true
         viewModel.attachRepository(repository)
 
-        // OPTIMIZATION: Start seedInitialChats immediately (it's already optimized with parallel loads)
         seedInitialChats()
+        loadLocalChatsWithPresence()
 
-        // OPTIMIZATION: Start message sync on IO thread without blocking
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             repository.startIncomingMessageSync()
         }
 
-        // OPTIMIZATION: Start all observation flows in parallel without blocking
         viewLifecycleOwner.lifecycleScope.launch {
             repository.getArchivedChats()
                 .map { chats ->
@@ -461,10 +411,6 @@ class ChatListComposeFragment : Fragment() {
                     }
                 }
         }
-
-        // OPTIMIZATION: Defer the expensive presence/typing flow setup slightly to let
-        // the initial chat list render first
-        loadLocalChatsWithPresence()
     }
 
     private fun currentUserId(): String? = FirebaseAuth.getInstance().currentUser?.uid
@@ -479,24 +425,20 @@ class ChatListComposeFragment : Fragment() {
     private fun seedInitialChats() {
         val repository = repository ?: return
 
-        // OPTIMIZATION: Skip seeding if we already have cached data from Application prewarming
-        // or from a previous Fragment instance. The combined flow in loadLocalChatsWithPresence
-        // will refresh it with presence/typing info momentarily anyway.
+        // Skip seeding if we already have cached data: it has presence/typing info from the last
+        // session, which is richer than what seedInitialChats would produce (emptyMap presence).
+        // The combined flow in loadLocalChatsWithPresence will refresh it momentarily anyway.
         if (viewModel.uiState.value.chats.isNotEmpty()) return
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            // OPTIMIZATION: Load initial chats in parallel with archived chats count
-            // This reduces initial load time by ~50-100ms on cold starts
-            val localChatsDeferred = async {
-                if (isArchivedMode) repository.getArchivedChatsOnce()
-                else repository.getLocalChatsOnce()
+            val localChats = if (isArchivedMode) {
+                repository.getArchivedChatsOnce()
+            } else {
+                repository.getLocalChatsOnce()
             }
 
-            val localChats = localChatsDeferred.await()
-
-            // Update archived chats count in parallel (non-blocking)
             if (!isArchivedMode) {
-                launch {
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
                     val archivedChats = repository.getArchivedChatsOnce()
                     if (archivedChats.isNotEmpty()) {
                         val hasUnread = archivedChats.any { it.unreadCount > 0 }
@@ -530,11 +472,10 @@ class ChatListComposeFragment : Fragment() {
                 viewModel.updateChats(initialChats)
             }
 
-            // Launch these in parallel instead of sequentially
-            launch { scheduleChatListUserInfoSync(localChats) }
-            launch { scheduleGroupSenderNameSync(localChats) }
-            launch { scheduleChatListAvatarPreload(localChats) }
-            launch { warmLikelyNextChats(localChats) }
+            scheduleChatListUserInfoSync(localChats)
+            scheduleGroupSenderNameSync(localChats)
+            scheduleChatListAvatarPreload(localChats)
+            warmLikelyNextChats(localChats)
         }
     }
 
@@ -1067,31 +1008,37 @@ class ChatListComposeFragment : Fragment() {
         lastNavigationChatId = chatId
         lastNavigationUptimeMs = now
 
+        // Mark this chat as opening BEFORE startActivity so ChatOpenPrefetcher suppresses
+        // predictive-retained overwrites for this chatId and ChatActivity's consume call
+        // sees the correct retained preloads from warmChatsAsync (if they exist).
         ChatOpenPrefetcher.noteChatOpenStarting(chatId)
-
-        // Fire-and-forget: prime cache in background. ChatActivity's prefill
-        // handles its own three-layer cache independently. This just increases
-        // the chance retained media preloads are decoded before first bind.
-        val primeSource = if (isCompose) "chat_list_compose_tap" else "chat_list_tap"
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            runCatching {
-                ChatOpenPrefetcher.primeChatOpen(
-                    context = appContext,
-                    repository = repository,
-                    chatId = chatId,
-                    source = primeSource,
-                    peerUserId = otherUserId,
-                    peerAvatarUrl = otherUserAvatar
-                )
-            }
-        }
-
         val intent = ChatActivity.newIntent(hostActivity, chatId, otherUserId, otherUsername, otherUserAvatar)
         ChatOpenTrace.event(chatId, "start_activity", "username=${otherUsername.isNotBlank()} avatar=${otherUserAvatar.isNotBlank()}")
         hostActivity.startActivity(intent)
 
         ChatOpenTrace.event(chatId, "transport_prewarm_queue", "source=fragment_navigate")
         ChatConnectionPrewarmer.prewarmForChatOpen(repository, chatId, otherUserId)
+
+        // Run primeChatOpen in background so navigation does not wait for prefetch work.
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val primeStartedAt = SystemClock.elapsedRealtime()
+            ChatOpenTrace.event(chatId, "open_prefetch_prime_start_async", "source=background")
+            runCatching {
+                ChatOpenPrefetcher.primeChatOpen(
+                    context = appContext,
+                    repository = repository,
+                    chatId = chatId,
+                    source = if (isCompose) "chat_list_compose_tap" else "chat_list_tap",
+                    peerUserId = otherUserId,
+                    peerAvatarUrl = otherUserAvatar
+                )
+            }
+            ChatOpenTrace.event(
+                chatId,
+                "open_prefetch_prime_end_async",
+                "elapsed=${SystemClock.elapsedRealtime() - primeStartedAt}ms"
+            )
+        }
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             runCatching { repository.clearUnreadCount(chatId) }
@@ -1103,19 +1050,20 @@ class ChatListComposeFragment : Fragment() {
         val candidates = localChats
             .asSequence()
             .filter { !it.isArchived }
-            .take(6)  // Warm top 6 chats so most taps hit a pre-cached snapshot
+            .take(2)
             .toList()
         val candidateIds = candidates.map { it.id }
-        if (candidateIds.isEmpty()) return
-        val deduped = candidateIds.filter { it !in lastPredictivePrefetchChatIds }
-        if (deduped.isEmpty()) return
+        if (candidateIds.isEmpty() || candidateIds == lastPredictivePrefetchChatIds) return
 
-        lastPredictivePrefetchChatIds = candidateIds.toSet()
+        lastPredictivePrefetchChatIds = candidateIds
         val appContext = context?.applicationContext ?: return
 
+        // Pre-warm real-time transport paths for the top visible chats so that,
+        // if the user taps any of them, the RTDB WebSocket handshake is already
+        // complete before ChatActivity even starts.
         ChatConnectionPrewarmer.prewarmChats(
             repository = repository,
-            chats = candidates.map { it.id to it.otherUserId }
+            chats = candidates.take(2).map { it.id to it.otherUserId }
         )
 
         ChatOpenPrefetcher.warmChatsAsync(
@@ -1131,16 +1079,13 @@ class ChatListComposeFragment : Fragment() {
         chatsJob?.cancel()
         presenceJob?.cancel()
         typingJob?.cancel()
-        groupTypingJob?.cancel()
         repositoryInitJob?.cancel()
         repositoryInitJob = null
         hasStartedChatListData = false
         hasRequestedSecondaryTabPreload = false
-        lastPredictivePrefetchChatIds = emptySet()
-        currentGroupTypingChatIds = emptyList()
+        lastPredictivePrefetchChatIds = emptyList()
         requestedUserInfoChatIds.clear()
         requestedAvatarPreloadKeys.clear()
-        requestedGroupSenderIds.clear()
         composeView = null
     }
 }

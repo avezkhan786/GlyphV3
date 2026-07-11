@@ -46,7 +46,7 @@ class ChatListFragment : Fragment() {
     
     private var chatsJob: Job? = null
     private var presenceJob: Job? = null
-    private var lastPredictivePrefetchChatIds: Set<String> = emptySet()
+    private var lastPredictivePrefetchChatIds: List<String> = emptyList()
     
     // Store presence data in a StateFlow for combining with chats
     private val presenceStateFlow = MutableStateFlow<Map<String, PresenceManager.PresenceStatus>>(emptyMap())
@@ -70,25 +70,19 @@ class ChatListFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
+        
         val app = requireContext().applicationContext as GlyphApplication
-
-        // STARTUP OPTIMIZATION: Lazy repository initialization on background thread
-        // Don't block onViewCreated on Room database creation
-        lifecycleScope.launch(Dispatchers.IO) {
-            val repo = app.getOrCreateRealtimeRepository()
-            withContext(Dispatchers.Main) {
-                repository = repo
-                setupRecyclerView()
-                loadLocalChatsWithPresence()
-
-                // Start listening for incoming messages
-                repo.startIncomingMessageSync()
-            }
-        }
+        app.ensureSharedRepositoryStartup(reason = "chat_list_legacy_open")
+        repository = app.getOrCreateRealtimeRepository()
 
         DraftMessageStore.init(requireContext().applicationContext)
-
+        
+        setupRecyclerView()
+        loadLocalChatsWithPresence()
+        
+        // Start listening for incoming messages
+        repository.startIncomingMessageSync()
+        
         binding.fabNewChat.setOnClickListener {
             startActivity(Intent(requireContext(), UserListActivity::class.java))
         }
@@ -283,12 +277,15 @@ class ChatListFragment : Fragment() {
             otherUsername,
             otherUserAvatar
         )
-        // Fire-and-forget: prime the cache in background WITHOUT blocking navigation.
-        // ChatActivity's prefillRecentMessagesAsync handles the three-layer cache
-        // (memory → disk → Room) independently. The prime just increases the chance
-        // that retained media preloads are ready by the time the first bind runs.
-        ChatOpenPrefetcher.noteChatOpenStarting(chatId)
-        lifecycleScope.launch(Dispatchers.IO) {
+        StartupTrace.logStage("chat_list_open_start_activity", "chatId=$chatId")
+        startActivity(intent)
+
+        ChatConnectionPrewarmer.prewarmForChatOpen(repository, chatId, otherUserId)
+
+        // Run primeChatOpen in background so navigation does not wait for prefetch work.
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val primeStartedAt = android.os.SystemClock.elapsedRealtime()
+            StartupTrace.logStage("chat_list_open_prime_start_async", "chatId=$chatId")
             runCatching {
                 ChatOpenPrefetcher.primeChatOpen(
                     context = appContext,
@@ -299,12 +296,11 @@ class ChatListFragment : Fragment() {
                     peerAvatarUrl = otherUserAvatar
                 )
             }
+            StartupTrace.logStage(
+                "chat_list_open_prime_end_async",
+                "chatId=$chatId elapsed=${android.os.SystemClock.elapsedRealtime() - primeStartedAt}ms"
+            )
         }
-
-        StartupTrace.logStage("chat_list_open_start_activity", "chatId=$chatId")
-        startActivity(intent)
-
-        ChatConnectionPrewarmer.prewarmForChatOpen(repository, chatId, otherUserId)
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             runCatching { repository.clearUnreadCount(chatId) }
@@ -312,15 +308,10 @@ class ChatListFragment : Fragment() {
     }
 
     private fun warmLikelyNextChats(chats: List<Chat>) {
-        // Warm the top 6 visible chats so most taps hit a pre-cached snapshot.
-        // Previously only 2 were warmed — any chat beyond position 2 had no
-        // snapshot and navigation fell through to the slow Room query path.
-        val candidateIds = chats.take(6).map { it.id }
-        if (candidateIds.isEmpty()) return
-        val deduped = candidateIds.filter { it !in lastPredictivePrefetchChatIds }
-        if (deduped.isEmpty()) return
+        val candidateIds = chats.take(2).map { it.id }
+        if (candidateIds.isEmpty() || candidateIds == lastPredictivePrefetchChatIds) return
 
-        lastPredictivePrefetchChatIds = candidateIds.toSet()
+        lastPredictivePrefetchChatIds = candidateIds
         ChatOpenPrefetcher.warmChatsAsync(
             context = requireContext().applicationContext,
             repository = repository,

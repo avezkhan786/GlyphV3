@@ -1,8 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Chat-close exit: slides the finishing chat out toward the right (where it
-     entered from) and fades it so the underlying chat list is revealed without a
-     hard pop at animation end. The chat list has no enter anim (it is already
-     visible beneath), so only this exit tween runs on back. -->
 <set xmlns:android="http://schemas.android.com/apk/res/android"
     android:interpolator="@android:interpolator/decelerate_quad">
     <translate

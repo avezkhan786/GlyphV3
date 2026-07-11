@@ -26,44 +26,4 @@
     <dimen name="design_bottom_navigation_label_padding">2dp</dimen>
     <dimen name="calls_search_field_horizontal_padding">24dp</dimen>
     <dimen name="calls_search_field_vertical_padding">18dp</dimen>
-
-    <!-- ========== TELEGRAM-STYLE DIMENSIONS ========== -->
-
-    <!-- Chat input - Telegram compact sizing -->
-    <dimen name="telegram_chat_input_height">48dp</dimen> <!-- Telegram's compact 48dp -->
-    <dimen name="telegram_chat_input_corner_radius">24dp</dimen> <!-- Fully rounded pill -->
-    <dimen name="telegram_send_button_size">48dp</dimen> <!-- Circular 48dp -->
-
-    <!-- Chat bubbles - Telegram sizing -->
-    <dimen name="telegram_bubble_corner_radius_large">12dp</dimen>
-    <dimen name="telegram_bubble_corner_radius_small">4dp</dimen>
-    <dimen name="telegram_bubble_padding_horizontal">12dp</dimen>
-    <dimen name="telegram_bubble_padding_vertical">6dp</dimen>
-    <dimen name="telegram_bubble_margin_left">8dp</dimen> <!-- Outgoing left margin -->
-    <dimen name="telegram_bubble_margin_right">4dp</dimen>
-
-    <!-- Typography - Telegram sizing -->
-    <dimen name="telegram_message_text_size">15sp</dimen> <!-- Telegram's standard -->
-    <dimen name="telegram_timestamp_text_size">11sp</dimen> <!-- Small, subtle -->
-    <dimen name="telegram_date_header_text_size">12sp</dimen> <!-- Date chips -->
-
-    <!-- Date header chips - Telegram styling -->
-    <dimen name="telegram_date_header_padding_horizontal">12dp</dimen>
-    <dimen name="telegram_date_header_padding_vertical">3dp</dimen>
-    <dimen name="telegram_date_header_corner_radius">12dp</dimen> <!-- Fully rounded -->
-    <dimen name="telegram_date_header_margin_top">8dp</dimen>
-    <dimen name="telegram_date_header_margin_bottom">4dp</dimen>
-
-    <!-- Avatar - Telegram sizing -->
-    <dimen name="telegram_avatar_size">40dp</dimen> <!-- App bar avatar -->
-    <dimen name="telegram_chat_avatar_size">32dp</dimen> <!-- Chat list avatar -->
-    <dimen name="telegram_avatar_margin_right">8dp</dimen>
-
-    <!-- App bar - Telegram styling -->
-    <dimen name="telegram_app_bar_height">56dp</dimen> <!-- Standard height -->
-    <dimen name="telegram_app_bar_icon_size">40dp</dimen> <!-- Profile picture size -->
-
-    <!-- Spacing - Telegram tight spacing -->
-    <dimen name="telegram_message_spacing_vertical">2dp</dimen>
-    <dimen name="telegram_bubble_spacing">4dp</dimen>
 </resources>

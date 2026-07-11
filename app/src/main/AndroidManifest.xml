@@ -25,6 +25,7 @@
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <!-- Foreground service type for status media uploads (WorkManager) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- Foreground service type for location sharing -->
@@ -36,6 +37,7 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- Full-screen intent for incoming call notifications -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
@@ -63,8 +65,13 @@
 
         <activity
             android:name=".SplashActivity"
-            android:exported="false"
-            android:theme="@style/Theme.AppCompat.NoActionBar" />
+            android:exported="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".ui.login.LoginActivity"
@@ -172,19 +179,11 @@
             android:theme="@style/Theme.AppCompat.NoActionBar"
             android:exported="false" />
 
-        <!-- OPTIMIZATION: MainActivity is now the launcher activity -->
-        <!-- STARTUP FIX: No longer uses splash theme - removed double-theme rendering overhead -->
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTop"
-            android:theme="@style/Theme.GlyphV3">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
+            android:exported="false" 
+            android:launchMode="singleTop"/>
+            
         <activity android:name=".ui.chatlist.ArchivedChatsActivity" />
         <activity android:name=".ui.chatlist.LockedChatsActivity" />
         <activity android:name=".ui.chatlist.ChatLockSettingsActivity" />
@@ -223,28 +222,6 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- STARTUP OPTIMIZATION: App Startup Initializer for efficient lazy initialization -->
-        <provider
-            android:name="androidx.startup.InitializationProvider"
-            android:authorities="${applicationId}.androidx-startup"
-            android:exported="false"
-            tools:node="merge">
-            <!-- Critical path initializers (run early) -->
-            <meta-data
-                android:name="com.glyph.glyph_v3.startup.FirebaseInitializer"
-                android:value="androidx.startup" />
-            <meta-data
-                android:name="com.glyph.glyph_v3.startup.PresenceInitializer"
-                android:value="androidx.startup" />
-            <meta-data
-                android:name="com.glyph.glyph_v3.startup.ThemeInitializer"
-                android:value="androidx.startup" />
-            <!-- Background services (run in parallel with UI) -->
-            <meta-data
-                android:name="com.glyph.glyph_v3.startup.ServicesInitializer"
-                android:value="androidx.startup" />
-        </provider>
-
         <service
             android:name=".data.service.MyFirebaseMessagingService"
             android:exported="false"
@@ -253,7 +230,7 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-
+        
         <receiver
             android:name=".data.service.NotificationActionReceiver"
             android:exported="false"
@@ -289,7 +266,7 @@
             android:name=".ui.chat.map.routing.NavigationForegroundService"
             android:exported="false"
             android:foregroundServiceType="location" />
-
+        
         <!-- Routing notification receiver for "Stop Navigation" button -->
         <receiver
             android:name=".ui.chat.map.routing.RoutingNotificationBroadcastReceiver"
@@ -501,7 +478,7 @@
             tools:node="merge" />
 
         <!-- ═══════════════════════════════════════════════════════════ -->
-
+            
     </application>
 
 </manifest>

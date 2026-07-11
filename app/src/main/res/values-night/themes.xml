@@ -1,13 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.GlyphV3" parent="Theme.GlyphV3.Dark" />
-
-    <!-- Dark mode splash screen theme -->
-    <style name="Theme.GlyphV3.SplashBranded" parent="Theme.AppCompat.NoActionBar">
-        <item name="android:windowBackground">@color/dark_background</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:navigationBarColor">@color/dark_background</item>
-        <item name="android:windowLightNavigationBar">false</item>
-    </style>
 </resources>

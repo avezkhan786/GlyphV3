@@ -27,42 +27,27 @@ import androidx.viewpager2.widget.ViewPager2
 import com.glyph.glyph_v3.databinding.ActivityMainBinding
 import com.glyph.glyph_v3.data.preferences.StatusNotificationPrefs
 import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
-import com.glyph.glyph_v3.data.backup.BackupPreferences
-import com.glyph.glyph_v3.data.backup.DriveRepository
-import com.glyph.glyph_v3.data.auth.GoogleSignInRepository
 import com.glyph.glyph_v3.ui.calls.CallsFragment
 import com.glyph.glyph_v3.ui.chat.ChatActivity
 import com.glyph.glyph_v3.ui.chatlist.ChatListComposeFragment
 import com.glyph.glyph_v3.ui.main.MainPagerAdapter
 import com.glyph.glyph_v3.ui.settings.SettingsFragment
 import com.glyph.glyph_v3.ui.status.StatusFragment
-import com.glyph.glyph_v3.ui.onboarding.RestoreOfferActivity
 import com.glyph.glyph_v3.data.repo.StatusRepository
 import com.glyph.glyph_v3.utils.ThemeManager
-import com.glyph.glyph_v3.util.StartupTrace
-import com.glyph.glyph_v3.ui.login.LoginActivity
 import com.google.firebase.messaging.FirebaseMessaging
-import android.app.Activity
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.data.repo.PresenceManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.launch
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 
 class MainActivity : AppCompatActivity() {
-
-    companion object {
-        /** Track splash screen state for launcher activity */
-        var splashShown: Boolean = false
-    }
 
     private var connectionRetryJob: Job? = null
     private var hasPreloadedSecondaryTabs = false
@@ -79,27 +64,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // STARTUP FIX: Eliminate splash screen flash on every app open
-        // CRITICAL: Apply theme BEFORE super.onCreate() to prevent white flash
+        // Apply saved theme before creating the activity
         ThemeManager.applyTheme(this)
-
-        StartupTrace.logStage("main_onCreate_start")
-
+        
         super.onCreate(savedInstanceState)
+        
+        // Ensure user is authenticated (anonymous auth if not signed in)
+        ensureAuthenticated()
 
-        StartupTrace.logStage("main_onCreate_theme_applied")
-
-        // Handle initial routing for launcher activity
-        handleInitialRouting()
+        // Re-initialize contact name resolver after logout→login without process death
+        ContactDisplayNameResolver.init(this)
 
         // Enable edge-to-edge display
         WindowCompat.setDecorFitsSystemWindows(window, false)
         
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        StartupTrace.logStage("main_layout_set")
-
+        
         // Setup ViewPager2 (WhatsApp-style swipe)
         val pagerAdapter = com.glyph.glyph_v3.ui.main.MainPagerAdapter(this)
         binding.mainViewPager.adapter = pagerAdapter
@@ -149,40 +130,22 @@ class MainActivity : AppCompatActivity() {
             }
         })
         
-        // Apply Pastel-Sky bottom navigation colors if needed (needed immediately)
+        askNotificationPermission()
+        
+        // Check battery optimization (for reliable FCM delivery)
+        checkBatteryOptimization()
+        
+        // Update FCM Token
+        updateFcmToken()
+        
+        // Resume any pending media downloads
+        com.glyph.glyph_v3.data.media.MediaDownloadWorker.schedulePendingDownloads(applicationContext)
+
+        StatusRepository.startListeningContactStatuses()
+
+        // Apply Pastel-Sky bottom navigation colors if needed
         applyBottomNavigationTheme()
-
-        // OPTIMIZATION: Defer non-critical operations to after first frame
-        // This reduces MainActivity onCreate blocking time by 200-500ms
-        binding.root.post {
-            if (isFinishing || isDestroyed) return@post
-
-            StartupTrace.logStage("main_first_frame_ready")
-
-            // Ensure user is authenticated (anonymous auth if not signed in)
-            ensureAuthenticated()
-
-            // Re-initialize contact name resolver after logout→login without process death
-            ContactDisplayNameResolver.init(this)
-
-            // Notification permission check (can wait)
-            askNotificationPermission()
-
-            // Battery optimization check (shows dialog, better after first frame)
-            checkBatteryOptimization()
-
-            // FCM token update (fire-and-forget, can wait)
-            updateFcmToken()
-
-            // Media download worker scheduling (can wait)
-            com.glyph.glyph_v3.data.media.MediaDownloadWorker.schedulePendingDownloads(applicationContext)
-
-            // Status repository start (can wait)
-            StatusRepository.startListeningContactStatuses()
-
-            // Unread status observation (can wait)
-            observeUnreadStatuses()
-        }
+        observeUnreadStatuses()
 
         // Setup Bottom Navigation interaction
         binding.bottomNavigation.setOnItemSelectedListener { item ->
@@ -208,8 +171,6 @@ class MainActivity : AppCompatActivity() {
 
         // Non-blocking profile validation (does not delay first render)
         checkUserProfileAsync()
-
-        StartupTrace.logStage("main_onCreate_end_deferred_ops_scheduled")
     }
 
     fun preloadSecondaryTabsAfterChatReady() {
@@ -495,66 +456,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Handles initial routing when MainActivity is launched as the launcher activity.
-     * Replaces SplashActivity routing logic to eliminate activity transition overhead.
-     */
-    private fun handleInitialRouting() {
-        StartupTrace.logStage("main_routing_start")
-
-        val auth = FirebaseAuth.getInstance()
-        val currentUser = auth.currentUser
-
-        if (currentUser == null) {
-            // User is not logged in, route to login
-            StartupTrace.logStage("main_routing_to_login")
-            val loginIntent = Intent(this, LoginActivity::class.java)
-            startActivity(loginIntent)
-            if (Build.VERSION.SDK_INT >= 34) {
-                overrideActivityTransition(Activity.OVERRIDE_TRANSITION_OPEN, 0, 0)
-            } else {
-                @Suppress("DEPRECATION")
-                overridePendingTransition(0, 0)
-            }
-            finish()
-            return
-        }
-
-        StartupTrace.logStage("main_routing_authenticated", "uid=${currentUser.uid.take(8)}")
-
-        // Check for backup offer in background (non-blocking)
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                if (!BackupPreferences.shouldShowRestoreOffer(this@MainActivity)) {
-                    StartupTrace.logStage("main_routing_backup_check_skipped")
-                    return@launch
-                }
-
-                // Add timeout to prevent blocking
-                withTimeoutOrNull(3000L) {
-                    val googleRepo = GoogleSignInRepository.getInstance(this@MainActivity)
-                    val account = googleRepo.silentSignIn()
-                    if (account != null) {
-                        val credential = googleRepo.getDriveCredential(account)
-                        val driveRepo = DriveRepository.getInstance(this@MainActivity)
-                        driveRepo.init(account, credential)
-                        val backups = driveRepo.listBackups()
-                        if (backups.isNotEmpty()) {
-                            StartupTrace.logStage("main_routing_to_restore_offer")
-                            val restoreIntent = Intent(this@MainActivity, RestoreOfferActivity::class.java)
-                            withContext(Dispatchers.Main.immediate) {
-                                startActivity(restoreIntent)
-                                finish()
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w("MainActivity", "Backup check failed", e)
-            }
-        }
-    }
-
-    /**
      * Ensures user is authenticated with Firebase Auth.
      * Signs in anonymously if no user is currently signed in.
      * Required for Cloud Functions that need authentication context.
@@ -580,16 +481,11 @@ class MainActivity : AppCompatActivity() {
 
         // CRITICAL: Go online when MainActivity becomes visible
         // This ensures presence is set when user is on chat list, status, etc.
-        // Deferred one frame so this main-thread work does not compete with the
-        // first frame of the return animation (chat list being revealed on back).
-        binding.root.post {
-            if (isFinishing || isDestroyed) return@post
-            PresenceManager.primeTransport("main_activity_resume", forceTokenRefresh = true)
-            PresenceManager.goOnline()
-            com.glyph.glyph_v3.data.service.WalkieTalkieManager
-                .getInstance(applicationContext)
-                .primeTransport("main_activity_resume", forceTokenRefresh = true)
-        }
+        PresenceManager.primeTransport("main_activity_resume", forceTokenRefresh = true)
+        PresenceManager.goOnline()
+        com.glyph.glyph_v3.data.service.WalkieTalkieManager
+            .getInstance(applicationContext)
+            .primeTransport("main_activity_resume", forceTokenRefresh = true)
 
         // COLD-START FIX: Retry goOnline() once RTDB connection is established.
         // On cold start the initial goOnline() may queue the write before the

@@ -4,18 +4,12 @@ import com.glyph.glyph_v3.data.models.MessageType
 import kotlin.math.roundToInt
 
 internal object ChatMediaLayoutSizing {
-    // Scale factor for media bubble widths. 0.85 = 85% of base width — close to Telegram's
-    // proportions where portrait images fill ~70% of the chat area and landscape ~85%.
-    private const val MEDIA_SIZE_SCALE = 0.85f
-    // Base widths (before scale) designed for modern 360-412dp-wide screens.
-    // Portrait: 280dp × 0.85 = 238dp (was 195dp at 0.75 scale)
-    // Landscape: 340dp × 0.85 = 289dp (was 240dp at 0.75 scale)
-    // Sticker: 200dp × 0.85 = 170dp (was 135dp at 0.75 scale)
-    private const val STICKER_WIDTH_DP = 200f * MEDIA_SIZE_SCALE
-    private const val PORTRAIT_WIDTH_DP = 280f * MEDIA_SIZE_SCALE
-    private const val LANDSCAPE_WIDTH_DP = 340f * MEDIA_SIZE_SCALE
+    private const val MEDIA_SIZE_SCALE = 0.75f
+    private const val STICKER_WIDTH_DP = 180f * MEDIA_SIZE_SCALE
+    private const val PORTRAIT_WIDTH_DP = 260f * MEDIA_SIZE_SCALE
+    private const val LANDSCAPE_WIDTH_DP = 320f * MEDIA_SIZE_SCALE
     private const val VIDEO_NOTE_WIDTH_DP = 240f
-    private const val DOCUMENT_WIDTH_DP = 240f
+    private const val DOCUMENT_WIDTH_DP = 220f
     private const val MEDIA_GROUP_GRID_GAP_PX = 4
 
     private const val ROW_HORIZONTAL_PADDING_DP = 16f

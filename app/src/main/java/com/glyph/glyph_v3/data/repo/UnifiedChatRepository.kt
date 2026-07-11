@@ -16,8 +16,6 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -34,10 +32,6 @@ class UnifiedChatRepository(
     private val firestore = FirebaseFirestore.getInstance()
     private val storage = FirebaseStorage.getInstance()
     val currentUserId get() = auth.currentUser?.uid
-
-    // MEMORY LEAK FIX: Shared scope instead of creating new CoroutineScope(Dispatchers.IO)
-    // on each fire-and-forget call (was 22 separate allocation sites).
-    private val repoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // ==================== LOCAL CHATS ====================
     
@@ -145,14 +139,14 @@ class UnifiedChatRepository(
             .set(messageData)
             .addOnSuccessListener {
                 // C. Update Local DB (SENT)
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     messageDao.updateMessageStatus(messageId, MessageStatus.SENT)
                     // Update local chat's last message
                     chatDao.updateLastMessage(chatId, text, timestamp, userId, MessageStatus.SENT.name)
                 }
             }
             .addOnFailureListener {
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
                 }
             }
@@ -221,13 +215,13 @@ class UnifiedChatRepository(
         
         batch.commit()
             .addOnSuccessListener {
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     messageDao.updateMessageStatus(messageId, MessageStatus.SENT)
                     chatDao.updateLastMessage(chatId, text, timestamp, userId, MessageStatus.SENT.name)
                 }
             }
             .addOnFailureListener {
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
                     chatDao.updateLastMessage(chatId, text, timestamp, userId, MessageStatus.FAILED.name)
                 }
@@ -328,7 +322,7 @@ class UnifiedChatRepository(
                         
                         batch.commit()
                             .addOnSuccessListener {
-                                repoScope.launch {
+                                CoroutineScope(Dispatchers.IO).launch {
                                     messageDao.insertMessage(
                                         placeholderMessage.copy(
                                             imageUrl = downloadUrl,
@@ -340,21 +334,21 @@ class UnifiedChatRepository(
                                 }
                             }
                             .addOnFailureListener {
-                                repoScope.launch {
+                                CoroutineScope(Dispatchers.IO).launch {
                                     messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
                                     chatDao.updateLastMessage(chatId, "Photo", timestamp, userId, MessageStatus.FAILED.name)
                                 }
                             }
                     }
                     .addOnFailureListener {
-                        repoScope.launch {
+                        CoroutineScope(Dispatchers.IO).launch {
                             messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
                             chatDao.updateLastMessage(chatId, "Photo", timestamp, userId, MessageStatus.FAILED.name)
                         }
                     }
             }
             .addOnFailureListener {
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
                     chatDao.updateLastMessage(chatId, "Photo", timestamp, userId, MessageStatus.FAILED.name)
                 }
@@ -466,7 +460,7 @@ class UnifiedChatRepository(
                         
                         batch.commit()
                             .addOnSuccessListener {
-                                repoScope.launch {
+                                CoroutineScope(Dispatchers.IO).launch {
                                     messageDao.insertMessage(
                                         placeholderMessage.copy(
                                             videoUrl = downloadUrl,
@@ -479,21 +473,21 @@ class UnifiedChatRepository(
                                 }
                             }
                             .addOnFailureListener {
-                                repoScope.launch {
+                                CoroutineScope(Dispatchers.IO).launch {
                                     messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
                                     chatDao.updateLastMessage(chatId, "Video", timestamp, userId, MessageStatus.FAILED.name)
                                 }
                             }
                     }
                     .addOnFailureListener {
-                        repoScope.launch {
+                        CoroutineScope(Dispatchers.IO).launch {
                             messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
                             chatDao.updateLastMessage(chatId, "Video", timestamp, userId, MessageStatus.FAILED.name)
                         }
                     }
             }
             .addOnFailureListener {
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
                     chatDao.updateLastMessage(chatId, "Video", timestamp, userId, MessageStatus.FAILED.name)
                 }
@@ -573,13 +567,13 @@ class UnifiedChatRepository(
         
         batch.commit()
             .addOnSuccessListener {
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     messageDao.updateMessageStatus(messageId, MessageStatus.SENT)
                     chatDao.updateLastMessage(chatId, "Contact: $contactName", timestamp, userId, MessageStatus.SENT.name)
                 }
             }
             .addOnFailureListener {
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
                     chatDao.updateLastMessage(chatId, "Contact: $contactName", timestamp, userId, MessageStatus.FAILED.name)
                 }
@@ -645,7 +639,7 @@ class UnifiedChatRepository(
                         contactPhone = contactPhone
                     )
                     
-                    repoScope.launch {
+                    CoroutineScope(Dispatchers.IO).launch {
                         // Preserve localUri if exists
                         val existing = messageDao.getMessageById(id)
                         val updatedMessage = localMessage.copy(
@@ -671,7 +665,7 @@ class UnifiedChatRepository(
                 val username = doc.getString("username") ?: return@addOnSuccessListener
                 val avatar = doc.getString("profileImageUrl") ?: ""
                 
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     chatDao.updateUserInfo(chatId, username, avatar)
                 }
             }
@@ -763,7 +757,7 @@ class UnifiedChatRepository(
                     )
 
                     // PRIORITY 1: Insert message to local DB IMMEDIATELY for fast UI update
-                    repoScope.launch {
+                    CoroutineScope(Dispatchers.IO).launch {
                         val existing = messageDao.getMessageById(id)
                         val updatedMessage = localMessage.copy(localUri = existing?.localUri)
                         messageDao.insertMessage(updatedMessage)
@@ -805,7 +799,7 @@ class UnifiedChatRepository(
                                                     val localPath = localFile?.absolutePath
                                                     if (success && localPath != null) {
                                                         // Update message with downloaded file path
-                                                        repoScope.launch {
+                                                        CoroutineScope(Dispatchers.IO).launch {
                                                             val msg = messageDao.getMessageById(id)
                                                             if (msg != null && msg.mediaItems != null) {
                                                                 val items = com.google.gson.Gson().fromJson(
@@ -861,7 +855,7 @@ class UnifiedChatRepository(
                 val username = doc.getString("username") ?: "Unknown"
                 val avatar = doc.getString("profileImageUrl") ?: ""
                 
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     val newChat = LocalChat(
                         id = chatId,
                         otherUserId = otherUserId,
@@ -879,7 +873,7 @@ class UnifiedChatRepository(
             .addOnFailureListener { e ->
                 Log.e("UnifiedChatRepo", "Failed to fetch user info for chat", e)
                 // Create chat with unknown user
-                repoScope.launch {
+                CoroutineScope(Dispatchers.IO).launch {
                     val newChat = LocalChat(
                         id = chatId,
                         otherUserId = otherUserId,
@@ -901,13 +895,13 @@ class UnifiedChatRepository(
         val userId = currentUserId ?: return
 
         // 1. Clear local unread count
-        repoScope.launch {
+        CoroutineScope(Dispatchers.IO).launch {
             chatDao.clearUnreadCount(chatId)
         }
 
         // 2. Update status on Firestore for all incoming messages that are not yet READ
         //    AND update readTimestamps — but ONLY if read receipts are enabled.
-        repoScope.launch {
+        CoroutineScope(Dispatchers.IO).launch {
             val privacySettings = try {
                 PrivacySettingsRepository.getPrivacySettings()
             } catch (_: Exception) {

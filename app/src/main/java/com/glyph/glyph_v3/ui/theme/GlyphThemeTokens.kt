@@ -263,39 +263,7 @@ interface GlyphThemeTokens {
     
     /** Send button gradient (null if solid color) */
     val gradientSendButton: Brush?
-
-    // ========== TELEGRAM-SPECIFIC TOKENS ==========
-
-    /** Telegram-style outgoing bubble (green: #A9BE5F or gradient) */
-    val telegramBubbleOutgoing: Color
-
-    /** Telegram-style incoming bubble (white: #FFFFFF or light gray: #F1F1F1) */
-    val telegramBubbleIncoming: Color
-
-    /** Telegram outgoing bubble text (white) */
-    val telegramBubbleOutgoingText: Color
-
-    /** Telegram incoming bubble text (black) */
-    val telegramBubbleIncomingText: Color
-
-    /** Telegram timestamp color (semi-transparent) */
-    val telegramTimestamp: Color
-
-    /** Telegram date header background (semi-transparent) */
-    val telegramDateHeaderBackground: Color
-
-    /** Telegram date header text (white) */
-    val telegramDateHeaderText: Color
-
-    /** Telegram glass overlay for blur effects (semi-transparent white) */
-    val telegramGlassOverlay: Color
-
-    /** Telegram input background with glass effect */
-    val telegramInputBackground: Color
-
-    /** Telegram app bar background with glass effect */
-    val telegramAppBarBackground: Color
-
+    
     // ========== ELEVATION & SHADOWS ==========
     
     /** Subtle elevation (cards) */

@@ -6,7 +6,6 @@ import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -181,7 +180,7 @@ class RestoreOfferActivity : AppCompatActivity() {
     }
 
     private fun restoreAndContinue() {
-        lifecycleScope.launch(Dispatchers.IO) {
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
             BackupPreferences.markRestoreOfferSeen(this@RestoreOfferActivity)
         }
         RestoreWorker.enqueueRestore(this)
@@ -190,7 +189,7 @@ class RestoreOfferActivity : AppCompatActivity() {
     }
 
     private fun skipToMain() {
-        lifecycleScope.launch(Dispatchers.IO) {
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
             BackupPreferences.markRestoreOfferSeen(this@RestoreOfferActivity)
         }
         goToMain()

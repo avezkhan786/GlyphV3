@@ -2071,8 +2071,8 @@ class ChatAdapter(
 
     private fun resolveBubbleCornerSizes(view: View, groupPosition: BubbleGroupPosition, isIncoming: Boolean): BubbleCornerSizes {
         val density = view.context.resources.displayMetrics.density
-        val fullPx = 16f * density
-        val reducedPx = 6f * density
+        val fullPx = 12f * density
+        val reducedPx = 4f * density
 
         var topLeft = fullPx
         var topRight = fullPx
@@ -2281,6 +2281,137 @@ class ChatAdapter(
 
 
 
+    /**
+     * Pre-configure TextView and bubble for emoji-only rendering BEFORE any measurement.
+     * Uses [View.suppressLayout] to batch all property changes into zero intermediate
+     * [requestLayout] calls, preventing redundant [onLayoutChildren] passes that re-anchor
+     * [stackFromEnd] items (GlyphEmojiShift root cause).
+     *
+     * When this runs at bind start, [applyEmojiOnlyStyle] later sees everything already
+     * correct and is a no-op — zero additional [requestLayout] calls on any path.
+     */
+    /**
+     * Synchronously decode a local image file and set it on [imageView] during the first
+     * layout, so the image is visible in the very first paint — no async Glide gap.
+     *
+     * @return true if the bitmap was successfully decoded and set.
+     */
+    private fun tryBindLocalBitmapSync(
+        imageView: com.google.android.material.imageview.ShapeableImageView,
+        message: Message,
+        localPath: String,
+        targetW: Int,
+        targetH: Int
+    ): Boolean {
+        try {
+            val file = java.io.File(localPath)
+            if (!file.exists()) return false
+
+            // Read EXIF orientation so we correctly rotate the decoded bitmap.
+            val exif = androidx.exifinterface.media.ExifInterface(localPath)
+            val orientation = exif.getAttributeInt(
+                androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION,
+                androidx.exifinterface.media.ExifInterface.ORIENTATION_NORMAL)
+            val rotation = when (orientation) {
+                androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                androidx.exifinterface.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+            val swapped = rotation == 90f || rotation == 270f
+
+            val opts = android.graphics.BitmapFactory.Options()
+            opts.inJustDecodeBounds = true
+            android.graphics.BitmapFactory.decodeFile(localPath, opts)
+            val srcW = if (swapped) opts.outHeight else opts.outWidth
+            val srcH = if (swapped) opts.outWidth else opts.outHeight
+            val sampleSize = if (targetW > 0 && targetH > 0) {
+                calculateSampleSize(srcW, srcH, targetW, targetH)
+            } else 1
+            opts.inJustDecodeBounds = false
+            opts.inSampleSize = sampleSize
+            var bitmap = android.graphics.BitmapFactory.decodeFile(localPath, opts)
+
+            if (bitmap != null) {
+                if (rotation != 0f) {
+                    val matrix = android.graphics.Matrix()
+                    matrix.postRotate(rotation)
+                    val rotated = android.graphics.Bitmap.createBitmap(
+                        bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                    if (rotated != bitmap) bitmap.recycle()
+                    bitmap = rotated
+                }
+                imageView.setImageBitmap(bitmap)
+                applyBlur(imageView, false)
+                if (BuildConfig.DEBUG) {
+                    Log.d("GlyphMediaDebug",
+                        "MEDIA_SYNC_LOADED msgId=${message.id.take(8)} " +
+                            "file=${file.length()}b sampleSize=$sampleSize " +
+                            "src=${opts.outWidth}x${opts.outHeight} rotation=$rotation target=${targetW}x${targetH}")
+                }
+                return true
+            }
+            if (BuildConfig.DEBUG) {
+                Log.w("GlyphMediaDebug",
+                    "MEDIA_SYNC_FAIL msgId=${message.id.take(8)} " +
+                        "reason=decode_null file=${file.length()}b")
+            }
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) {
+                Log.w("GlyphMediaDebug",
+                    "MEDIA_SYNC_FAIL msgId=${message.id.take(8)} " +
+                        "reason=${e.javaClass.simpleName}: ${e.message}")
+            }
+        }
+        return false
+    }
+
+    private fun calculateSampleSize(srcW: Int, srcH: Int, targetW: Int, targetH: Int): Int {
+        var sampleSize = 1
+        while (srcW / sampleSize > targetW * 2 || srcH / sampleSize > targetH * 2) {
+            sampleSize *= 2
+        }
+        return sampleSize.coerceAtLeast(1)
+    }
+
+    private fun preConfigureEmoji(messageView: TextView, messageContainer: View, isOutgoing: Boolean) {
+        val density = messageView.resources.displayMetrics.density
+
+        // Text size → 24sp.
+        val targetPx = android.util.TypedValue.applyDimension(
+            android.util.TypedValue.COMPLEX_UNIT_SP, emojiOnlyTextSizeSp,
+            messageView.resources.displayMetrics
+        )
+        if (kotlin.math.abs(messageView.textSize - targetPx) > 0.5f) {
+            messageView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, emojiOnlyTextSizeSp)
+        }
+
+        // Width → MATCH_PARENT.
+        val lp = messageView.layoutParams
+        if (lp.width != ViewGroup.LayoutParams.MATCH_PARENT) {
+            lp.width = ViewGroup.LayoutParams.MATCH_PARENT
+            messageView.layoutParams = lp
+        }
+
+        // Horizontal gravity.
+        val horizMask = Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK
+        val targetGravity = if (isOutgoing) Gravity.END else Gravity.START
+        if ((messageView.gravity and horizMask) != (targetGravity and horizMask)) {
+            messageView.gravity = targetGravity
+        }
+
+        // Bubble padding → 6dp.
+        val bubbleLayout = findMessageBubbleLayout(messageView)
+        if (bubbleLayout != null) {
+            val ep = (6 * density).toInt()
+            if (bubbleLayout.paddingLeft != ep || bubbleLayout.paddingRight != ep ||
+                bubbleLayout.paddingTop != ep || bubbleLayout.paddingBottom != ep
+            ) {
+                bubbleLayout.setPaddingRelative(ep, ep, ep, ep)
+            }
+        }
+    }
+
     private fun applyEmojiOnlyStyle(
         messageContainer: View,
         messageView: TextView,
@@ -2305,8 +2436,9 @@ class ChatAdapter(
                 params.width = ViewGroup.LayoutParams.MATCH_PARENT
                 messageView.layoutParams = params
             }
+            val horizMask = Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK
             val targetGravity = if (isIncoming) Gravity.START else Gravity.END
-            if (messageView.gravity != targetGravity) {
+            if ((messageView.gravity and horizMask) != (targetGravity and horizMask)) {
                 messageView.gravity = targetGravity
             }
         } else {
@@ -2314,7 +2446,7 @@ class ChatAdapter(
                 params.width = ViewGroup.LayoutParams.WRAP_CONTENT
                 messageView.layoutParams = params
             }
-            if (messageView.gravity != Gravity.START) {
+            if ((messageView.gravity and Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK) != (Gravity.START and Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK)) {
                 messageView.gravity = Gravity.START
             }
         }
@@ -2804,7 +2936,8 @@ class ChatAdapter(
             .fitCenter()
             .override(widthPx, heightPx)
             .dontAnimate()
-            .placeholder(existingPlaceholder ?: androidx.core.content.ContextCompat.getDrawable(context, android.R.color.transparent))
+            .placeholder(if (skipBlurredPreview) null else (existingPlaceholder
+                ?: androidx.core.content.ContextCompat.getDrawable(context, android.R.color.transparent)))
             .error(R.drawable.ic_image_error)
             .listener(object : RequestListener<Drawable> {
                 override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean): Boolean {
@@ -2814,13 +2947,10 @@ class ChatAdapter(
 
                 override fun onResourceReady(resource: Drawable, model: Any, target: Target<Drawable>, dataSource: DataSource, isFirstResource: Boolean): Boolean {
                     applyBlur(imageView, false)
-                    if (ChatOpenPrefetcher.VERBOSE_MEDIA_BIND_DEBUG) {
-                        val level = if (dataSource == DataSource.MEMORY_CACHE) "BIND-HIT " else "BIND-MISS"
-                        Log.d(
-                            "GlyphCacheDebug",
-                            "[$level] $directionLabel IMG  msgId=${message.id.take(8)} ds=$dataSource " +
-                                "iv=${widthPx}x${heightPx} model=${model.toString().take(60)}"
-                        )
+                    if (BuildConfig.DEBUG) {
+                        Log.d("GlyphMediaDebug",
+                            "MEDIA_LOADED_IMG msgId=${message.id.take(8)} " +
+                                "dataSource=$dataSource isFirstResource=$isFirstResource")
                     }
                     maybeResolveMediaDimensionsFromDrawable(imageView, message, resource)
                     return false
@@ -2839,7 +2969,7 @@ class ChatAdapter(
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .fitCenter()
                     .override(96, 96)
-                    .placeholder(existingPlaceholder)
+                    .placeholder(null as Drawable?)
                     .dontAnimate()
             )
         } else {
@@ -3627,8 +3757,18 @@ class ChatAdapter(
                 
                 val localImagePath = cachedLocalFilePath(msg.chatId, msg.id, msg.type)
                 val hasLocalMedia = !localImagePath.isNullOrEmpty()
-                
+
                 applyStableMediaHeight(binding.ivImage, msg)
+
+                // DEBUG: trace media availability during first layout.
+                if (BuildConfig.DEBUG && isFirstLayout && !isScrolling) {
+                    android.util.Log.d("GlyphMediaDebug",
+                        "MEDIA_IN msgId=${msg.id.take(8)} type=${msg.type} " +
+                            "hasLocal=$hasLocalMedia localPath=${localImagePath?.take(60) ?: "null"} " +
+                            "imageUrl=${msg.imageUrl?.take(60) ?: "null"} " +
+                            "thumbUrl=${msg.thumbnailUrl?.take(60) ?: "null"} " +
+                            "preloadProvider=${preloadedMediaDrawableProvider != null}")
+                }
 
                 val imageSource = when {
                     hasLocalMedia -> {
@@ -3713,8 +3853,12 @@ class ChatAdapter(
                                 .diskCacheStrategy(DiskCacheStrategy.ALL)
                                 .fitCenter()
                                 .override(glideWIn, glideHIn)
-                                .transition(DrawableTransitionOptions().dontTransition()) // suppress crossfade; dontAnimate() also sets GifOptions.DISABLE_ANIMATION which kills GIF playback
-                                .placeholder(currentPlaceholder ?: androidx.core.content.ContextCompat.getDrawable(context, android.R.color.transparent))
+                                .transition(DrawableTransitionOptions().dontTransition())
+                                // During first layout skip placeholder — no flash of grey→image.
+                                // The ChatOpenPrefetcher pre-warms the disk cache so most media
+                                // loads instantly from cache even without a placeholder.
+                                .placeholder(if (isFirstLayout) null else (currentPlaceholder
+                                    ?: androidx.core.content.ContextCompat.getDrawable(context, android.R.color.transparent)))
                                 .error(R.drawable.ic_image_error)
                                 .listener(object : RequestListener<Drawable> {
                                     override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean): Boolean {
@@ -3723,9 +3867,10 @@ class ChatAdapter(
                                     }
                                     override fun onResourceReady(resource: Drawable, model: Any, target: Target<Drawable>, dataSource: DataSource, isFirstResource: Boolean): Boolean {
                                         applyBlur(binding.ivImage, false)
-                                        if (ChatOpenPrefetcher.VERBOSE_MEDIA_BIND_DEBUG) {
-                                            val level = if (dataSource == DataSource.MEMORY_CACHE) "BIND-HIT " else "BIND-MISS"
-                                            Log.d("GlyphCacheDebug", "[$level] IN GIF/STK msgId=${msg.id.take(8)} ds=$dataSource iv=${glideWIn}x${glideHIn} model=${model.toString().take(60)}")
+                                        if (BuildConfig.DEBUG && isFirstLayout) {
+                                            Log.d("GlyphMediaDebug",
+                                                "MEDIA_LOADED_IN msgId=${msg.id.take(8)} " +
+                                                    "dataSource=$dataSource isFirstResource=$isFirstResource")
                                         }
                                         (resource as? android.graphics.drawable.Animatable)?.start()
                                         binding.ivImage.post {
@@ -3739,12 +3884,20 @@ class ChatAdapter(
                         boundWasScrolling = false
                     } else {
                         // Non-scrolling static image (photo, video thumbnail)
-                        // If exact prefetch reuse misses, show a tiny blurred preview first so
-                        // the row never sits transparent while the full resource is decoded.
                         val ivLpIn = binding.ivImage.layoutParams
                         val glideWIn = ivLpIn.width.takeIf { it > 0 } ?: com.bumptech.glide.request.target.Target.SIZE_ORIGINAL
                         val glideHIn = ivLpIn.height.takeIf { it > 0 } ?: com.bumptech.glide.request.target.Target.SIZE_ORIGINAL
-                        if (!tryBindPreloadedMediaNow(binding.ivImage, msg, resolvedImageSource, "IN ", "IMG ")) {
+                        // SYNCHRONOUS FIRST-PAINT LOAD: when the local file exists and this
+                        // is the initial layout, decode the bitmap inline so the image is
+                        // already on screen in the very first paint.  Glide's async pipeline
+                        // takes ~90 ms even from RESOURCE_DISK_CACHE — long enough for the
+                        // ImageView to flash empty between bind and callback.
+                        var syncLoaded = false
+                        if (isFirstLayout && hasLocalMedia && localImagePath != null) {
+                            syncLoaded = tryBindLocalBitmapSync(
+                                binding.ivImage, msg, localImagePath, glideWIn, glideHIn)
+                        }
+                        if (!syncLoaded && !tryBindPreloadedMediaNow(binding.ivImage, msg, resolvedImageSource, "IN ", "IMG ")) {
                             loadStaticMediaWithPreview(
                                 context = context,
                                 imageView = binding.ivImage,
@@ -4075,6 +4228,17 @@ class ChatAdapter(
                 applyStableMediaHeight(binding.ivImage, msg)
 
                 val localImagePath = cachedLocalFilePath(msg.chatId, msg.id, msg.type)
+                val hasLocalMedia = !localImagePath.isNullOrEmpty()
+
+                // DEBUG: trace media availability during first layout.
+                if (BuildConfig.DEBUG && isFirstLayout && !isScrolling) {
+                    android.util.Log.d("GlyphMediaDebug",
+                        "MEDIA_OUT msgId=${msg.id.take(8)} type=${msg.type} " +
+                            "hasLocal=$hasLocalMedia localPath=${localImagePath?.take(60) ?: "null"} " +
+                            "imageUrl=${msg.imageUrl?.take(60) ?: "null"} " +
+                            "preloadProvider=${preloadedMediaDrawableProvider != null}")
+                }
+
                 val imageSource = when {
                     !localImagePath.isNullOrEmpty() -> {
                         // For VIDEO messages, prefer the JPEG thumbnail over the raw .mp4 file.
@@ -4156,7 +4320,8 @@ class ChatAdapter(
                                 .fitCenter()
                                 .override(glideWOut, glideHOut)
                                 .transition(DrawableTransitionOptions().dontTransition()) // suppress crossfade; dontAnimate() also sets GifOptions.DISABLE_ANIMATION which kills GIF playback
-                                .placeholder(currentPlaceholder ?: androidx.core.content.ContextCompat.getDrawable(context, android.R.color.transparent))
+                                .placeholder(if (isFirstLayout) null else (currentPlaceholder
+                                    ?: androidx.core.content.ContextCompat.getDrawable(context, android.R.color.transparent)))
                                 .error(R.drawable.ic_image_error)
                                 .listener(object : RequestListener<Drawable> {
                                     override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable>, isFirstResource: Boolean): Boolean {
@@ -4186,7 +4351,13 @@ class ChatAdapter(
                         val ivLpOut = binding.ivImage.layoutParams
                         val glideWOut = ivLpOut.width.takeIf { it > 0 } ?: com.bumptech.glide.request.target.Target.SIZE_ORIGINAL
                         val glideHOut = ivLpOut.height.takeIf { it > 0 } ?: com.bumptech.glide.request.target.Target.SIZE_ORIGINAL
-                        if (!tryBindPreloadedMediaNow(binding.ivImage, msg, resolvedImageSource, "OUT", "IMG ")) {
+                        // Sync load for offline-first local media.
+                        var syncLoadedOut = false
+                        if (isFirstLayout && hasLocalMedia && localImagePath != null) {
+                            syncLoadedOut = tryBindLocalBitmapSync(
+                                binding.ivImage, msg, localImagePath, glideWOut, glideHOut)
+                        }
+                        if (!syncLoadedOut && !tryBindPreloadedMediaNow(binding.ivImage, msg, resolvedImageSource, "OUT", "IMG ")) {
                             loadStaticMediaWithPreview(
                                 context = context,
                                 imageView = binding.ivImage,
@@ -6721,12 +6892,11 @@ class ChatAdapter(
                     binding.cardMessage.setBackgroundResource(R.drawable.bg_pastel_bubble_incoming)
                     binding.cardMessage.backgroundTintList = null
                 } else {
-                    binding.cardMessage.setBackgroundResource(R.drawable.bg_message_incoming)
+                    if (binding.cardMessage.background == null) {
+                        binding.cardMessage.setBackgroundResource(R.drawable.bg_message_incoming)
+                    }
                     binding.cardMessage.backgroundTintList = tintOtherBubble
                 }
-                // Reset the corner cache tag so applyBubbleCorners always runs fresh
-                // (prevents stale grouped corners from surviving ViewHolder recycling)
-                binding.cardMessage.setTag(R.id.tag_bubble_corner_key, null)
                 binding.tvMessage.setTextColor(colorOtherText)
 
                 // Capture text layout params once for background-thread precomputation.
@@ -6739,13 +6909,13 @@ class ChatAdapter(
 
                 // Apply pre-measured height BEFORE setting text so onMeasure skips
                 // the internal StaticLayout creation pass.
-                // Always reset minHeight before applying premeasured height.
-                // If applyToTextView returns false (no premeasured height available),
-                // a stale minHeight from a previous recycled ViewHolder would persist
-                // and leave large empty space below the text.
-                binding.tvMessage.minHeight = 0
-                binding.tvMessage.maxHeight = Int.MAX_VALUE
-                if (!item.isEmojiContent) {
+                // For emoji-only messages: reset any fixed height from a previous bind
+                // (ViewHolder recycling). Emojis use 24sp font but premeasured height is
+                // computed at 15sp — applying it would clip the bottom of emoji glyphs.
+                if (item.isEmojiContent) {
+                    binding.tvMessage.minHeight = 0
+                    binding.tvMessage.maxHeight = Int.MAX_VALUE
+                } else {
                     TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
                 }
 
@@ -6846,12 +7016,11 @@ class ChatAdapter(
                     binding.cardMessage.setBackgroundResource(R.drawable.bg_pastel_bubble_outgoing)
                     binding.cardMessage.backgroundTintList = null
                 } else {
-                    binding.cardMessage.setBackgroundResource(R.drawable.bg_message_outgoing)
+                    if (binding.cardMessage.background == null) {
+                        binding.cardMessage.setBackgroundResource(R.drawable.bg_message_outgoing)
+                    }
                     binding.cardMessage.backgroundTintList = tintOwnBubble
                 }
-                // Reset the corner cache tag so applyBubbleCorners always runs fresh
-                // (prevents stale grouped corners from surviving ViewHolder recycling)
-                binding.cardMessage.setTag(R.id.tag_bubble_corner_key, null)
                 
                 binding.tvMessage.setTextColor(colorOwnText)
 
@@ -6862,13 +7031,13 @@ class ChatAdapter(
                     TextLayoutPrecomputer.captureParams(binding.tvMessage)
                 }
 
-                // Always reset minHeight before applying premeasured height.
-                // If applyToTextView returns false (no premeasured height available),
-                // a stale minHeight from a previous recycled ViewHolder would persist
-                // and leave large empty space below the text.
-                binding.tvMessage.minHeight = 0
-                binding.tvMessage.maxHeight = Int.MAX_VALUE
-                if (!item.isEmojiContent) {
+                // Apply pre-measured height BEFORE setting text so onMeasure skips
+                // the internal StaticLayout creation pass.
+                // For emoji-only: reset fixed height from recycled ViewHolder (see IncomingTextViewHolder).
+                if (item.isEmojiContent) {
+                    binding.tvMessage.minHeight = 0
+                    binding.tvMessage.maxHeight = Int.MAX_VALUE
+                } else {
                     TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
                 }
 
@@ -7063,10 +7232,8 @@ class ChatAdapter(
                 } else {
                     binding.cardMessage.setCardBackgroundColor(colorOtherBubble)
                 }
-                // Reset corner tag so applyBubbleCorners runs fresh after recycling
-                binding.cardMessage.setTag(R.id.tag_bubble_corner_key, null)
                 binding.tvMessage.setTextColor(colorOtherText)
-
+                
                 setVisibility(binding.cardMessage, View.VISIBLE)
 
                 when (msg.type) {
@@ -7165,10 +7332,8 @@ class ChatAdapter(
                 } else {
                     binding.cardMessage.setCardBackgroundColor(colorOwnBubble)
                 }
-                // Reset corner tag so applyBubbleCorners runs fresh after recycling
-                binding.cardMessage.setTag(R.id.tag_bubble_corner_key, null)
                 binding.tvMessage.setTextColor(colorOwnText)
-
+                
                 setVisibility(binding.cardMessage, View.VISIBLE)
 
                 when (msg.type) {

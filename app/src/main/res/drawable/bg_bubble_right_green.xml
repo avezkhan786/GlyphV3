@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Premium green bubble — refined stroke -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
     <solid android:color="#DCFCE7" />
     <stroke
-        android:width="0.5dp"
-        android:color="#25006500" />
-    <corners android:radius="16dp" />
+        android:width="1.5dp"
+        android:color="#33006500" />
+    <corners android:radius="14dp" />
 </shape>

@@ -8,16 +8,14 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.Source
-import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 
 /**
  * Repository for managing block/unblock operations.
@@ -45,6 +43,9 @@ import kotlinx.coroutines.withContext
 object BlockRepository {
     private const val TAG = "BlockRepository"
     private const val RTDB_BLOCKS_PATH = "blocks"
+    private const val PREFS_NAME = "block_repo_cache"
+    private const val KEY_BLOCKED_BY_ME = "blocked_by_me_ids"
+    private const val KEY_BLOCKED_ME = "blocked_me_ids"
 
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
@@ -64,6 +65,28 @@ object BlockRepository {
 
     private var blockedUsersListener: ListenerRegistration? = null
     private var blockedByListener: ListenerRegistration? = null
+
+    // ── SharedPreferences disk cache for synchronous cold-start reads ─────
+    private var prefs: android.content.SharedPreferences? = null
+
+    fun initDiskCache(context: android.content.Context) {
+        if (prefs != null) return
+        prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        val blockedByMe = prefs!!.getStringSet(KEY_BLOCKED_BY_ME, emptySet()) ?: emptySet()
+        val blockedMe = prefs!!.getStringSet(KEY_BLOCKED_ME, emptySet()) ?: emptySet()
+        if (blockedByMe.isNotEmpty() || blockedMe.isNotEmpty()) {
+            _myBlockedUsers.value = blockedByMe
+            _blockedByUsers.value = blockedMe
+        }
+    }
+
+    private fun persistBlockedByMe() {
+        prefs?.edit()?.putStringSet(KEY_BLOCKED_BY_ME, _myBlockedUsers.value)?.apply()
+    }
+
+    private fun persistBlockedMe() {
+        prefs?.edit()?.putStringSet(KEY_BLOCKED_ME, _blockedByUsers.value)?.apply()
+    }
 
     private val currentUserId: String?
         get() = auth.currentUser?.uid
@@ -95,6 +118,7 @@ object BlockRepository {
                 }
                 _myBlockedUsersMap.value = map
                 _myBlockedUsers.value = ids
+                persistBlockedByMe()
             }
 
         // Listen to users who blocked me
@@ -108,6 +132,7 @@ object BlockRepository {
                 }
                 val ids = snapshot?.documents?.map { it.id }?.toSet() ?: emptySet()
                 _blockedByUsers.value = ids
+                persistBlockedMe()
             }
     }
 
@@ -132,72 +157,36 @@ object BlockRepository {
      * @throws Exception on network failure / rule denial.
      */
     suspend fun blockUser(otherUserId: String) {
-        Log.d(TAG, "========== blockUser() START ==========")
-        Log.d(TAG, "blockUser: myId=${currentUserId}, otherUserId=$otherUserId")
-        val myId = currentUserId ?: run {
-            Log.e(TAG, "blockUser: FAILED — not authenticated")
-            throw IllegalStateException("Not authenticated")
-        }
-        if (myId == otherUserId) {
-            Log.e(TAG, "blockUser: FAILED — cannot block yourself")
-            throw IllegalArgumentException("Cannot block yourself")
-        }
+        val myId = currentUserId ?: throw IllegalStateException("Not authenticated")
+        if (myId == otherUserId) throw IllegalArgumentException("Cannot block yourself")
 
-        Log.d(TAG, "blockUser: creating Firestore batch...")
         val batch = firestore.batch()
         val timestamp = FieldValue.serverTimestamp()
 
+        // My blockedUsers sub-collection
         val myBlockRef = firestore.collection("users").document(myId)
             .collection("blockedUsers").document(otherUserId)
         batch.set(myBlockRef, mapOf("blockedAt" to timestamp))
 
+        // Their blockedBy sub-collection
         val theirBlockedByRef = firestore.collection("users").document(otherUserId)
             .collection("blockedBy").document(myId)
         batch.set(theirBlockedByRef, mapOf("blockedAt" to timestamp))
 
-        // Use NonCancellable so the Firestore write + optimistic local update
-        // survive even if the caller's lifecycleScope is cancelled (e.g. dialog
-        // dismiss races with the network round-trip).  Without this, a 4s+ await
-        // gets killed by JobCancellationException and the UI never updates.
-        withContext(NonCancellable) {
-            Log.d(TAG, "blockUser: committing batch (Firestore, NonCancellable)...")
-            try {
-                batch.commit().await()
-                Log.d(TAG, "blockUser: batch commit SUCCESS")
-            } catch (e: Exception) {
-                Log.e(TAG, "blockUser: batch commit FAILED", e)
-                throw e
-            }
+        batch.commit().await()
+        mirrorRealtimeBlockState(myId = myId, otherUserId = otherUserId, blocked = true)
 
-            Log.d(TAG, "blockUser: mirroring to RTDB...")
-            try {
-                mirrorRealtimeBlockState(myId = myId, otherUserId = otherUserId, blocked = true)
-                Log.d(TAG, "blockUser: RTDB mirror SUCCESS")
-            } catch (e: Exception) {
-                Log.w(TAG, "blockUser: RTDB mirror failed (non-fatal)", e)
-            }
-
-            val beforeSet = _myBlockedUsers.value
-            _myBlockedUsers.value = _myBlockedUsers.value + otherUserId
-            Log.d(TAG, "blockUser: optimistic update — _myBlockedUsers before=$beforeSet, after=${_myBlockedUsers.value}")
-            Log.d(TAG, "blockUser: _blockedByUsers=${_blockedByUsers.value}")
-            Log.d(TAG, "blockUser: getBlockStatus($otherUserId)=${getBlockStatus(otherUserId)}")
-            Log.d(TAG, "========== blockUser() END (SUCCESS) ==========")
-        }
+        // Optimistic local update (listener will confirm)
+        _myBlockedUsers.value = _myBlockedUsers.value + otherUserId
+        persistBlockedByMe()
     }
 
     /**
      * Unblock another user. Deletes from both sub-collections atomically.
      */
     suspend fun unblockUser(otherUserId: String) {
-        Log.d(TAG, "========== unblockUser() START ==========")
-        Log.d(TAG, "unblockUser: myId=${currentUserId}, otherUserId=$otherUserId")
-        val myId = currentUserId ?: run {
-            Log.e(TAG, "unblockUser: FAILED — not authenticated")
-            throw IllegalStateException("Not authenticated")
-        }
+        val myId = currentUserId ?: throw IllegalStateException("Not authenticated")
 
-        Log.d(TAG, "unblockUser: creating Firestore batch...")
         val batch = firestore.batch()
 
         val myBlockRef = firestore.collection("users").document(myId)
@@ -208,33 +197,12 @@ object BlockRepository {
             .collection("blockedBy").document(myId)
         batch.delete(theirBlockedByRef)
 
-        // Use NonCancellable so the Firestore write + optimistic local update
-        // survive even if the caller's lifecycleScope is cancelled.
-        withContext(NonCancellable) {
-            Log.d(TAG, "unblockUser: committing batch (Firestore, NonCancellable)...")
-            try {
-                batch.commit().await()
-                Log.d(TAG, "unblockUser: batch commit SUCCESS")
-            } catch (e: Exception) {
-                Log.e(TAG, "unblockUser: batch commit FAILED", e)
-                throw e
-            }
+        batch.commit().await()
+        mirrorRealtimeBlockState(myId = myId, otherUserId = otherUserId, blocked = false)
 
-            Log.d(TAG, "unblockUser: mirroring to RTDB...")
-            try {
-                mirrorRealtimeBlockState(myId = myId, otherUserId = otherUserId, blocked = false)
-                Log.d(TAG, "unblockUser: RTDB mirror SUCCESS")
-            } catch (e: Exception) {
-                Log.w(TAG, "unblockUser: RTDB mirror failed (non-fatal)", e)
-            }
-
-            val beforeSet = _myBlockedUsers.value
-            _myBlockedUsers.value = _myBlockedUsers.value - otherUserId
-            Log.d(TAG, "unblockUser: optimistic update — _myBlockedUsers before=$beforeSet, after=${_myBlockedUsers.value}")
-            Log.d(TAG, "unblockUser: _blockedByUsers=${_blockedByUsers.value}")
-            Log.d(TAG, "unblockUser: getBlockStatus($otherUserId)=${getBlockStatus(otherUserId)}")
-            Log.d(TAG, "========== unblockUser() END (SUCCESS) ==========")
-        }
+        // Optimistic local update
+        _myBlockedUsers.value = _myBlockedUsers.value - otherUserId
+        persistBlockedByMe()
     }
 
     // ──────────────────────────────────────────────
@@ -260,14 +228,12 @@ object BlockRepository {
     fun getBlockStatus(otherUserId: String): BlockStatus {
         val iBlockedThem = isBlockedByMe(otherUserId)
         val theyBlockedMe = amIBlockedBy(otherUserId)
-        val result = when {
+        return when {
             iBlockedThem && theyBlockedMe -> BlockStatus.MUTUAL_BLOCK
             iBlockedThem -> BlockStatus.I_BLOCKED_THEM
             theyBlockedMe -> BlockStatus.THEY_BLOCKED_ME
             else -> BlockStatus.NOT_BLOCKED
         }
-        Log.d(TAG, "getBlockStatus: otherUserId=$otherUserId iBlockedThem=$iBlockedThem theyBlockedMe=$theyBlockedMe → $result")
-        return result
     }
 
     /** True when any real-time interaction should be denied in either direction. */
@@ -314,6 +280,8 @@ object BlockRepository {
             _myBlockedUsers.value = updatedBlockedUsers
             _myBlockedUsersMap.value = updatedBlockedUsersMap
             _blockedByUsers.value = updatedBlockedByUsers
+            persistBlockedByMe()
+            persistBlockedMe()
             getBlockStatus(otherUserId)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to fetch block status for $otherUserId", e)
@@ -352,6 +320,8 @@ object BlockRepository {
                 _blockedByUsers.value = _blockedByUsers.value + otherUserId
             }
 
+            persistBlockedByMe()
+            persistBlockedMe()
             getBlockStatus(otherUserId)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to warm block cache for $otherUserId", e)
@@ -370,24 +340,31 @@ object BlockRepository {
 
     /**
      * Observe block status for a specific user as a Flow.
-     * Emits immediately and on any change to either blocking direction.
-     *
-     * Uses [combine] instead of [callbackFlow] to guarantee delivery — the old
-     * callbackFlow + trySend pattern could silently drop emissions when its
-     * internal rendezvous channel wasn't ready (no buffer), so block/unblock
-     * state changes were lost until the app was killed and reopened.
+     * Emits immediately and on any change.
      */
-    fun observeBlockStatus(otherUserId: String): Flow<BlockStatus> =
-        combine(_myBlockedUsers, _blockedByUsers) { blockedUsers, blockedByUsers ->
-            val status = getBlockStatus(otherUserId)
-            Log.d(TAG, "observeBlockStatus EMIT: otherUserId=$otherUserId blockedUsers=$blockedUsers blockedByUsers=$blockedByUsers → status=$status")
-            status
-        }.distinctUntilChanged()
+    fun observeBlockStatus(otherUserId: String): Flow<BlockStatus> = callbackFlow {
+        // Combine both state flows
+        val job1 = launch {
+            _myBlockedUsers.collect { trySend(getBlockStatus(otherUserId)) }
+        }
+        val job2 = launch {
+            _blockedByUsers.collect { trySend(getBlockStatus(otherUserId)) }
+        }
+        awaitClose {
+            job1.cancel()
+            job2.cancel()
+        }
+    }
 
     /**
      * Observe the full set of users I have blocked (for Settings > Blocked Contacts screen).
      */
-    fun observeMyBlockedUsers(): Flow<Set<String>> = _myBlockedUsers.asStateFlow()
+    fun observeMyBlockedUsers(): Flow<Set<String>> = callbackFlow {
+        val job = launch {
+            _myBlockedUsers.collect { trySend(it) }
+        }
+        awaitClose { job.cancel() }
+    }
 
     /**
      * One-shot fetch of all users I have blocked, with their profile data.

@@ -6,8 +6,6 @@ import android.net.Uri
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,13 +17,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 class AudioPlayer(private val context: Context) {
-
-    // MEMORY LEAK FIX: Single class-level scope replaces ad-hoc
-    // CoroutineScope(Dispatchers.Main).launch on every play/progress event.
-    // Each ad-hoc scope created a new Job tree that the profiler counted as
-    // a distinct allocation; with a shared SupervisorJob scope the tree is
-    // created once and children are cancelled on stop().
-    private val playerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private var player: MediaPlayer? = null
     private var progressJob: Job? = null
@@ -68,7 +59,7 @@ class AudioPlayer(private val context: Context) {
                     // Emit completion event before resetting
                     // CRITICAL: Capture the specific URI that finished, because currentUri will be nullified by stop()
                     val finishedUri = uri
-                    playerScope.launch {
+                    CoroutineScope(Dispatchers.Main).launch {
                         _completionEvents.emit(finishedUri)
                     }
                     // Reset UI to start
@@ -141,12 +132,6 @@ class AudioPlayer(private val context: Context) {
         }
         progressJob?.cancel()
     }
-
-    /** Release all resources including the coroutine scope. Call when the player is done forever. */
-    fun destroy() {
-        stop(reset = true)
-        playerScope.cancel()
-    }
     
     fun seekTo(position: Int) {
         try {
@@ -175,7 +160,7 @@ class AudioPlayer(private val context: Context) {
 
     private fun startProgressTracker() {
         progressJob?.cancel()
-        progressJob = playerScope.launch {
+        progressJob = CoroutineScope(Dispatchers.Main).launch {
             while (isActive && player != null && player!!.isPlaying) {
                 val current = player!!.currentPosition
                 val total = player!!.duration

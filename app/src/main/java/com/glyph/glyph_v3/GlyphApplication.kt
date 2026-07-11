@@ -170,6 +170,12 @@ class GlyphApplication : Application() {
             // (This must happen before any Firestore usage)
             configureFirestoreCache()
 
+            // Restore block-status in-memory caches from SharedPreferences so
+            // getBlockStatus() returns the correct answer synchronously on cold start.
+            // Without this the in-memory cache is empty → NOT_BLOCKED → banner GONE
+            // during first layout → Firestore listener later corrects → RV shrinks.
+            com.glyph.glyph_v3.data.repo.BlockRepository.initDiskCache(this)
+
             // Initialize shared data layer prewarming (lightweight)
             prewarmSharedDataLayerAsync(reason = "app_onCreate_early")
 

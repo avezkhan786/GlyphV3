@@ -137,6 +137,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import com.glyph.glyph_v3.utils.await
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
@@ -272,6 +273,42 @@ class ChatActivity : AppCompatActivity(),
         java.util.concurrent.ConcurrentHashMap()
     )
     private val groupParticipantNamesCache: MutableMap<String, String> = java.util.concurrent.ConcurrentHashMap()
+
+    // ── SharedPreferences persistence for group sender names ──────────────
+    // On cold start the in-memory caches are empty, so the sender-name label
+    // above incoming group bubbles is missing during the first layout.  When
+    // the Firestore lookup later delivers the name, refreshGroupSenderNames()
+    // rebinds visible items — adding the label changes bubble heights and the
+    // stackFromEnd list shifts upward.
+    private val groupSenderPrefs by lazy {
+        getSharedPreferences("group_sender_names", MODE_PRIVATE)
+    }
+
+    private fun saveGroupSenderName(uid: String, name: String) {
+        groupSenderPrefs.edit().putString(uid, name).apply()
+    }
+
+    private fun restoreGroupSenderNames() {
+        val all = groupSenderPrefs.all
+        for ((uid, name) in all) {
+            val nameStr = name as? String
+            if (!nameStr.isNullOrBlank()) {
+                groupSenderNamesCache[uid] = nameStr
+                groupParticipantNamesCache.putIfAbsent(uid, nameStr)
+            }
+        }
+    }
+
+    /** Put a sender name into the cache AND persist to disk for cold-start reads. */
+    private fun cacheGroupSenderName(uid: String, name: String) {
+        if (name.isBlank()) return
+        val old = groupSenderNamesCache[uid]
+        if (old != name) {
+            groupSenderNamesCache[uid] = name
+            saveGroupSenderName(uid, name)
+        }
+        groupParticipantNamesCache.putIfAbsent(uid, name)
+    }
     private val groupParticipantNamesPending: MutableSet<String> = java.util.Collections.newSetFromMap(
         java.util.concurrent.ConcurrentHashMap()
     )
@@ -1370,6 +1407,9 @@ class ChatActivity : AppCompatActivity(),
         setupScrollToBottomFab()
         setupComposeHeader()
         applyPastelSkyTheme()
+        // Restore group sender names from disk so they're available synchronously
+        // in the first layout — no post-paint Firestore lookup + rebind shift.
+        if (isGroupChat) restoreGroupSenderNames()
         prefillRecentMessagesAsync()
 
         // Auto-start voice recording when launched from the unanswered call screen
@@ -2213,7 +2253,7 @@ class ChatActivity : AppCompatActivity(),
             val normalized = normalizePrefillListItems(memorySnapshot.listItems)
             chatAdapter.preCacheMediaHeights(memorySnapshot.recentMessages)
             if (::mediaController.isInitialized) {
-                mediaController.tryFinalizeFirstPaintPreloads(memorySnapshot.recentMessages, timeoutMs = 30L)
+                mediaController.consumePrefetcherRetainedMediaPreloads(id)
             }
             submitPrefillAndShow(id, normalized, memorySnapshot.recentMessages,
                 "${memorySnapshot.source}_memory")
@@ -2224,24 +2264,7 @@ class ChatActivity : AppCompatActivity(),
             return
         }
 
-        // ── DISK CACHE — synchronous small-file read ─────────────────────
-        // On cold start the memory cache is empty, but a disk snapshot from a
-        // previous session is almost always present. File.readText() on a
-        // ~50KB JSON file takes <5ms — cheap enough to run synchronously so
-        // the RecyclerView's first layout has data (no empty flash).
-        val diskSnapshot = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
-            MessageCacheManager.loadSnapshotFromDiskForPrefill(id)
-        }
-        if (diskSnapshot != null && diskSnapshot.listItems.isNotEmpty()) {
-            StartupTrace.logStage("chat_prefill_source",
-                "chatId=$id source=${diskSnapshot.source} count=${diskSnapshot.recentMessages.size}")
-            if (isGroupChat) primeGroupSenderCachesForMessages(diskSnapshot.recentMessages)
-            diskSnapshot.recentMessages.forEach { it.warmUpForUi() }
-            chatAdapter.preCacheMediaHeights(diskSnapshot.recentMessages)
-            submitPrefillAndShow(id, diskSnapshot.listItems, diskSnapshot.recentMessages,
-                diskSnapshot.source)
-            return
-        }
+        // ── DISK CACHE (not yet wired) — skip for now ────────────────────
 
         // ── COLD START (no cache at all) — Room DB query ─────────────────
         // The RecyclerView stays at alpha=0 until content arrives. The user
@@ -4978,7 +5001,7 @@ class ChatActivity : AppCompatActivity(),
             val cachedName = registeredUsersCache[uid]?.username?.takeIf { it.isNotBlank() }
             if (!cachedName.isNullOrBlank()) {
                 groupParticipantNamesCache[uid] = cachedName
-                groupSenderNamesCache[uid] = cachedName
+                cacheGroupSenderName(uid, cachedName)
                 anyResolved = true
             }
         }
@@ -5011,7 +5034,7 @@ class ChatActivity : AppCompatActivity(),
                         ?: doc.getString("profileImageFullUrl")?.takeIf { it.isNotBlank() }
                     if (!name.isNullOrBlank()) {
                         groupParticipantNamesCache[uid] = name
-                        groupSenderNamesCache[uid] = name
+                        cacheGroupSenderName(uid, name)
                     }
                     if (!avatarUrl.isNullOrBlank()) {
                         groupSenderAvatarCache[uid] = avatarUrl
@@ -5080,7 +5103,7 @@ class ChatActivity : AppCompatActivity(),
                         ?: doc.getString("profileImageFullUrl")?.takeIf { it.isNotBlank() }
                     if (!name.isNullOrBlank()) {
                         groupParticipantNamesCache[uid] = name
-                        groupSenderNamesCache[uid] = name
+                        cacheGroupSenderName(uid, name)
                     }
                     if (!avatarUrl.isNullOrBlank()) {
                         groupSenderAvatarCache[uid] = avatarUrl
@@ -5287,7 +5310,7 @@ class ChatActivity : AppCompatActivity(),
             val cachedName = registeredUsersCache[uid]?.username?.takeIf { it.isNotBlank() }
             val name = prefetchedName ?: cachedName
             if (!name.isNullOrBlank()) {
-                groupSenderNamesCache[uid] = name
+                cacheGroupSenderName(uid, name)
                 groupParticipantNamesCache.putIfAbsent(uid, name)
                 anyResolved = true
                 resolvedNow += uid
@@ -5326,7 +5349,7 @@ class ChatActivity : AppCompatActivity(),
                     val avatarUrl = doc.getString("profileImageUrl")?.takeIf { it.isNotBlank() }
                         ?: doc.getString("profileImageFullUrl")?.takeIf { it.isNotBlank() }
                     if (resolvedName.isNotBlank()) {
-                        groupSenderNamesCache[uid] = resolvedName
+                        cacheGroupSenderName(uid, resolvedName)
                         groupParticipantNamesCache.putIfAbsent(uid, resolvedName)
                         runOnUiThread { chatAdapter.refreshGroupSenderNames() }
                     }
@@ -5342,22 +5365,29 @@ class ChatActivity : AppCompatActivity(),
         if (!isGroupChat || messages.isEmpty()) return
         val selfUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
         var anyResolved = false
+        val stillMissing = mutableListOf<String>()
 
         messages.asSequence()
             .filter { it.isIncoming && it.senderId.isNotBlank() && it.senderId != selfUid && it.type != MessageType.SYSTEM }
             .map { it.senderId }
             .distinct()
             .forEach { uid ->
+                // Fast path: ChatOpenPrefetcher in-memory cache
                 val prefetched = ChatOpenPrefetcher.getGroupSenderRenderInfo(uid)
                 val prefetchedName = prefetched?.displayName?.takeIf { it.isNotBlank() }
+                // Fast path: registered-users cache
                 val fallbackName = registeredUsersCache[uid]?.username?.takeIf { it.isNotBlank() }
-                val name = prefetchedName ?: fallbackName
+                // Fast path: SharedPreferences (restored on cold start)
+                val diskName = groupSenderNamesCache[uid]?.takeIf { it.isNotBlank() }
+                val name = prefetchedName ?: fallbackName ?: diskName
                 if (!name.isNullOrBlank()) {
                     if (groupSenderNamesCache[uid] != name) {
-                        groupSenderNamesCache[uid] = name
+                        cacheGroupSenderName(uid, name)
                         anyResolved = true
                     }
                     groupParticipantNamesCache.putIfAbsent(uid, name)
+                } else {
+                    stillMissing += uid
                 }
 
                 val avatarUrl = prefetched?.avatarUrl?.takeIf { it.isNotBlank() }
@@ -5366,6 +5396,46 @@ class ChatActivity : AppCompatActivity(),
                     groupSenderAvatarCache[uid] = avatarUrl
                 }
             }
+
+        // Sync Firestore lookup for names still missing — blocks the prefill
+        // main thread for ~5-50ms, but guarantees the sender name is in the
+        // first paint (no post-render label injection + layout shift).
+        if (stillMissing.isNotEmpty()) {
+            try {
+                val firestore = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                stillMissing.forEach { uid ->
+                    try {
+                        val task = firestore.collection("users").document(uid)
+                            .get(com.google.firebase.firestore.Source.CACHE)
+                        // Block briefly — Firestore local cache reads are sub-millisecond
+                        // when the SDK is initialised.  Use the local await() extension.
+                        val doc = kotlinx.coroutines.runBlocking { task.await() }
+                        if (doc.exists()) {
+                            val remoteName = doc.getString("username")?.takeIf { it.isNotBlank() }
+                                ?: doc.getString("displayName")?.takeIf { it.isNotBlank() }
+                            if (!remoteName.isNullOrBlank()) {
+                                val resolvedName = ContactDisplayNameResolver.getDisplayName(
+                                    otherUserId = uid,
+                                    remoteProfileName = remoteName,
+                                    remotePhoneNumber = doc.getString("phoneNumber")
+                                )
+                                val finalName = resolvedName.ifBlank { remoteName }
+                                cacheGroupSenderName(uid, finalName)
+                                anyResolved = true
+                            }
+                            val avatarUrl = doc.getString("profileImageUrl")?.takeIf { it.isNotBlank() }
+                            if (!avatarUrl.isNullOrBlank()) {
+                                groupSenderAvatarCache[uid] = avatarUrl
+                            }
+                        }
+                    } catch (_: Exception) {
+                        // Firestore not initialised — async fallback will handle it.
+                    }
+                }
+            } catch (_: Exception) {
+                // Firestore unavailable — async fallback will handle it.
+            }
+        }
 
         if (anyResolved && ::chatAdapter.isInitialized) {
             chatAdapter.refreshGroupSenderNames()
@@ -8219,25 +8289,19 @@ class ChatActivity : AppCompatActivity(),
         for (i in tempResult.indices) {
             val item = tempResult[i]
             if (item is ChatListItem.MessageItem) {
-                // Emoji-only messages have no visible bubble — always SINGLE,
-                // and they don't participate as neighbors in grouping.
-                if (item.isEmojiContent) {
-                    tempResult[i] = item.copy(groupPosition = BubbleGroupPosition.SINGLE)
-                    continue
-                }
                 val prev = if (i > 0) tempResult[i - 1] else null
                 val next = if (i < tempResult.size - 1) tempResult[i + 1] else null
-
-                val hasPrevSame = (prev is ChatListItem.MessageItem) && !prev.isEmojiContent && prev.message.senderId == item.message.senderId
-                val hasNextSame = (next is ChatListItem.MessageItem) && !next.isEmojiContent && next.message.senderId == item.message.senderId
-
+                
+                val hasPrevSame = (prev is ChatListItem.MessageItem) && prev.message.senderId == item.message.senderId
+                val hasNextSame = (next is ChatListItem.MessageItem) && next.message.senderId == item.message.senderId
+                
                 val groupPos = when {
                     hasPrevSame && hasNextSame -> BubbleGroupPosition.MIDDLE
                     hasPrevSame && !hasNextSame -> BubbleGroupPosition.BOTTOM
                     !hasPrevSame && hasNextSame -> BubbleGroupPosition.TOP
                     else -> BubbleGroupPosition.SINGLE
                 }
-
+                
                 if (groupPos != BubbleGroupPosition.SINGLE) {
                     tempResult[i] = item.copy(groupPosition = groupPos)
                 }
@@ -8292,15 +8356,9 @@ class ChatActivity : AppCompatActivity(),
         }
 
         var appendedGroupPosition = BubbleGroupPosition.SINGLE
-        // Emoji-only messages have no visible bubble — don't participate in grouping.
-        val appendedIsEmoji = EmojiUtils.isEmojiOnlyMessage(appendedMessage.text)
-        if (previousDate == appendedDate
-            && lastMessageItem.message.senderId == appendedMessage.senderId
-            && !lastMessageItem.isEmojiContent
-            && !appendedIsEmoji) {
+        if (previousDate == appendedDate && lastMessageItem.message.senderId == appendedMessage.senderId) {
             val previousNeighbor = baseList.getOrNull(lastMessageIndex - 1) as? ChatListItem.MessageItem
-            val updatedLastPosition = if (previousNeighbor?.message?.senderId == appendedMessage.senderId &&
-                !previousNeighbor.isEmojiContent) {
+            val updatedLastPosition = if (previousNeighbor?.message?.senderId == appendedMessage.senderId) {
                 BubbleGroupPosition.MIDDLE
             } else {
                 BubbleGroupPosition.TOP
@@ -8418,16 +8476,10 @@ class ChatActivity : AppCompatActivity(),
         for (i in newItems.indices) {
             val item = newItems[i]
             if (item is ChatListItem.MessageItem) {
-                // Emoji-only messages have no visible bubble — always SINGLE,
-                // and they don't participate as neighbors in grouping.
-                if (item.isEmojiContent) {
-                    newItems[i] = item.copy(groupPosition = BubbleGroupPosition.SINGLE)
-                    continue
-                }
                 val prev = if (i > 0) newItems[i - 1] else null
                 val next = if (i < newItems.size - 1) newItems[i + 1] else null
-                val hasPrevSame = (prev is ChatListItem.MessageItem) && !prev.isEmojiContent && prev.message.senderId == item.message.senderId
-                val hasNextSame = (next is ChatListItem.MessageItem) && !next.isEmojiContent && next.message.senderId == item.message.senderId
+                val hasPrevSame = (prev is ChatListItem.MessageItem) && prev.message.senderId == item.message.senderId
+                val hasNextSame = (next is ChatListItem.MessageItem) && next.message.senderId == item.message.senderId
                 if (hasPrevSame || hasNextSame) {
                     val groupPos = when {
                         hasPrevSame && hasNextSame -> BubbleGroupPosition.MIDDLE
@@ -8455,10 +8507,8 @@ class ChatActivity : AppCompatActivity(),
         }
 
         // ── Boundary fixup: bubble grouping between last-new and first-existing ─
-        // Emoji-only messages have no visible bubble — skip them when finding
-        // the boundary neighbors so they don't participate in cross-block grouping.
-        val lastNewMsgIdx = newItems.indexOfLast { it is ChatListItem.MessageItem && !it.isEmojiContent }
-        val firstBaseMsgIdx = baseList.indexOfFirst { it is ChatListItem.MessageItem && !it.isEmojiContent }
+        val lastNewMsgIdx = newItems.indexOfLast { it is ChatListItem.MessageItem }
+        val firstBaseMsgIdx = baseList.indexOfFirst { it is ChatListItem.MessageItem }
         if (lastNewMsgIdx >= 0 && firstBaseMsgIdx >= 0) {
             val lastNew = newItems[lastNewMsgIdx] as ChatListItem.MessageItem
             val firstBase = baseList[firstBaseMsgIdx] as ChatListItem.MessageItem
@@ -8467,11 +8517,11 @@ class ChatActivity : AppCompatActivity(),
                 // The boundary merges two same-sender blocks — adjust both sides.
                 val newPrevIdx = if (lastNewMsgIdx > 0) lastNewMsgIdx - 1 else -1
                 val newPrev = newItems.getOrNull(newPrevIdx) as? ChatListItem.MessageItem
-                val hasPrevSameInNew = newPrev?.message?.senderId == lastNew.message.senderId && !newPrev.isEmojiContent
+                val hasPrevSameInNew = newPrev?.message?.senderId == lastNew.message.senderId
 
                 val baseNextIdx = if (firstBaseMsgIdx + 1 < baseList.size) firstBaseMsgIdx + 1 else -1
                 val baseNext = baseList.getOrNull(baseNextIdx) as? ChatListItem.MessageItem
-                val hasNextSameInBase = baseNext?.message?.senderId == firstBase.message.senderId && !baseNext.isEmojiContent
+                val hasNextSameInBase = baseNext?.message?.senderId == firstBase.message.senderId
 
                 val newLastGroup = if (hasPrevSameInNew) BubbleGroupPosition.MIDDLE
                                    else BubbleGroupPosition.TOP
@@ -11846,40 +11896,27 @@ class ChatActivity : AppCompatActivity(),
     
     private fun startBlockStatusObservation() {
         val userId = otherUserId ?: return
-        Log.d("ChatActivity", "startBlockStatusObservation: userId=$userId — cancelling old job and starting new one")
         blockStatusJob?.cancel()
         blockStatusJob = lifecycleScope.launch {
-            try {
-                Log.d("ChatActivity", "startBlockStatusObservation: collecting observeBlockStatus flow...")
-                com.glyph.glyph_v3.data.repo.BlockRepository.observeBlockStatus(userId).collectLatest { status ->
-                    try {
-                        Log.d("ChatActivity", "startBlockStatusObservation RECEIVED: status=$status (iBlockedThem=${status.iBlockedThem}, isBlocked=${status.isBlocked})")
-                        _blockStatus.value = status
-                        Log.d("ChatActivity", "startBlockStatusObservation: _blockStatus updated to $status")
-                        if (status.isBlocked) {
-                            com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
-                        }
-                        applyOtherUserAvatarVisibility()
-                        updateHeaderStatus()
-                        updateInputBarForBlockStatus(status, animate = didPrimeInitialBlockUi)
-                        handleRealtimeBlockStateChanged(status)
-                        didPrimeInitialBlockUi = true
-                    } catch (e: Exception) {
-                        Log.e("ChatActivity", "Error applying block status update", e)
-                    }
+            com.glyph.glyph_v3.data.repo.BlockRepository.observeBlockStatus(userId).collectLatest { status ->
+                _blockStatus.value = status
+                if (status.isBlocked) {
+                    com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
                 }
-            } catch (e: Exception) {
-                Log.e("ChatActivity", "Block status observation failed", e)
+                applyOtherUserAvatarVisibility()
+                // Update header presence when block status changes
+                updateHeaderStatus()
+                // Update input bar visibility based on block state
+                updateInputBarForBlockStatus(status, animate = didPrimeInitialBlockUi)
+                handleRealtimeBlockStateChanged(status)
+                didPrimeInitialBlockUi = true
             }
         }
-        Log.d("ChatActivity", "startBlockStatusObservation: coroutine launched, job=$blockStatusJob")
     }
 
     private fun primeInitialBlockUiState() {
         val userId = otherUserId ?: return
-        Log.d("ChatActivity", "=== primeInitialBlockUiState: userId=$userId ===")
         val initialStatus = com.glyph.glyph_v3.data.repo.BlockRepository.getBlockStatus(userId)
-        Log.d("ChatActivity", "primeInitialBlockUiState: initialStatus=$initialStatus")
         _blockStatus.value = initialStatus
         if (initialStatus.isBlocked) {
             com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
@@ -11889,11 +11926,9 @@ class ChatActivity : AppCompatActivity(),
         handleRealtimeBlockStateChanged(initialStatus)
 
         lifecycleScope.launch {
-            Log.d("ChatActivity", "primeInitialBlockUiState: warming from Firestore local cache...")
             val warmedStatus = withContext(Dispatchers.IO) {
                 com.glyph.glyph_v3.data.repo.BlockRepository.warmBlockStatusFromLocalCache(userId)
             }
-            Log.d("ChatActivity", "primeInitialBlockUiState: warmedStatus=$warmedStatus")
             _blockStatus.value = warmedStatus
             if (warmedStatus.isBlocked) {
                 com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
@@ -11903,30 +11938,19 @@ class ChatActivity : AppCompatActivity(),
             updateInputBarForBlockStatus(warmedStatus, animate = false)
             handleRealtimeBlockStateChanged(warmedStatus)
             didPrimeInitialBlockUi = true
-            Log.d("ChatActivity", "primeInitialBlockUiState: warming complete, didPrimeInitialBlockUi=true")
         }
     }
 
-    /**
-     * Update input bar and blocked banner visibility based on block status.
-     *
-     * IMPORTANT: Must already be on the main thread.  All callers
-     * (startBlockStatusObservation, primeInitialBlockUiState,
-     * enforceBlockedInputUiState) run on the Main dispatcher / main thread,
-     * so we execute directly — no runOnUiThread hop — to keep the UI update
-     * synchronous with the state change.
-     */
     private fun updateInputBarForBlockStatus(
         status: com.glyph.glyph_v3.data.repo.BlockStatus,
         animate: Boolean = true
     ) {
-        val inputContainer = binding.layoutInput
-        val blockBanner = binding.root.findViewById<View>(R.id.layoutBlockedBanner)
-        Log.d("ChatActivity", "updateInputBar: status=$status iBlockedThem=${status.iBlockedThem} animate=$animate inputVis=${inputContainer.visibility} bannerVis=${blockBanner?.visibility}")
+        runOnUiThread {
+            val inputContainer = binding.layoutInput
+            val blockBanner = binding.root.findViewById<View>(R.id.layoutBlockedBanner)
 
             // Only show the banner and hide input when this user initiated the block.
             if (status.iBlockedThem) {
-                Log.d("ChatActivity", "updateInputBar: BLOCKED path — hiding input, showing banner")
                 if (blockBanner?.visibility != View.VISIBLE) {
                     inputContainer.visibility = View.GONE
                     binding.replyPreviewCard.visibility = View.GONE
@@ -11955,7 +11979,6 @@ class ChatActivity : AppCompatActivity(),
                     btnUnblock.setOnClickListener { showUnblockConfirmation() }
                 }
             } else {
-                Log.d("ChatActivity", "updateInputBar: NOT_BLOCKED path — showing input, hiding banner")
                 // Not blocked by me: show input, remove banner so the blocked user sees no hint.
                 if (inputContainer.visibility != View.VISIBLE) {
                     inputContainer.animate().cancel()
@@ -11987,6 +12010,7 @@ class ChatActivity : AppCompatActivity(),
 
             // Keep the map-interactive button above whichever bottom bar is active.
             binding.root.post { updateInteractiveMapButtonBottomMargin() }
+        }
     }
 
     /**
@@ -12029,8 +12053,6 @@ class ChatActivity : AppCompatActivity(),
 
     private fun showBlockConfirmation() {
         val username = otherUsername.ifEmpty { "this user" }
-        Log.d("ChatActivity", "=== showBlockConfirmation: username=$username otherUserId=$otherUserId ===")
-        Log.d("ChatActivity", "showBlockConfirmation: current _blockStatus=${_blockStatus.value}")
         android.app.AlertDialog.Builder(this)
             .setTitle("Block $username?")
             .setMessage(
@@ -12038,30 +12060,22 @@ class ChatActivity : AppCompatActivity(),
                 "Existing messages will not be deleted."
             )
             .setPositiveButton("Block") { _, _ ->
-                Log.d("ChatActivity", "showBlockConfirmation: user tapped BLOCK, launching coroutine...")
                 lifecycleScope.launch {
                     try {
-                        Log.d("ChatActivity", "showBlockConfirmation: calling BlockRepository.blockUser($otherUserId)...")
                         com.glyph.glyph_v3.data.repo.BlockRepository.blockUser(otherUserId!!)
-                        Log.d("ChatActivity", "showBlockConfirmation: blockUser() returned successfully")
-                        Log.d("ChatActivity", "showBlockConfirmation: _blockStatus AFTER block=${_blockStatus.value}")
                         Toast.makeText(this@ChatActivity, "$username blocked", Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
-                        Log.e("ChatActivity", "showBlockConfirmation: blockUser FAILED", e)
+                        Log.e("ChatActivity", "Failed to block user", e)
                         Toast.makeText(this@ChatActivity, "Failed to block. Try again.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
-            .setNegativeButton("Cancel") { _, _ ->
-                Log.d("ChatActivity", "showBlockConfirmation: user cancelled")
-            }
+            .setNegativeButton("Cancel", null)
             .show()
     }
 
     private fun showUnblockConfirmation() {
         val username = otherUsername.ifEmpty { "this user" }
-        Log.d("ChatActivity", "=== showUnblockConfirmation: username=$username otherUserId=$otherUserId ===")
-        Log.d("ChatActivity", "showUnblockConfirmation: current _blockStatus=${_blockStatus.value}")
         val view = layoutInflater.inflate(R.layout.dialog_unblock_confirmation, null)
         view.findViewById<android.widget.TextView>(R.id.text_unblock_title)?.text = "Unblock $username?"
         view.findViewById<android.widget.TextView>(R.id.text_unblock_message)?.text =
@@ -12073,24 +12087,17 @@ class ChatActivity : AppCompatActivity(),
             .create()
 
         view.findViewById<com.google.android.material.button.MaterialButton>(R.id.button_unblock_cancel)
-            ?.setOnClickListener {
-                Log.d("ChatActivity", "showUnblockConfirmation: user cancelled")
-                dialog.dismiss()
-            }
+            ?.setOnClickListener { dialog.dismiss() }
 
         view.findViewById<com.google.android.material.button.MaterialButton>(R.id.button_unblock_confirm)
             ?.setOnClickListener {
-                Log.d("ChatActivity", "showUnblockConfirmation: user tapped UNBLOCK, launching coroutine...")
                 dialog.dismiss()
                 lifecycleScope.launch {
                     try {
-                        Log.d("ChatActivity", "showUnblockConfirmation: calling BlockRepository.unblockUser($otherUserId)...")
                         com.glyph.glyph_v3.data.repo.BlockRepository.unblockUser(otherUserId!!)
-                        Log.d("ChatActivity", "showUnblockConfirmation: unblockUser() returned successfully")
-                        Log.d("ChatActivity", "showUnblockConfirmation: _blockStatus AFTER unblock=${_blockStatus.value}")
                         showUnblockSuccessDialog(username)
                     } catch (e: Exception) {
-                        Log.e("ChatActivity", "showUnblockConfirmation: unblockUser FAILED", e)
+                        Log.e("ChatActivity", "Failed to unblock user", e)
                         Toast.makeText(this@ChatActivity, "Failed to unblock. Try again.", Toast.LENGTH_SHORT).show()
                     }
                 }
