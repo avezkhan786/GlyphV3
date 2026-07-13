@@ -1307,20 +1307,36 @@ private fun Avatar(
     val otherUserId = remember(chat.participants, currentUserId) {
         chat.participants.firstOrNull { it != currentUserId && it.isNotEmpty() } ?: ""
     }
-    val avatarVisibilityState by remember(otherUserId) {
-        AvatarVisibilityRepository.observeProfilePhotoVisibility(otherUserId)
-    }.collectAsState()
-    val canShowAvatar = if (isGroupChat) true else avatarVisibilityState.isVisible
+    // Avatar visibility is gated ONLY on live block status. The persisted
+    // AvatarVisibilityRepository cache reports isVisible=false during a block
+    // and stays stale after unblock — using it here means the avatar never
+    // reappears. Block status is the single authoritative gate.
+    val blockedUsers by remember { com.glyph.glyph_v3.data.repo.BlockRepository.myBlockedUsers }
+        .collectAsState()
+    val isBlocked = otherUserId.isNotEmpty() && otherUserId in blockedUsers
+    val canShowAvatar = if (isGroupChat) true else !isBlocked
 
-    val localAvatarPath = remember(chat.id, otherUserId, canShowAvatar, isGroupChat) {
+    // Single source of truth for the local avatar path — reactive, so it
+    // updates the moment AvatarStateManager re-downloads after unblock.
+    val avatarState by remember(otherUserId, avatarUrl) {
+        if (otherUserId.isNotEmpty() && !isGroupChat) {
+            com.glyph.glyph_v3.data.cache.AvatarStateManager.observe(otherUserId, avatarUrl)
+        } else {
+            kotlinx.coroutines.flow.MutableStateFlow(
+                com.glyph.glyph_v3.data.cache.AvatarStateManager.AvatarState(
+                    localPath = null, remoteUrl = "", isDownloaded = false, version = 0L
+                )
+            )
+        }
+    }.collectAsState()
+
+    val localAvatarPath = remember(avatarState.version, canShowAvatar, isGroupChat, chat.id) {
         if (!canShowAvatar) {
             null
         } else if (isGroupChat) {
             com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalGroupAvatarPath(chat.id)
-        } else if (otherUserId.isNotEmpty()) {
-            com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalAvatarPath(otherUserId)
         } else {
-            null
+            avatarState.localPath
         }
     }
     val visibleAvatarUrl = remember(canShowAvatar, avatarUrl) {

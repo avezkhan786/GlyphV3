@@ -843,6 +843,14 @@ class ChatActivity : AppCompatActivity(),
     private lateinit var scrollFabController: ScrollToBottomFabController
     
     private var avatarSyncJob: Job? = null
+    private var avatarHeaderObserverJob: Job? = null
+
+    // Compose-observable state for block status changes
+    private val isBlockedState = mutableStateOf(false)
+
+    // Tracks whether preRenderHeaderAvatar() has successfully set the avatar.
+    // Once true, updateHeaderInfo() NEVER shows the placeholder (prevents flash).
+    private var headerAvatarPreRendered: Boolean = false
 
     private var interactiveOverlayFadeApplied: Boolean = false
     // Tracks the newest (tail) message id last seen by the scroll-FAB unread counter. The FAB
@@ -1084,11 +1092,14 @@ class ChatActivity : AppCompatActivity(),
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Reset avatar pre-render flag for new activity instance
+        headerAvatarPreRendered = false
+
         // Apply theme before super.onCreate
         com.glyph.glyph_v3.utils.ThemeManager.applyTheme(this, deepDark = true)
         StartupTrace.logStage("chat_onCreate_start")
         chatOpenStartElapsedMs = SystemClock.elapsedRealtime()
-        
+
         super.onCreate(savedInstanceState)
 
         // Enable edge-to-edge
@@ -1266,6 +1277,12 @@ class ChatActivity : AppCompatActivity(),
             userAvatarState.value = ""
         }
         primeInitialBlockUiState()
+
+        // PRE-RENDER the header avatar SYNCHRONOUSLY during onCreate so it is
+        // already on screen in the very first frame — no white placeholder flash.
+        // Runs entirely on the main thread; completes before the first frame draws.
+        preRenderHeaderAvatar()
+
         if (intent.getBooleanExtra(EXTRA_FORCE_SCROLL_TO_BOTTOM, false)) {
             userHasScrolledUp = false
             pendingScrollToBottomOnNextListCommit = true
@@ -1872,6 +1889,10 @@ class ChatActivity : AppCompatActivity(),
         ChatOpenTrace.event(chatId, "chat_transition_window_drawn")
         // Flush any scroll-deferred emission that was waiting for idle state.
         applyDeferredLargeFlowEmissionIfNeeded()
+        // CRITICAL: Pre-render header avatar BEFORE starting observers.
+        // On repeat opens, onCreate() doesn't run, so preRenderHeaderAvatar() must
+        // be called here to prevent placeholder flash when observers emit.
+        preRenderHeaderAvatar()
         triggerSecondaryFeaturesNow(reason = "enter_animation_complete")
     }
 
@@ -4683,41 +4704,106 @@ class ChatActivity : AppCompatActivity(),
         sheet.show(supportFragmentManager, "auto_translate_language")
     }
 
+    /**
+     * Decode the header avatar from the local cache synchronously and set it on
+     * the ImageView during [onCreate], BEFORE the first frame is drawn.  This
+     * eliminates the white placeholder flash that async Glide causes.
+     *
+     * Best-effort: if the local file doesn't exist or decode fails, the
+     * async path in [updateHeaderInfo] handles it later.
+     */
+    private fun preRenderHeaderAvatar() {
+        if (otherUserId.isNullOrEmpty()) {
+            android.util.Log.d("GlyphAvatarDebug", "preRender SKIP: uid is null or empty")
+            return
+        }
+        if (_blockStatus.value.isBlocked) {
+            android.util.Log.d("GlyphAvatarDebug", "preRender SKIP: blocked")
+            return
+        }
+        // CRITICAL: Check local cache FIRST, before checking otherUserAvatar.
+        // At onCreate time, otherUserAvatar may still be empty (set from intent),
+        // but the local cache might already have the avatar from a previous session.
+        val localAvatarPath = if (isGroupChat) {
+            chatId?.let { com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalGroupAvatarPath(it) }
+        } else {
+            com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalAvatarPath(otherUserId!!)
+        }
+        android.util.Log.d("GlyphAvatarDebug", "preRender uid=${otherUserId!!.take(8)} group=$isGroupChat avatarUrl=${otherUserAvatar.take(50)} localPath=${localAvatarPath?.take(50) ?: "null"}")
+        if (localAvatarPath.isNullOrBlank()) {
+            android.util.Log.d("GlyphAvatarDebug", "preRender SKIP: no local cached avatar")
+            return
+        }
+        val avatarRequestSizePx = chatAvatarRequestSizePx()
+        val drawable = loadLocalAvatarSynchronously(localAvatarPath, avatarRequestSizePx)
+        android.util.Log.d("GlyphAvatarDebug", "preRender decodeResult=${drawable != null}")
+        if (drawable != null) {
+            binding.ivProfilePicture.setImageDrawable(drawable)
+            binding.tvProfilePictureInitial.visibility = View.GONE
+            headerAvatarPreRendered = true  // Mark as pre-rendered to prevent placeholder flash
+        }
+    }
+
     private fun updateHeaderInfo() {
         val gatedAvatarSource = userAvatarState.value
         val headerInitial = otherUsername.firstOrNull { !it.isWhitespace() }?.uppercaseChar()?.toString() ?: "?"
 
         // Set user name
         binding.tvUserName.text = otherUsername.ifEmpty { "Unknown" }
-        binding.tvProfilePictureInitial.text = headerInitial
+
+        // CRITICAL: Once avatar is pre-rendered, NEVER show placeholder again.
+        // Keep placeholder GONE and only update avatar image if needed.
+        val shouldSuppressPlaceholder = headerAvatarPreRendered &&
+                                        gatedAvatarSource.isNotEmpty() &&
+                                        !_blockStatus.value.isBlocked &&
+                                        !otherUserId.isNullOrEmpty()
+
+        if (shouldSuppressPlaceholder) {
+            // Avatar exists and was pre-rendered - ensure placeholder stays hidden
+            binding.tvProfilePictureInitial.visibility = View.GONE
+        }
 
         // Load profile picture - try local cache first for instant display
         if (gatedAvatarSource.isNotEmpty() && !_blockStatus.value.isBlocked && !otherUserId.isNullOrEmpty()) {
-            binding.tvProfilePictureInitial.visibility = View.GONE
+            // CRITICAL: Hide placeholder BEFORE any processing to prevent flash.
+            // Do NOT set placeholder text here - that would make it visible briefly.
+            if (!shouldSuppressPlaceholder) {
+                binding.tvProfilePictureInitial.visibility = View.GONE
+            }
             val avatarRequestSizePx = chatAvatarRequestSizePx()
             val localAvatarPath = if (isGroupChat) {
                 com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalGroupAvatarPath(chatId!!)
             } else {
                 com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalAvatarPath(otherUserId!!)
             }
-            
+
+            android.util.Log.d("GlyphAvatarDebug", "updateHeaderInfo uid=${otherUserId!!.take(8)} localPath=${localAvatarPath?.take(50) ?: "null"} source=${gatedAvatarSource.take(40)}")
+
             if (localAvatarPath != null) {
-                // Load from local storage - INSTANT
-                // Use signature() with file timestamp to force Glide to reload when file changes
-                val file = java.io.File(localAvatarPath)
-                Glide.with(this)
-                    .load(file)
-                    .signature(com.bumptech.glide.signature.ObjectKey(file.lastModified()))
-                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
-                    .transform(CircleCrop())
-                    .override(avatarRequestSizePx, avatarRequestSizePx)
-                    .dontAnimate()
-                    .placeholder(R.drawable.ic_default_avatar)
-                    .error(R.drawable.ic_default_avatar)
-                    .into(binding.ivProfilePicture)
-                
-                // Note: Background avatar sync is handled by startAvatarAutoSync()
-                // which runs after 10 seconds to check for updates
+                // PRE-RENDER: decode the local avatar file SYNCHRONOUSLY so it is
+                // already on screen in the first paint — no placeholder flash.
+                // (Same technique used for message media in tryBindLocalBitmapSync.)
+                // Only fall back to async Glide if the sync decode fails.
+                val drawable = loadLocalAvatarSynchronously(localAvatarPath, avatarRequestSizePx)
+                android.util.Log.d("GlyphAvatarDebug", "updateHeaderInfo decodeResult=${drawable != null}")
+                if (drawable != null) {
+                    // Do NOT call Glide.clear() here — it asynchronously wipes the
+                    // drawable after setImageDrawable, causing a blank avatar.
+                    binding.ivProfilePicture.setImageDrawable(drawable)
+                    refreshMapBackgroundAvatars()
+                } else {
+                    val file = java.io.File(localAvatarPath)
+                    Glide.with(this)
+                        .load(file)
+                        .signature(com.bumptech.glide.signature.ObjectKey(file.lastModified()))
+                        .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.ALL)
+                        .transform(CircleCrop())
+                        .override(avatarRequestSizePx, avatarRequestSizePx)
+                        .dontAnimate()
+                        .placeholder(R.drawable.ic_default_avatar)
+                        .error(R.drawable.ic_default_avatar)
+                        .into(binding.ivProfilePicture)
+                }
             } else {
                 // Fallback to URL (first time load)
                 Glide.with(this)
@@ -4729,7 +4815,7 @@ class ChatActivity : AppCompatActivity(),
                     .placeholder(R.drawable.ic_default_avatar)
                     .error(R.drawable.ic_default_avatar)
                     .into(binding.ivProfilePicture)
-                
+
                 // Cache in background for next time
                 lifecycleScope.launch(Dispatchers.IO) {
                     val cached = if (isGroupChat) {
@@ -4755,9 +4841,16 @@ class ChatActivity : AppCompatActivity(),
                 }
             }
         } else {
-            Glide.with(this).clear(binding.ivProfilePicture)
-            binding.ivProfilePicture.setImageDrawable(null)
-            binding.tvProfilePictureInitial.visibility = View.VISIBLE
+            // CRITICAL: Only show placeholder if avatar was NOT pre-rendered.
+            // If preRender already set the avatar, keep the avatar and suppress placeholder.
+            if (!shouldSuppressPlaceholder) {
+                // Set placeholder text BEFORE making it visible to prevent flash.
+                // Only set it here where we're actually going to show the placeholder.
+                binding.tvProfilePictureInitial.text = headerInitial
+                Glide.with(this).clear(binding.ivProfilePicture)
+                binding.ivProfilePicture.setImageDrawable(null)
+                binding.tvProfilePictureInitial.visibility = View.VISIBLE
+            }
         }
     }
 
@@ -5521,6 +5614,36 @@ class ChatActivity : AppCompatActivity(),
      * Start automatic avatar sync after 10 seconds.
      * Checks for avatar updates and automatically re-renders the header if a new avatar is found.
      */
+    /**
+     * Immediately re-download the peer's avatar after unblock.  [clearAvatarCache]
+     * deleted the local file during the block, and [startAvatarAutoSync] waits 10 s
+     * via the idle task queue — far too long for a user who just tapped "Unblock."
+     */
+    private fun forceImmediateAvatarSync() {
+        val userId = otherUserId ?: return
+        val avatarUrl = otherUserAvatar
+        if (avatarUrl.isBlank()) return
+        avatarSyncJob?.cancel()
+        avatarSyncJob = lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val updated = com.glyph.glyph_v3.data.cache.AvatarCacheManager.updateAvatarIfNeeded(
+                    userId, avatarUrl, this@ChatActivity)
+                if (updated) {
+                    // Clear Glide's disk cache so other screens (chat list,
+                    // contact info, forward) that previously loaded the now-
+                    // missing avatar pick up the re-downloaded file.
+                    try {
+                        com.bumptech.glide.Glide.get(this@ChatActivity).clearDiskCache()
+                    } catch (_: Exception) { /* best-effort */ }
+                    withContext(Dispatchers.Main) {
+                        reloadAvatarImage(userId)
+                        refreshMapBackgroundAvatars()
+                    }
+                }
+            } catch (_: Exception) { /* best-effort */ }
+        }
+    }
+
     private fun startAvatarAutoSync() {
         val userId = otherUserId ?: return
         val avatarUrl = otherUserAvatar
@@ -11861,36 +11984,46 @@ class ChatActivity : AppCompatActivity(),
             AvatarVisibilityRepository.getCachedProfilePhotoVisibility(it)
         }
     ) {
-        val localPeerAvatarAvailable = otherUserId?.let {
-            com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalAvatarPath(it)
-        } != null
-        val canOptimisticallyShowLocalAvatar =
-            !isGroupChat && visibilityState?.isResolved != true && localPeerAvatarAvailable
-
-        val visibleAvatar = otherUserAvatar.takeIf {
-            !_blockStatus.value.isBlocked &&
-                it.isNotBlank() &&
-                (isGroupChat || visibilityState?.isVisible == true || canOptimisticallyShowLocalAvatar)
+        // BLOCKED: always hide the avatar regardless of any other state.
+        if (_blockStatus.value.isBlocked) {
+            userAvatarState.value = ""
+            // Cancel the avatar-state observer so a late emission doesn't
+            // re-show the avatar (via reloadAvatarImage) while blocked.
+            avatarHeaderObserverJob?.cancel()
+            avatarHeaderObserverJob = null
+            if (::chatAdapter.isInitialized) chatAdapter.setUserAvatars("", currentUserAvatar.takeIf { it.isNotBlank() })
+            if (!isFinishing && !isDestroyed) { updateHeaderInfo(); refreshMapBackgroundAvatars() }
+            return
         }
 
-        userAvatarState.value = visibleAvatar.orEmpty()
+        // NOT BLOCKED: show the avatar URL.  The global AvatarStateManager handles
+        // downloading and caching — it also auto-refreshes on unblock (observes
+        // BlockRepository.myBlockedUsers).  No manual download logic needed here.
+        val visibleAvatar = otherUserAvatar.takeIf { it.isNotBlank() }.orEmpty()
+        userAvatarState.value = visibleAvatar
 
         if (::chatAdapter.isInitialized) {
-            chatAdapter.setUserAvatars(
-                visibleAvatar,
-                currentUserAvatar.takeIf { it.isNotBlank() }
-            )
+            chatAdapter.setUserAvatars(visibleAvatar, currentUserAvatar.takeIf { it.isNotBlank() })
         }
-
         if (!isFinishing && !isDestroyed) {
             updateHeaderInfo()
             refreshMapBackgroundAvatars()
         }
-
-        if (!_blockStatus.value.isBlocked && visibilityState?.isVisible == true) {
-            startAvatarAutoSync()
-        } else {
-            avatarSyncJob?.cancel()
+        // Ensure the global manager knows about this user so it can preload/cache.
+        val uid = otherUserId
+        if (visibleAvatar.isNotBlank() && uid != null) {
+            // Observe the global avatar state — when it re-downloads after
+            // unblock, the chat header avatar refreshes automatically.
+            val flow = com.glyph.glyph_v3.data.cache.AvatarStateManager
+                .observe(uid, visibleAvatar)
+            avatarHeaderObserverJob?.cancel()
+            avatarHeaderObserverJob = lifecycleScope.launch {
+                flow.collect { state ->
+                    if (state.localPath != null) {
+                        reloadAvatarImage(uid)
+                    }
+                }
+            }
         }
     }
     
@@ -11900,8 +12033,10 @@ class ChatActivity : AppCompatActivity(),
         blockStatusJob = lifecycleScope.launch {
             com.glyph.glyph_v3.data.repo.BlockRepository.observeBlockStatus(userId).collectLatest { status ->
                 _blockStatus.value = status
+                // Update Compose state to trigger recomposition
+                isBlockedState.value = status.isBlocked
                 if (status.isBlocked) {
-                    com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
+                    com.glyph.glyph_v3.data.cache.AvatarStateManager.invalidate(userId)
                 }
                 applyOtherUserAvatarVisibility()
                 // Update header presence when block status changes
@@ -11918,8 +12053,10 @@ class ChatActivity : AppCompatActivity(),
         val userId = otherUserId ?: return
         val initialStatus = com.glyph.glyph_v3.data.repo.BlockRepository.getBlockStatus(userId)
         _blockStatus.value = initialStatus
+        // Update Compose state
+        isBlockedState.value = initialStatus.isBlocked
         if (initialStatus.isBlocked) {
-            com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
+            com.glyph.glyph_v3.data.cache.AvatarStateManager.invalidate(userId)
         }
         applyOtherUserAvatarVisibility()
         updateInputBarForBlockStatus(initialStatus, animate = false)
@@ -11930,8 +12067,10 @@ class ChatActivity : AppCompatActivity(),
                 com.glyph.glyph_v3.data.repo.BlockRepository.warmBlockStatusFromLocalCache(userId)
             }
             _blockStatus.value = warmedStatus
+            // Update Compose state
+            isBlockedState.value = warmedStatus.isBlocked
             if (warmedStatus.isBlocked) {
-                com.glyph.glyph_v3.data.cache.AvatarCacheManager.clearAvatarCache(userId)
+                com.glyph.glyph_v3.data.cache.AvatarStateManager.invalidate(userId)
             }
             applyOtherUserAvatarVisibility()
             updateHeaderStatus()
@@ -12121,6 +12260,13 @@ class ChatActivity : AppCompatActivity(),
         view.findViewById<com.google.android.material.button.MaterialButton>(R.id.button_unblock_success_done)
             ?.setOnClickListener { dialog.dismiss() }
 
+        // Lottie autoPlay may not fire when inflated via MaterialAlertDialogBuilder —
+        // manually start the animation once the dialog is shown.
+        dialog.setOnShowListener {
+            view.findViewById<com.airbnb.lottie.LottieAnimationView>(R.id.lottie_unblock_success)
+                ?.playAnimation()
+        }
+
         dialog.show()
 
         lifecycleScope.launch {
@@ -12295,6 +12441,8 @@ class ChatActivity : AppCompatActivity(),
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // Reset avatar pre-render flag for new chat (different user/group)
+        headerAvatarPreRendered = false
         setIntent(intent)
         if (intent.getBooleanExtra(EXTRA_FORCE_SCROLL_TO_BOTTOM, false)) {
             userHasScrolledUp = false
@@ -13942,9 +14090,29 @@ class ChatActivity : AppCompatActivity(),
                         val userId = otherUserId
                         val avatarUrl = userAvatarState.value
                         val isGroupHeader = isGroupChat
+                        // Observe block status directly from MutableState
+                        val isBlocked = isBlockedState.value
                         val avatarInitial = userNameState.value.firstOrNull { !it.isWhitespace() }
                             ?.uppercaseChar()?.toString() ?: "?"
-                        if (!avatarUrl.isNullOrEmpty() && (isGroupHeader || !userId.isNullOrEmpty())) {
+
+                        // CRITICAL: Check local cache FIRST to prevent placeholder flash.
+                        // Even if avatarUrl is empty, we might have a cached avatar from a previous session.
+                        val localAvatarPath = when {
+                            isGroupHeader -> chatId?.let {
+                                com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalGroupAvatarPath(it)
+                            }
+                            !userId.isNullOrEmpty() -> com.glyph.glyph_v3.data.cache.AvatarCacheManager
+                                .getLocalAvatarPath(userId)
+                            else -> null
+                        }
+
+                        // BLOCKED: Always show placeholder, never avatar
+                        // NOT BLOCKED: Show avatar if URL exists OR if local cache exists
+                        val shouldShowAvatar = !isBlocked &&
+                                             (!avatarUrl.isNullOrEmpty() || localAvatarPath != null) &&
+                                             (isGroupHeader || !userId.isNullOrEmpty())
+
+                        if (shouldShowAvatar) {
                             androidx.compose.ui.viewinterop.AndroidView(
                                 factory = { context ->
                                     android.widget.ImageView(context).apply {
@@ -13955,14 +14123,8 @@ class ChatActivity : AppCompatActivity(),
                                         scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
                                         
                                         // Synchronously load the cached avatar to prevent any flicker during transition
-                                        var localPath = when {
-                                            isGroupHeader -> chatId?.let {
-                                                com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalGroupAvatarPath(it)
-                                            }
-                                            !userId.isNullOrEmpty() -> com.glyph.glyph_v3.data.cache.AvatarCacheManager
-                                                .getLocalAvatarPath(userId)
-                                            else -> null
-                                        }
+                                        // Prefer localAvatarPath (checked above) over re-checking cache
+                                        var localPath = localAvatarPath
                                         if (localPath == null && !avatarUrl.isNullOrEmpty() && !avatarUrl.startsWith("http") && java.io.File(avatarUrl).exists()) {
                                             localPath = avatarUrl
                                         }
@@ -13979,6 +14141,7 @@ class ChatActivity : AppCompatActivity(),
                                         didSeedHeaderAvatarFromRetained = true
                                         return@updateAvatar
                                     }
+                                    // Re-check local cache in case it changed since factory
                                     var localPath = when {
                                         isGroupHeader -> chatId?.let {
                                             com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalGroupAvatarPath(it)
@@ -14018,13 +14181,20 @@ class ChatActivity : AppCompatActivity(),
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
+                            // Show placeholder when blocked or no avatar available
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .background(ComposeColor(0xFFD9DDE3), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = avatarInitial)
+                                Text(
+                                    text = avatarInitial,
+                                    color = androidx.compose.ui.graphics.Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center
+                                )
                             }
                         }
                     },

@@ -388,15 +388,19 @@ fun ContactInfoScreen(
         value = fresh
     }
 
-    // ── Privacy gate: check if other user allows us to see their profile photo ──
-    val privacyGatedAvatar by produceState(initialValue = "", contactUserId) {
+    // ── Privacy gate: show avatar unless this contact is blocked. ──
+    // The persisted AvatarVisibilityRepository cache reports isVisible=false during
+    // a block and stays stale after unblock, so it can't be the gate here.
+    // Live block status is the single authoritative source.
+    val privacyGatedAvatar by produceState(initialValue = "", contactUserId, contactAvatar) {
         try {
             if (contactUserId.isEmpty()) {
                 value = ""
                 return@produceState
             }
-            val canSee = AvatarVisibilityRepository.refreshProfilePhotoVisibility(contactUserId).isVisible
-            value = if (canSee) contactAvatar else ""
+            val isBlocked = com.glyph.glyph_v3.data.repo.BlockRepository
+                .getBlockStatus(contactUserId).isBlocked
+            value = if (!isBlocked) contactAvatar else ""
         } catch (_: Exception) {
             value = ""
         }
@@ -1777,15 +1781,16 @@ private fun FloatingAvatarOverlay(
         contentAlignment = Alignment.Center
     ) {
         if (contactAvatar.isNotEmpty()) {
-            val localPath = remember(contactUserId) {
-                try {
-                    com.glyph.glyph_v3.data.cache.AvatarCacheManager
-                        .getLocalAvatarPath(contactUserId)
-                } catch (_: Exception) { null }
-            }
+            // Observe the global avatar state so this recomposes the instant
+            // the avatar is re-downloaded after an unblock.
+            val avatarState by androidx.compose.runtime.remember(contactUserId, contactAvatar) {
+                com.glyph.glyph_v3.data.cache.AvatarStateManager
+                    .observe(contactUserId, contactAvatar)
+            }.collectAsState()
+            val localFile = avatarState.localPath?.let { java.io.File(it) }
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(localPath?.let { java.io.File(it) } ?: contactAvatar)
+                    .data(localFile ?: contactAvatar)
                     .crossfade(false)
                     .build(),
                 contentDescription = "Profile picture",

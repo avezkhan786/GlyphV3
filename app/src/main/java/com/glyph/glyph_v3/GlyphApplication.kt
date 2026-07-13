@@ -176,6 +176,15 @@ class GlyphApplication : Application() {
             // during first layout → Firestore listener later corrects → RV shrinks.
             com.glyph.glyph_v3.data.repo.BlockRepository.initDiskCache(this)
 
+            // Single global source-of-truth for user avatars.  Every screen
+            // reads from this instead of querying AvatarCacheManager directly.
+            com.glyph.glyph_v3.data.cache.AvatarStateManager.init(this)
+
+            // Initialize avatar cache manager for instant synchronous avatar loads
+            // CRITICAL: Must be called before any getLocalAvatarPath() calls to prevent
+            // white flashing on chat open (getLocalAvatarPath returns null if not initialized)
+            com.glyph.glyph_v3.data.cache.AvatarCacheManager.init(this)
+
             // Initialize shared data layer prewarming (lightweight)
             prewarmSharedDataLayerAsync(reason = "app_onCreate_early")
 

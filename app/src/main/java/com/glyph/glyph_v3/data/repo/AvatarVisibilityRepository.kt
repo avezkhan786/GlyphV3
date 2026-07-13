@@ -89,9 +89,10 @@ object AvatarVisibilityRepository {
         val resolved = resolveProfilePhotoVisibility(ownerUserId = userId, viewerUserId = viewerId)
         stateFlow.value = resolved
         persistVisibilityState(key, resolved)
-        if (!resolved.isVisible) {
-            AvatarCacheManager.clearAvatarCache(userId)
-        }
+        // Do NOT clear the avatar file when hidden. The block-status gate in
+        // each screen hides it visually; deleting the file forced an unreliable
+        // Firebase re-download on unblock (fails for stale URLs), leaving the
+        // avatar permanently missing. The file stays so unblock is instant.
         ensureObservation(userId, viewerId, key, stateFlow)
         return resolved
     }
@@ -178,9 +179,10 @@ object AvatarVisibilityRepository {
                 if (nextState != stateFlow.value) {
                     stateFlow.value = nextState
                     persistVisibilityState(key, nextState)
-                    if (!nextState.isVisible) {
-                        AvatarCacheManager.clearAvatarCache(ownerUserId)
-                    }
+                    // Do NOT clear the avatar file when hidden (see refreshProfilePhotoVisibility).
+                    // Block-status gate hides it; deleting the file breaks unblock re-display.
+                    // Also notify the global AvatarStateManager so observers recompose.
+                    com.glyph.glyph_v3.data.cache.AvatarStateManager.invalidate(ownerUserId)
                 }
             }
         }
