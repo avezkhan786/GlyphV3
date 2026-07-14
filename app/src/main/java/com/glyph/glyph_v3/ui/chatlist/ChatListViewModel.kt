@@ -13,8 +13,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+import androidx.compose.runtime.Stable
 import com.glyph.glyph_v3.data.repo.RealtimeMessageRepository
 
+@Stable
 data class ChatListUiState(
     val chats: List<Chat> = emptyList(),
     val selectedChatIds: Set<String> = emptySet(),

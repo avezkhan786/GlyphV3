@@ -77,7 +77,7 @@ class GlyphApplication : Application() {
         private const val KEY_LAST_AUTH_UID = "last_auth_uid"
 
         private const val WAKEUP_CHANNEL_ID = "glyph_wakeup_channel"
-        private const val STARTUP_CHAT_PREFETCH_LIMIT = 4
+        private const val STARTUP_CHAT_PREFETCH_LIMIT = 20
 
         /**
          * True after the first Activity creation in this process.
@@ -118,7 +118,6 @@ class GlyphApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        val t0 = SystemClock.elapsedRealtime()
         StartupTrace.logStage("app_onCreate_start")
 
         // ── Firebase DefaultRunLoop crash guard ──────────────────────────────────
@@ -154,53 +153,61 @@ class GlyphApplication : Application() {
 
         try {
             // ═══════════════════════════════════════════════════════════════════════
-            // COLD-START OPTIMIZATION: Absolute minimum main-thread work.
+            // STARTUP OPTIMIZATION: Minimal Application.onCreate() using androidx.startup
             //
-            // All heavy initialization runs in androidx.startup Initializers:
+            // All heavy initialization has been moved to androidx.startup Initializers:
             // - FirebaseInitializer: RTDB persistence + connection warming
             // - PresenceInitializer: Presence tracking + auth listeners
-            // - ThemeInitializer: Theme manager (night mode + applyTheme)
-            // - ServicesInitializer: Cache managers (including AvatarCacheManager),
-            //   ContactDisplayNameResolver, BlockRepository listeners, network monitor.
+            // - ThemeInitializer: Theme manager initialization
+            // - ServicesInitializer: Cache managers, notifications, etc.
             //
-            // Application.onCreate() target: <15ms blocking on main thread.
+            // This reduces Application.onCreate() blocking time from ~500-1000ms to <50ms.
             // ═══════════════════════════════════════════════════════════════════════
 
-            // ── Synchronous (must complete before first Activity inflates) ──────
-            // Firestore cache config — deferred to first Firestore usage via
-            // lazy accessor; no-op here.
-            // (Previously called configureFirestoreCache() synchronously.)
+            StartupTrace.logStage("app_onCreate_start")
 
-            // Block-status in-memory cache: SharedPreferences → in-memory map.
-            // Required before first layout to avoid transient NOT_BLOCKED state.
+            // Initialize Firebase Firestore cache configuration
+            // (This must happen before any Firestore usage)
+            configureFirestoreCache()
+
+            // Restore block-status in-memory caches from SharedPreferences so
+            // getBlockStatus() returns the correct answer synchronously on cold start.
+            // Without this the in-memory cache is empty → NOT_BLOCKED → banner GONE
+            // during first layout → Firestore listener later corrects → RV shrinks.
             com.glyph.glyph_v3.data.repo.BlockRepository.initDiskCache(this)
 
-            // AvatarStateManager: single source-of-truth for avatar paths.
+            // Single global source-of-truth for user avatars.  Every screen
+            // reads from this instead of querying AvatarCacheManager directly.
             com.glyph.glyph_v3.data.cache.AvatarStateManager.init(this)
 
-            // CRITICAL: Must be called before any getLocalAvatarPath() call.
-            // Without this, getLocalAvatarPath returns null → AsyncImage shows
-            // placeholder → network fetch → flash on every chat open.
-            // NOTE: ServicesInitializer also calls this, but that initializer
-            // is not registered in the manifest and does NOT run at startup.
+            // Initialize avatar cache manager for instant synchronous avatar loads
+            // CRITICAL: Must be called before any getLocalAvatarPath() calls to prevent
+            // white flashing on chat open (getLocalAvatarPath returns null if not initialized)
             com.glyph.glyph_v3.data.cache.AvatarCacheManager.init(this)
 
-            // ── Async (fire-and-forget, must not block first frame) ─────────────
-            // Shared data layer prewarming (DB create + repository init).
+            // Eagerly create Room database during onCreate() so DB creation/migration
+            // overlaps with splash screen, and the chat list fragment gets a ready DB.
+            getOrCreateAppDatabase()
+
+            // Initialize shared data layer prewarming (lightweight)
             prewarmSharedDataLayerAsync(reason = "app_onCreate_early")
 
-            // Firebase transport warmup (RTDB WebSocket + auth token refresh).
+            // Schedule Firebase foreground warmup
             scheduleFirebaseForegroundWarmup(reason = "app_onCreate", force = true)
 
-            // Observers
+            // Preload chat wallpaper in background
+            appScope.launch {
+                runCatching {
+                    com.glyph.glyph_v3.utils.ChatWallpaperManager.preload(this@GlyphApplication)
+                }.onFailure { e ->
+                    Log.w(TAG, "Failed to preload chat wallpaper", e)
+                }
+            }
+
+            // Observe app lifecycle for foreground/background transitions
             ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleObserver())
 
-            // Chat wallpaper preload: deferred to post-first-frame via
-            // MainActivity's onFirstFrame callback to avoid competing for
-            // disk I/O during layout inflation.
-            // (Moved from here to MainActivity.preloadAfterFirstFrame().)
-
-            StartupTrace.logStage("app_onCreate_end", "elapsed=${SystemClock.elapsedRealtime() - t0}ms")
+            StartupTrace.logStage("app_onCreate_end")
 
         } catch (e: Exception) {
             Log.e(TAG, "Error during application initialization", e)
@@ -268,13 +275,6 @@ class GlyphApplication : Application() {
                 getOrCreateAppDatabase()
                 getOrCreateRealtimeRepository()
                 StartupTrace.logStage("repository_prewarm_ready", "reason=$reason")
-
-                // COLD-START OPTIMIZATION: Pre-initialize Coil image loader while
-                // the DB + repository are being created. Coil initialization takes
-                // ~100-200ms (OkHttp client, disk/memory cache setup). By doing it
-                // here, it overlaps with DB creation and is ready by the time
-                // Compose renders its first AsyncImage, avoiding a mid-frame init.
-                ensureCoilInitialized()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to prewarm shared data layer", e)
             } finally {
@@ -389,34 +389,21 @@ class GlyphApplication : Application() {
         }
     }
 
-    /**
-     * Configure Firestore persistent cache. Idempotent — subsequent calls are no-ops.
-     * Called lazily on first Firestore usage instead of synchronously in onCreate().
-     * This saves ~20-40ms of main-thread time during cold start.
-     */
-    @Volatile
-    private var firestoreCacheConfigured = false
-
-    fun ensureFirestoreCacheConfigured() {
-        if (firestoreCacheConfigured) return
-        synchronized(this) {
-            if (firestoreCacheConfigured) return
-            try {
-                val firestore = FirebaseFirestore.getInstance()
-                val settings = FirebaseFirestoreSettings.Builder()
-                    .setLocalCacheSettings(
-                        PersistentCacheSettings
-                            .newBuilder()
-                            .setSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
-                            .build()
-                    )
-                    .build()
-                firestore.firestoreSettings = settings
-                firestoreCacheConfigured = true
-                StartupTrace.logStage("firestore_cache_configured")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to configure Firestore cache", e)
-            }
+    private fun configureFirestoreCache() {
+        try {
+            val firestore = FirebaseFirestore.getInstance()
+            val settings = FirebaseFirestoreSettings.Builder()
+                .setLocalCacheSettings(
+                    PersistentCacheSettings
+                        .newBuilder()
+                        .setSizeBytes(FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
+                        .build()
+                )
+                .build()
+            firestore.firestoreSettings = settings
+            StartupTrace.logStage("firestore_cache_configured")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to configure Firestore cache", e)
         }
     }
 

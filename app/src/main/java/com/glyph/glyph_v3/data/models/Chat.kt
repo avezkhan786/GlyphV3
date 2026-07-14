@@ -1,8 +1,10 @@
 package com.glyph.glyph_v3.data.models
 
+import androidx.compose.runtime.Immutable
 import com.google.firebase.firestore.ServerTimestamp
 import java.util.Date
 
+@Immutable
 data class Chat(
     val id: String = "",
     val participants: List<String> = emptyList(),
@@ -13,26 +15,26 @@ data class Chat(
     val unreadCount: Int = 0,
 
     // These fields are populated locally after fetching the chat
-    var otherUsername: String = "",
-    var otherUserAvatar: String = "",
-    
+    val otherUsername: String = "",
+    val otherUserAvatar: String = "",
+
     // Presence fields (populated from PresenceManager)
-    var isOtherUserOnline: Boolean = false,
-    var isOtherUserInChat: Boolean = false,
-    var otherUserLastSeen: Long = 0L,
-    
+    val isOtherUserOnline: Boolean = false,
+    val isOtherUserInChat: Boolean = false,
+    val otherUserLastSeen: Long = 0L,
+
     // Typing indicator
-    var isOtherUserTyping: Boolean = false,
-    var typingText: String = "",
-    
+    val isOtherUserTyping: Boolean = false,
+    val typingText: String = "",
+
     // Archive status
-    var isArchived: Boolean = false,
+    val isArchived: Boolean = false,
 
     // Chat lock (local only, not synced — set from ChatSettingsDataStore)
-    var isLocked: Boolean = false,
+    val isLocked: Boolean = false,
 
     // Draft text (local only, not synced)
-    var draft: String = "",
+    val draft: String = "",
 
     // ────────────────────────────────────────────────────────────
     // Group chat metadata (all empty/false for 1:1 — strictly additive)
@@ -46,6 +48,6 @@ data class Chat(
     val admins: List<String> = emptyList(),
 
     // Group presence (populated dynamically, never persisted to Room)
-    var groupOnlineCount: Int = 0,
-    var groupOnlineUserNames: List<String> = emptyList()
+    val groupOnlineCount: Int = 0,
+    val groupOnlineUserNames: List<String> = emptyList()
 )

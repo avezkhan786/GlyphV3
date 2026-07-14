@@ -64,6 +64,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -90,7 +91,9 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.layout.ContentScale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
@@ -178,7 +181,8 @@ fun ChatListScreen(
     pendingDeleteCount: Int = 0,
     showUndoBar: Boolean = false,
     undoProgress: Float = 0f,
-    onUndoDelete: () -> Unit = {}
+    onUndoDelete: () -> Unit = {},
+    blockedUserIds: Set<String> = emptySet()
 ) {
     // FontFamily for BBH Bartle. Add the font file(s) under `app/src/main/res/font/`:
     // e.g. res/font/bbh_bartle_regular.ttf and reference as R.font.bbh_bartle_regular
@@ -212,21 +216,23 @@ fun ChatListScreen(
         )
     }
 
-    val filteredChats = remember(chats, searchQuery, pendingDeleteChatIds, isArchivedMode) {
-        val base = if (pendingDeleteChatIds.isNotEmpty()) {
-            chats.filter { it.id !in pendingDeleteChatIds }
-        } else {
-            chats
-        }
-        // In the main list, exclude locked chats (they live in the Locked Chats section).
-        // In archived mode, show all archived chats — even ones that are also locked.
-        val visible = if (isArchivedMode) base else base.filter { !it.isLocked }
-        if (searchQuery.isBlank()) {
-            visible
-        } else {
-            val queryLower = searchQuery.lowercase(Locale.getDefault())
-            visible.filter { chat ->
-                chatDisplayName(chat).lowercase(Locale.getDefault()).contains(queryLower)
+    val filteredChats by remember(chats, searchQuery, pendingDeleteChatIds, isArchivedMode) {
+        derivedStateOf {
+            val base = if (pendingDeleteChatIds.isNotEmpty()) {
+                chats.filter { it.id !in pendingDeleteChatIds }
+            } else {
+                chats
+            }
+            // In the main list, exclude locked chats (they live in the Locked Chats section).
+            // In archived mode, show all archived chats — even ones that are also locked.
+            val visible = if (isArchivedMode) base else base.filter { !it.isLocked }
+            if (searchQuery.isBlank()) {
+                visible
+            } else {
+                val queryLower = searchQuery.lowercase(Locale.getDefault())
+                visible.filter { chat ->
+                    chatDisplayName(chat).lowercase(Locale.getDefault()).contains(queryLower)
+                }
             }
         }
     }
@@ -576,7 +582,8 @@ fun ChatListScreen(
                                         onAvatarClick(chat, bounds)
                                     }
                                 },
-                                selectionBackgroundColor = selectionBackgroundColor
+                                selectionBackgroundColor = selectionBackgroundColor,
+                                blockedUserIds = blockedUserIds
                             )
                         }
 
@@ -1132,11 +1139,21 @@ private fun ChatRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
     onAvatarClick: (Rect) -> Unit,
-    selectionBackgroundColor: Color = Color.Transparent
+    selectionBackgroundColor: Color = Color.Transparent,
+    blockedUserIds: Set<String> = emptySet()
 ) {
+    val displayName = remember(chat.groupName, chat.otherUsername, chat.isGroup, chat.participants, currentUserId) {
+        chatDisplayName(chat, currentUserId)
+    }
+    // Load draft lazily when the row becomes visible, rather than in the data pipeline
+    var draft by remember { mutableStateOf(chat.draft) }
+    LaunchedEffect(chat.id) {
+        draft = withContext(Dispatchers.IO) {
+            com.glyph.glyph_v3.data.service.DraftMessageStore.getDraft(chat.id)
+        }
+    }
     var avatarTopLeft by remember { mutableStateOf(Offset.Zero) }
     var avatarSize by remember { mutableStateOf(IntSize.Zero) }
-    var isPositioned by remember { mutableStateOf(false) }
     val currentOnClick by rememberUpdatedState(onClick)
     val currentOnLongClick by rememberUpdatedState(onLongClick)
 
@@ -1158,12 +1175,15 @@ private fun ChatRow(
                 modifier = Modifier
                     .size(54.dp)
                     .onGloballyPositioned { coordinates ->
-                        avatarTopLeft = coordinates.positionInWindow()
-                        avatarSize = coordinates.size
-                        isPositioned = true
+                        val newTopLeft = coordinates.positionInWindow()
+                        val newSize = coordinates.size
+                        if (newTopLeft != avatarTopLeft || newSize != avatarSize) {
+                            avatarTopLeft = newTopLeft
+                            avatarSize = newSize
+                        }
                     }
-                    .clickable(enabled = isPositioned) {
-                        if (isPositioned && avatarSize.width > 0 && avatarSize.height > 0) {
+                    .clickable {
+                        if (avatarSize.width > 0 && avatarSize.height > 0) {
                             val avatarBoundsInWindow = Rect(
                                 avatarTopLeft.x.roundToInt(),
                                 avatarTopLeft.y.roundToInt(),
@@ -1176,12 +1196,13 @@ private fun ChatRow(
                 contentAlignment = Alignment.Center
             ) {
                 Avatar(
-                    chat = chat, 
+                    chat = chat,
                     currentUserId = currentUserId,
                     statusRingState = statusRingState,
                     isOnline = chat.isOtherUserOnline,
                     isInChat = chat.isOtherUserInChat,
-                    isSelected = isSelected
+                    isSelected = isSelected,
+                    blockedUserIds = blockedUserIds
                 )
             }
 
@@ -1195,7 +1216,7 @@ private fun ChatRow(
                     verticalAlignment = Alignment.Top
                 ) {
                     Text(
-                        text = chatDisplayName(chat, currentUserId),
+                        text = displayName,
                         modifier = Modifier.weight(1f),
                         fontSize = 16.5.sp,
                         fontWeight = FontWeight.Medium,
@@ -1224,7 +1245,7 @@ private fun ChatRow(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val draftText = chat.draft.trim()
+                    val draftText = draft.trim()
                     val hasDraft = draftText.isNotEmpty()
 
                     if (chat.isOtherUserTyping) {
@@ -1306,12 +1327,13 @@ private fun ChatRow(
 
 @Composable
 private fun Avatar(
-    chat: Chat, 
+    chat: Chat,
     currentUserId: String?,
     statusRingState: ChatStatusRingState,
     isOnline: Boolean,
     isInChat: Boolean,
-    isSelected: Boolean = false
+    isSelected: Boolean = false,
+    blockedUserIds: Set<String> = emptySet()
 ) {
     val context = LocalContext.current
     val isGroupChat = chat.isGroup
@@ -1319,13 +1341,7 @@ private fun Avatar(
     val otherUserId = remember(chat.participants, currentUserId) {
         chat.participants.firstOrNull { it != currentUserId && it.isNotEmpty() } ?: ""
     }
-    // Avatar visibility is gated ONLY on live block status. The persisted
-    // AvatarVisibilityRepository cache reports isVisible=false during a block
-    // and stays stale after unblock — using it here means the avatar never
-    // reappears. Block status is the single authoritative gate.
-    val blockedUsers by remember { com.glyph.glyph_v3.data.repo.BlockRepository.myBlockedUsers }
-        .collectAsState()
-    val isBlocked = otherUserId.isNotEmpty() && otherUserId in blockedUsers
+    val isBlocked = otherUserId.isNotEmpty() && otherUserId in blockedUserIds
     val canShowAvatar = if (isGroupChat) true else !isBlocked
 
     // Single source of truth for the local avatar path — reactive, so it
@@ -1342,11 +1358,23 @@ private fun Avatar(
         }
     }.collectAsState()
 
-    val localAvatarPath = remember(avatarState.version, canShowAvatar, isGroupChat, chat.id) {
+    // Load group avatar path asynchronously to avoid blocking the composition thread
+    var groupAvatarPath by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(canShowAvatar, isGroupChat, chat.id) {
+        if (canShowAvatar && isGroupChat) {
+            groupAvatarPath = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalGroupAvatarPath(chat.id)
+            }
+        } else if (!canShowAvatar) {
+            groupAvatarPath = null
+        }
+    }
+
+    val localAvatarPath = remember(avatarState.version, canShowAvatar, isGroupChat, groupAvatarPath) {
         if (!canShowAvatar) {
             null
         } else if (isGroupChat) {
-            com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalGroupAvatarPath(chat.id)
+            groupAvatarPath
         } else {
             avatarState.localPath
         }

@@ -154,6 +154,7 @@ class ChatListComposeFragment : Fragment() {
                     val uiState by viewModel.uiState.collectAsState()
                     val contactStatusGroups by StatusRepository.contactStatuses.collectAsState()
                     val groupSenderNames by groupSenderNamesStateFlow.collectAsState()
+                    val blockedUserIds by BlockRepository.myBlockedUsers.collectAsState()
                     ChatListScreen(
                         title = "Glyph",
                         chats = uiState.chats,
@@ -279,7 +280,8 @@ class ChatListComposeFragment : Fragment() {
                         pendingDeleteCount = uiState.pendingDeleteCount,
                         showUndoBar = uiState.showUndoBar,
                         undoProgress = uiState.undoProgress,
-                        onUndoDelete = { viewModel.undoPendingDelete() }
+                        onUndoDelete = { viewModel.undoPendingDelete() },
+                        blockedUserIds = blockedUserIds
                     )
                 }
             }
@@ -630,6 +632,7 @@ class ChatListComposeFragment : Fragment() {
     ): List<Chat> {
         val ctx = context ?: return emptyList()
         val currentUid = currentUserId().orEmpty()
+        val lockedChatIds = ChatSettingsDataStore.getLockedChatIds(ctx)
         return localChats.map { local ->
             val effectiveIsGroup = isEffectivelyGroupChat(local)
             val isBlocked = !effectiveIsGroup && local.otherUserId in blockedUserIds
@@ -666,7 +669,7 @@ class ChatListComposeFragment : Fragment() {
             } else {
                 ""
             }
-            val locked = ChatSettingsDataStore.isChatLocked(ctx, local.id)
+            val locked = lockedChatIds.contains(local.id)
             Chat(
                 id = local.id,
                 participants = if (effectiveIsGroup) {
@@ -692,7 +695,7 @@ class ChatListComposeFragment : Fragment() {
                 isOtherUserTyping = if (effectiveIsGroup) typingText.isNotBlank() else if (isBlocked) false else isTyping,
                 typingText = typingText,
                 isLocked = locked,
-                draft = DraftMessageStore.getDraft(local.id),
+                draft = "", // Loaded lazily in ChatRow composable via LaunchedEffect
                 isGroup = effectiveIsGroup,
                 groupName = local.groupName,
                 groupIconUrl = local.groupIconUrl,

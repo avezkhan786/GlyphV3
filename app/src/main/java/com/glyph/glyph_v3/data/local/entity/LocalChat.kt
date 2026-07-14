@@ -1,9 +1,10 @@
 package com.glyph.glyph_v3.data.local.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "chats")
+@Entity(tableName = "chats", indices = [Index(value = ["lastMessageTimestamp"])])
 data class LocalChat(
     @PrimaryKey val id: String,              // chatId (e.g., "userId1_userId2" or "group_<uuid>")
     val otherUserId: String,                 // 1:1 only — empty for groups
