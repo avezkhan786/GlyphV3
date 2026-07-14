@@ -1,5 +1,6 @@
 package com.glyph.glyph_v3.ui.chatlist
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Rect
 import android.os.Bundle
@@ -7,6 +8,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ComposeView
@@ -192,6 +194,7 @@ class ChatListComposeFragment : Fragment() {
                             }
                         },
                         onLockedChatsClick = {
+                            hideKeyboard()
                             val ctx = context ?: return@ChatListScreen
                             val fragmentActivity = ctx as? androidx.fragment.app.FragmentActivity
                                 ?: return@ChatListScreen
@@ -218,6 +221,7 @@ class ChatListComposeFragment : Fragment() {
                         },
                         currentUserId = currentUserId(),
                         onNewChatClick = {
+                            hideKeyboard()
                             context?.let { ctx ->
                                 startActivity(Intent(ctx, UserListActivity::class.java))
                             }
@@ -226,6 +230,7 @@ class ChatListComposeFragment : Fragment() {
                             if (uiState.isSelectionMode) {
                                 viewModel.toggleSelection(chat.id)
                             } else if (chat.id == AiAgentConstants.AI_AGENT_CHAT_ID) {
+                                hideKeyboard()
                                 context?.let { ctx ->
                                     startActivity(AiAgentActivity.newIntent(ctx))
                                 }
@@ -248,11 +253,13 @@ class ChatListComposeFragment : Fragment() {
                         isArchivedMode = isArchivedMode,
                         onBackClick = { activity?.finish() },
                         onArchivedFolderClick = {
+                            hideKeyboard()
                             context?.let { ctx ->
                                 startActivity(Intent(ctx, ArchivedChatsActivity::class.java))
                             }
                         },
                         onAvatarClick = { chat, avatarBoundsInWindow ->
+                            hideKeyboard()
                             if (uiState.isSelectionMode) {
                                 viewModel.toggleSelection(chat.id)
                             } else {
@@ -298,15 +305,6 @@ class ChatListComposeFragment : Fragment() {
         // Refresh "hide locked chats" state (readable from SharedPreferences, updated on resume)
         if (!isLockedMode && !isArchivedMode) {
             refreshLockedChatsHiddenState()
-        }
-
-        // COLD-START OPTIMIZATION: Notify MainActivity that Compose has rendered
-        // its first frame so the bottom nav can be revealed in sync with the
-        // top bar + search bar + chat list, eliminating the sequential appearance.
-        view.post {
-            if (isAdded && !isDetached) {
-                (activity as? MainActivity)?.onChatListFirstFrameReady()
-            }
         }
     }
 
@@ -373,18 +371,7 @@ class ChatListComposeFragment : Fragment() {
         viewModel.attachRepository(repository)
 
         seedInitialChats()
-
-        // COLD-START OPTIMIZATION: Defer presence/typing Firebase listener
-        // registration until after the first Compose frame. These listeners
-        // register synchronously and compete with composition for main-thread
-        // time. The initial chat list is seeded with empty presence/typing
-        // maps so the UI shows content immediately; presence fills in ~200ms
-        // later when the Firebase listener fires its first callback.
-        composeView?.post {
-            if (isAdded && !isDetached) {
-                loadLocalChatsWithPresence()
-            }
-        }
+        loadLocalChatsWithPresence()
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             repository.startIncomingMessageSync()
@@ -1010,6 +997,7 @@ class ChatListComposeFragment : Fragment() {
     }
 
     private fun navigateToChat(chatId: String, otherUserId: String, otherUsername: String, otherUserAvatar: String, isCompose: Boolean) {
+        hideKeyboard()
         val repository = repository ?: return
         val hostActivity = activity ?: return
         val appContext = hostActivity.applicationContext
@@ -1092,6 +1080,13 @@ class ChatListComposeFragment : Fragment() {
             chatIds = candidateIds,
             source = if (isArchivedMode) "chat_list_compose_archived" else "chat_list_compose_visible"
         )
+    }
+
+    private fun hideKeyboard() {
+        val view = composeView ?: return
+        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            ?: return
+        imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
     override fun onDestroyView() {

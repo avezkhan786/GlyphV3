@@ -21,6 +21,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -94,7 +95,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.SolidColor
@@ -131,12 +134,6 @@ enum class ChatStatusRingState {
     NONE,
     SEEN,
     UNSEEN
-}
-
-// Cache FontFamily at file scope to avoid re-creating it on every recomposition.
-// Font loading is expensive (disk I/O + parsing) and the font doesn't change.
-private val bbhBartleFontFamily by lazy {
-    FontFamily(Font(R.font.bbh_bartle_regular))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -183,9 +180,13 @@ fun ChatListScreen(
     undoProgress: Float = 0f,
     onUndoDelete: () -> Unit = {}
 ) {
-    // FontFamily is now cached at file scope (bbhBartleFontFamily) — no per-composition cost.
+    // FontFamily for BBH Bartle. Add the font file(s) under `app/src/main/res/font/`:
+    // e.g. res/font/bbh_bartle_regular.ttf and reference as R.font.bbh_bartle_regular
+    val bbhBartle = remember { FontFamily(Font(R.font.bbh_bartle_regular)) }
     var searchQuery by remember { mutableStateOf("") }
     val haptic = LocalHapticFeedback.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     // Clear the search bar whenever the trigger increments (e.g. returning from locked chats)
     LaunchedEffect(clearSearchTrigger) {
@@ -399,7 +400,7 @@ fun ChatListScreen(
                                 text = title,
                                 fontSize = 38.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = bbhBartleFontFamily,
+                                fontFamily = bbhBartle,
                                 color = glyphTheme.textPrimary
                             )
                         },
@@ -470,6 +471,13 @@ fun ChatListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .nestedScroll(revealConnection)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
                 .clipToBounds()
                 .then(
                     if (glyphTheme.gradientPrimary != null) {
