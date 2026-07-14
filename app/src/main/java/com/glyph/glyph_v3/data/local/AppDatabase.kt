@@ -224,12 +224,11 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        // Add index on lastMessageTimestamp for sorted chat queries + enable WAL mode
-        // for existing databases created before Room 2.7 (which defaulted to TRUNCATE).
+        // Add index on lastMessageTimestamp for sorted chat queries.
+        // WAL mode is already the default in Room 2.8+ (JournalMode.AUTOMATIC).
         private val MIGRATION_36_37 = object : Migration(36, 37) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("CREATE INDEX IF NOT EXISTS idx_chats_lastMessageTimestamp ON chats(lastMessageTimestamp)")
-                database.execSQL("PRAGMA journal_mode=WAL")
             }
         }
 
