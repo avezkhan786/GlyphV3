@@ -299,6 +299,15 @@ class ChatListComposeFragment : Fragment() {
         if (!isLockedMode && !isArchivedMode) {
             refreshLockedChatsHiddenState()
         }
+
+        // COLD-START OPTIMIZATION: Notify MainActivity that Compose has rendered
+        // its first frame so the bottom nav can be revealed in sync with the
+        // top bar + search bar + chat list, eliminating the sequential appearance.
+        view.post {
+            if (isAdded && !isDetached) {
+                (activity as? MainActivity)?.onChatListFirstFrameReady()
+            }
+        }
     }
 
     override fun onResume() {
@@ -364,7 +373,18 @@ class ChatListComposeFragment : Fragment() {
         viewModel.attachRepository(repository)
 
         seedInitialChats()
-        loadLocalChatsWithPresence()
+
+        // COLD-START OPTIMIZATION: Defer presence/typing Firebase listener
+        // registration until after the first Compose frame. These listeners
+        // register synchronously and compete with composition for main-thread
+        // time. The initial chat list is seeded with empty presence/typing
+        // maps so the UI shows content immediately; presence fills in ~200ms
+        // later when the Firebase listener fires its first callback.
+        composeView?.post {
+            if (isAdded && !isDetached) {
+                loadLocalChatsWithPresence()
+            }
+        }
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             repository.startIncomingMessageSync()

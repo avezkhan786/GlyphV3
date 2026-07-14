@@ -133,6 +133,12 @@ enum class ChatStatusRingState {
     UNSEEN
 }
 
+// Cache FontFamily at file scope to avoid re-creating it on every recomposition.
+// Font loading is expensive (disk I/O + parsing) and the font doesn't change.
+private val bbhBartleFontFamily by lazy {
+    FontFamily(Font(R.font.bbh_bartle_regular))
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatListScreen(
@@ -177,9 +183,7 @@ fun ChatListScreen(
     undoProgress: Float = 0f,
     onUndoDelete: () -> Unit = {}
 ) {
-    // FontFamily for BBH Bartle. Add the font file(s) under `app/src/main/res/font/`:
-    // e.g. res/font/bbh_bartle_regular.ttf and reference as R.font.bbh_bartle_regular
-    val bbhBartle = remember { FontFamily(Font(R.font.bbh_bartle_regular)) }
+    // FontFamily is now cached at file scope (bbhBartleFontFamily) — no per-composition cost.
     var searchQuery by remember { mutableStateOf("") }
     val haptic = LocalHapticFeedback.current
 
@@ -395,7 +399,7 @@ fun ChatListScreen(
                                 text = title,
                                 fontSize = 38.sp,
                                 fontWeight = FontWeight.Bold,
-                                fontFamily = bbhBartle,
+                                fontFamily = bbhBartleFontFamily,
                                 color = glyphTheme.textPrimary
                             )
                         },
