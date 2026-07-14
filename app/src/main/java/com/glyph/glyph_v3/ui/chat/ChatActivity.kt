@@ -4713,12 +4713,7 @@ class ChatActivity : AppCompatActivity(),
      * async path in [updateHeaderInfo] handles it later.
      */
     private fun preRenderHeaderAvatar() {
-        if (otherUserId.isNullOrEmpty()) {
-            android.util.Log.d("GlyphAvatarDebug", "preRender SKIP: uid is null or empty")
-            return
-        }
-        if (_blockStatus.value.isBlocked) {
-            android.util.Log.d("GlyphAvatarDebug", "preRender SKIP: blocked")
+        if (otherUserId.isNullOrEmpty() || _blockStatus.value.isBlocked) {
             return
         }
         // CRITICAL: Check local cache FIRST, before checking otherUserAvatar.
@@ -4729,14 +4724,11 @@ class ChatActivity : AppCompatActivity(),
         } else {
             com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalAvatarPath(otherUserId!!)
         }
-        android.util.Log.d("GlyphAvatarDebug", "preRender uid=${otherUserId!!.take(8)} group=$isGroupChat avatarUrl=${otherUserAvatar.take(50)} localPath=${localAvatarPath?.take(50) ?: "null"}")
         if (localAvatarPath.isNullOrBlank()) {
-            android.util.Log.d("GlyphAvatarDebug", "preRender SKIP: no local cached avatar")
             return
         }
         val avatarRequestSizePx = chatAvatarRequestSizePx()
         val drawable = loadLocalAvatarSynchronously(localAvatarPath, avatarRequestSizePx)
-        android.util.Log.d("GlyphAvatarDebug", "preRender decodeResult=${drawable != null}")
         if (drawable != null) {
             binding.ivProfilePicture.setImageDrawable(drawable)
             binding.tvProfilePictureInitial.visibility = View.GONE
@@ -4777,15 +4769,12 @@ class ChatActivity : AppCompatActivity(),
                 com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalAvatarPath(otherUserId!!)
             }
 
-            android.util.Log.d("GlyphAvatarDebug", "updateHeaderInfo uid=${otherUserId!!.take(8)} localPath=${localAvatarPath?.take(50) ?: "null"} source=${gatedAvatarSource.take(40)}")
-
             if (localAvatarPath != null) {
                 // PRE-RENDER: decode the local avatar file SYNCHRONOUSLY so it is
                 // already on screen in the first paint — no placeholder flash.
                 // (Same technique used for message media in tryBindLocalBitmapSync.)
                 // Only fall back to async Glide if the sync decode fails.
                 val drawable = loadLocalAvatarSynchronously(localAvatarPath, avatarRequestSizePx)
-                android.util.Log.d("GlyphAvatarDebug", "updateHeaderInfo decodeResult=${drawable != null}")
                 if (drawable != null) {
                     // Do NOT call Glide.clear() here — it asynchronously wipes the
                     // drawable after setImageDrawable, causing a blank avatar.
@@ -14112,7 +14101,12 @@ class ChatActivity : AppCompatActivity(),
                                              (!avatarUrl.isNullOrEmpty() || localAvatarPath != null) &&
                                              (isGroupHeader || !userId.isNullOrEmpty())
 
-                        if (shouldShowAvatar) {
+                        // Animated transition using Crossfade
+                        androidx.compose.animation.Crossfade(
+                            targetState = shouldShowAvatar,
+                            label = "avatar_crossfade"
+                        ) { showAvatar ->
+                            if (showAvatar) {
                             androidx.compose.ui.viewinterop.AndroidView(
                                 factory = { context ->
                                     android.widget.ImageView(context).apply {
@@ -14196,6 +14190,7 @@ class ChatActivity : AppCompatActivity(),
                                     textAlign = TextAlign.Center
                                 )
                             }
+                        }
                         }
                     },
                     onBackClick = { finish() },
