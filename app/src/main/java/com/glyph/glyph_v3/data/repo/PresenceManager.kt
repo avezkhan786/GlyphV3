@@ -722,6 +722,7 @@ object PresenceManager {
             if (merged != lastEmittedStatus) {
                 lastEmittedStatus = merged
                 trySend(merged)
+            } else {
             }
         }
 
@@ -757,8 +758,14 @@ object PresenceManager {
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Failed to observe presence for $userId", error.toException())
-                close(error.toException())
+                // Permission errors happen naturally when a user is blocked (RTDB
+                // rules prevent the blocked user from reading presence).  Instead of
+                // closing this flow (which would kill any combine/merge chain using
+                // observeMultipleUsersPresence), emit a fallback and keep the flow
+                // alive.  When the user is unblocked, the caller can restart the
+                // listener and normal emissions will resume.
+                rtdbStatus = null
+                emitMergedStatus()
             }
         }
 

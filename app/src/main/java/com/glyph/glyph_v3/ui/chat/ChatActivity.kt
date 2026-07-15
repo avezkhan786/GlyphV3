@@ -11539,11 +11539,11 @@ class ChatActivity : AppCompatActivity(),
 
         // Header should only show presence/last-seen.
         // Typing is represented exclusively in the message list indicator item.
+        val presenceStatus = lastPresenceStatus
         if (isOtherUserTyping) {
             hideTypingIndicator()
-            val status = lastPresenceStatus
-            if (status != null) {
-                updatePresenceUI(status)
+            if (presenceStatus != null) {
+                updatePresenceUI(presenceStatus)
             } else {
                 binding.tvLastSeen.text = ""
                 binding.tvLastSeen.visibility = View.GONE
@@ -11551,9 +11551,8 @@ class ChatActivity : AppCompatActivity(),
             }
         } else {
             hideTypingIndicator()
-            val status = lastPresenceStatus
-            if (status != null) {
-                updatePresenceUI(status)
+            if (presenceStatus != null) {
+                updatePresenceUI(presenceStatus)
             } else {
                 binding.tvLastSeen.text = ""
                 binding.tvLastSeen.visibility = View.GONE
@@ -11906,17 +11905,18 @@ class ChatActivity : AppCompatActivity(),
         privacySettingsJob?.cancel()
         privacySettingsJob = lifecycleScope.launch {
             try {
-                // One-shot: determine if we are in the other user's contacts (share a chat)
-                val amITheirContact = withContext(Dispatchers.IO) {
-                    try {
-                        val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return@withContext false
-                        PrivacySettingsRepository.canViewerSee(userId, myUid, "contacts")
-                    } catch (_: Exception) { false }
-                }
-                
                 PrivacySettingsRepository.privacySettingsFlowForUser(userId).collectLatest { settings ->
                     otherUserPrivacySettings = settings
-                    otherUserPrivacyAmIContact = amITheirContact
+                    // Recompute "am I in their contacts?" on every privacy update
+                    // instead of using a one-shot. The phone/contacts data is cached
+                    // so subsequent calls are cheap, and this recovers from transient
+                    // Firestore failures that would otherwise burn in false forever.
+                    otherUserPrivacyAmIContact = withContext(Dispatchers.IO) {
+                        try {
+                            val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: return@withContext false
+                            PrivacySettingsRepository.canViewerSee(userId, myUid, "contacts")
+                        } catch (_: Exception) { false }
+                    }
                     // Re-evaluate header whenever privacy settings change
                     updateHeaderStatus()
                 }
@@ -11934,7 +11934,6 @@ class ChatActivity : AppCompatActivity(),
                     updateHeaderStatus()
                 }
             } catch (e: Exception) {
-                android.util.Log.e("ChatActivity", "Error observing presence", e)
                 // Show offline status on error
                 lastPresenceStatus = PresenceManager.PresenceStatus(false, 0L)
                 updateHeaderStatus()
@@ -12034,8 +12033,89 @@ class ChatActivity : AppCompatActivity(),
                 updateInputBarForBlockStatus(status, animate = didPrimeInitialBlockUi)
                 handleRealtimeBlockStateChanged(status)
                 didPrimeInitialBlockUi = true
+
+                // When transitioning from blocked to unblocked, refresh presence
+                // display. Covers the case where unblock happens from outside the
+                // chat screen (e.g., Settings → Blocked Contacts).
+                if (!status.isBlocked) {
+                    refreshPresenceAfterUnblock()
+                }
             }
         }
+    }
+
+    /**
+     * Called immediately after unblockUser() succeeds.  Forces the presence display
+     * to refresh without waiting for the Firebase block-status listener to fire.
+     *
+     * 1. Syncs the local block state so updateHeaderStatus() won't short-circuit.
+     * 2. Does a one-shot RTDB presence read to populate lastPresenceStatus.
+     * 3. Calls updateHeaderStatus() to push the value into both the XML and Compose
+     *    header states.
+     * 4. Restarts the long-lived presence listener so future updates keep flowing.
+     */
+    private fun refreshPresenceAfterUnblock() {
+        val userId = otherUserId ?: return
+
+
+        // 1. Ensure local block state reflects the unblock immediately.
+        val freshStatus = com.glyph.glyph_v3.data.repo.BlockRepository.getBlockStatus(userId)
+        _blockStatus.value = freshStatus
+        isBlockedState.value = freshStatus.isBlocked
+
+        // 2. Bypass the startup last-seen reveal gate so that applyComposeHeaderStatus
+        //    writes directly to composeHeaderLastSeenState without being discarded.
+        startupLastSeenRevealCompleted = true
+
+        // 3. Recompute "am I in their contacts?" — the privacySettingsJob computes
+        //    this once and never updates it. After unblock we must refresh it so
+        //    the contacts-only privacy gate uses the latest phone/contacts data.
+        val myUid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val amIContact = com.glyph.glyph_v3.data.repo.PrivacySettingsRepository
+                    .canViewerSee(userId, myUid, "contacts")
+                otherUserPrivacyAmIContact = amIContact
+                if (!isFinishing && !isDestroyed) {
+                    runOnUiThread { updateHeaderStatus() }
+                }
+            } catch (e: Exception) {
+            }
+        }
+
+        // 4. One-shot presence read from RTDB (uses local cache when available).
+        PresenceManager.getUserPresence(userId) { freshPresence ->
+            if (isFinishing || isDestroyed) {
+                return@getUserPresence
+            }
+            lastPresenceStatus = freshPresence
+            runOnUiThread { updateHeaderStatus() }
+        }
+
+        // 5. Restart the continuous presence listener.
+        presenceJob?.cancel()
+        presenceJob = lifecycleScope.launch {
+            try {
+                PresenceManager.observeUserPresence(userId).collectLatest { presence ->
+                    lastPresenceStatus = presence
+                    updateHeaderStatus()
+                }
+            } catch (e: Exception) {
+            }
+        }
+
+        // 6. Restart the periodic last-seen refresh timer.
+        lastSeenRefreshJob?.cancel()
+        lastSeenRefreshJob = lifecycleScope.launch {
+            while (true) {
+                delay(60_000L)
+                val status = lastPresenceStatus
+                if (status != null && !status.isOnline) {
+                    updateHeaderStatus()
+                }
+            }
+        }
+
     }
 
     private fun primeInitialBlockUiState() {
@@ -12223,6 +12303,11 @@ class ChatActivity : AppCompatActivity(),
                 lifecycleScope.launch {
                     try {
                         com.glyph.glyph_v3.data.repo.BlockRepository.unblockUser(otherUserId!!)
+                        // Immediately re-enable presence display after unblock.
+                        // The BlockRepository flow will fire asynchronously and call
+                        // updateHeaderStatus(), but we force a synchronous refresh here
+                        // to guarantee the UI updates without waiting for the listener.
+                        refreshPresenceAfterUnblock()
                         showUnblockSuccessDialog(username)
                     } catch (e: Exception) {
                         Log.e("ChatActivity", "Failed to unblock user", e)
@@ -12297,6 +12382,7 @@ class ChatActivity : AppCompatActivity(),
         // Gate last seen display based on the other user's lastSeenVisibility setting
         val showLastSeen = isVisible(privacy?.lastSeenVisibility)
 
+
         if (status.isOnline && showOnline) {
             val isInThisChat = status.viewingChatId != null && status.viewingChatId == chatId
             statusText = getString(
@@ -12304,7 +12390,11 @@ class ChatActivity : AppCompatActivity(),
             )
             colorRes = R.color.glyph_online
             currentKind = if (isInThisChat) HeaderPresenceKind.ONLINE_IN_CHAT else HeaderPresenceKind.ONLINE
-        } else if (!status.isOnline && showLastSeen) {
+        } else if (showLastSeen && status.lastSeen > 0) {
+            // Show last-seen even when the user IS online but their online visibility
+            // is restricted by privacy (e.g. online=contacts, lastSeen=everyone).
+            // Previously the `!status.isOnline` guard skipped this branch entirely
+            // and fell to else→"", hiding all presence information.
             statusText = formatLastSeen(status.lastSeen)
             colorRes = R.color.glyph_text_secondary
             currentKind = when {
@@ -12318,6 +12408,7 @@ class ChatActivity : AppCompatActivity(),
             colorRes = R.color.glyph_text_secondary
             currentKind = HeaderPresenceKind.HIDDEN
         }
+
 
         // Keep XML view in sync (it is hidden, but kept as a source of truth)
         binding.tvLastSeen.text = statusText
@@ -14068,7 +14159,7 @@ class ChatActivity : AppCompatActivity(),
             com.glyph.glyph_v3.ui.theme.GlyphThemeProvider(isDeepDark = true) {
                 var showMenu by remember { mutableStateOf(false) }
                 var didSeedHeaderAvatarFromRetained by remember { mutableStateOf(false) }
-                
+
                 ChatHeader(
                     userName = userNameState.value.ifEmpty { "Unknown" },
                     lastSeen = composeHeaderLastSeenState.value,

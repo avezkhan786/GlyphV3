@@ -51,7 +51,6 @@ class MainActivity : AppCompatActivity() {
 
     private var connectionRetryJob: Job? = null
     private var hasPreloadedSecondaryTabs = false
-    private var hasChatListFirstFrame = false
 
     private lateinit var binding: ActivityMainBinding
 
@@ -67,9 +66,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // Apply saved theme before creating the activity
         ThemeManager.applyTheme(this)
-
+        
         super.onCreate(savedInstanceState)
-
+        
         // Ensure user is authenticated (anonymous auth if not signed in)
         ensureAuthenticated()
 
@@ -78,39 +77,16 @@ class MainActivity : AppCompatActivity() {
 
         // Enable edge-to-edge display
         WindowCompat.setDecorFitsSystemWindows(window, false)
-
+        
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        // COLD-START OPTIMIZATION: On the very first cold start, hide the
-        // bottom navigation so it doesn't appear before the Compose-rendered
-        // content (top bar + search bar + chat list). Revealed cohesively by
-        // onChatListFirstFrameReady() when Compose draws its first frame.
-        // Only applied on cold start (savedInstanceState == null) to avoid
-        // flickering on Activity recreation / configuration changes.
-        if (savedInstanceState == null) {
-            binding.bottomNavigation.visibility = View.INVISIBLE
-
-            // Safety fallback: reveal the bottom nav after 4 seconds even if
-            // Compose never reports its first frame (e.g., error state).
-            binding.root.postDelayed({
-                if (!hasChatListFirstFrame && !isFinishing && !isDestroyed) {
-                    binding.bottomNavigation.visibility = View.VISIBLE
-                    binding.bottomNavigation.alpha = 1f
-                }
-            }, 4_000L)
-        }
-
-        // ── CRITICAL PATH: Must complete before first draw ─────────────────────
+        
         // Setup ViewPager2 (WhatsApp-style swipe)
         val pagerAdapter = com.glyph.glyph_v3.ui.main.MainPagerAdapter(this)
         binding.mainViewPager.adapter = pagerAdapter
-        // ViewPager2 requires offscreenPageLimit >= 1.
-        // We keep it at 1 (the minimum) during cold start so only the adjacent
-        // StatusFragment is pre-created. After the chat list renders,
-        // preloadSecondaryTabsAfterChatReady() expands it to 3 for smooth swipes.
+        // Keep cold start focused on the visible Chats tab; adjacent tabs are created lazily.
         binding.mainViewPager.offscreenPageLimit = 1
-
+        
         // Pad ViewPager2 so content ends 13dp above the bottom nav.
         binding.bottomNavigation.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
             if (bottom != oldBottom) {
@@ -153,8 +129,25 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
+        
+        askNotificationPermission()
+        
+        // Check battery optimization (for reliable FCM delivery)
+        checkBatteryOptimization()
+        
+        // Update FCM Token
+        updateFcmToken()
+        
+        // Resume any pending media downloads
+        com.glyph.glyph_v3.data.media.MediaDownloadWorker.schedulePendingDownloads(applicationContext)
 
-        // Bottom Navigation interaction setup
+        StatusRepository.startListeningContactStatuses()
+
+        // Apply Pastel-Sky bottom navigation colors if needed
+        applyBottomNavigationTheme()
+        observeUnreadStatuses()
+
+        // Setup Bottom Navigation interaction
         binding.bottomNavigation.setOnItemSelectedListener { item ->
             val position = when (item.itemId) {
                 R.id.navigation_chats -> 0
@@ -169,67 +162,15 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        // Apply bottom nav theme (critical for first frame visual consistency)
-        applyBottomNavigationTheme()
-        observeUnreadStatuses()
-
         if (savedInstanceState == null) {
             // Default fragment is handled by ViewPager2 (index 0)
+            
             // Check for deep link
             handleIntent(intent)
         }
 
         // Non-blocking profile validation (does not delay first render)
         checkUserProfileAsync()
-
-        // Signal the system that the app is fully drawn. This improves cold-start
-        // metrics in Android Vitals and Play Console. The callback fires after
-        // the first frame where all views are laid out and drawn.
-        if (savedInstanceState == null) {
-            binding.root.post {
-                if (!isFinishing && !isDestroyed) {
-                    reportFullyDrawn()
-                }
-            }
-        }
-
-        // ── POST-FIRST-FRAME: Deferred non-critical work ────────────────────────
-        // All work below is deferred until the first frame has been drawn.
-        // This eliminates several hundred milliseconds of main-thread work from
-        // the critical cold-start path.
-        binding.root.post {
-            if (isFinishing || isDestroyed) return@post
-            schedulePostFirstFrameWork()
-        }
-    }
-
-    /**
-     * Non-critical work deferred until after the first frame is drawn.
-     * These operations were previously in onCreate() and competed with
-     * layout inflation + first Compose composition for main-thread time.
-     */
-    private fun schedulePostFirstFrameWork() {
-        // Notification permission dialog (may show a system dialog)
-        askNotificationPermission()
-
-        // Battery optimization dialog (network-reliability education)
-        checkBatteryOptimization()
-
-        // FCM push-token upload
-        updateFcmToken()
-
-        // Resume pending media downloads
-        com.glyph.glyph_v3.data.media.MediaDownloadWorker.schedulePendingDownloads(applicationContext)
-
-        // Contact status listener (Firebase-backed, non-blocking to start)
-        StatusRepository.startListeningContactStatuses()
-
-        // Preload chat wallpaper now that the UI is visible
-        lifecycleScope.launch {
-            runCatching {
-                com.glyph.glyph_v3.utils.ChatWallpaperManager.preload(this@MainActivity)
-            }
-        }
     }
 
     fun preloadSecondaryTabsAfterChatReady() {
@@ -242,24 +183,6 @@ class MainActivity : AppCompatActivity() {
             // not trigger fragment/view creation on the gesture path.
             binding.mainViewPager.offscreenPageLimit = 3
         }
-    }
-
-    /**
-     * Called by ChatListComposeFragment when Compose has rendered its first frame.
-     * Reveals the bottom navigation bar so the entire screen (top bar, search bar,
-     * chat list, bottom nav) appears as a cohesive unit rather than sequentially.
-     */
-    fun onChatListFirstFrameReady() {
-        if (hasChatListFirstFrame) return
-        hasChatListFirstFrame = true
-        binding.bottomNavigation.animate()
-            .alpha(1f)
-            .setDuration(120)
-            .withStartAction {
-                binding.bottomNavigation.visibility = View.VISIBLE
-                binding.bottomNavigation.alpha = 0f
-            }
-            .start()
     }
 
     override fun onDestroy() {
@@ -319,9 +242,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkUserProfileAsync() {
         val user = FirebaseAuth.getInstance().currentUser ?: return
-
-        // Lazy-init Firestore cache before first Firestore call (no-op if already done)
-        (applicationContext as GlyphApplication).ensureFirestoreCacheConfigured()
 
         FirebaseFirestore.getInstance().collection("users").document(user.uid).get()
             .addOnSuccessListener { document ->

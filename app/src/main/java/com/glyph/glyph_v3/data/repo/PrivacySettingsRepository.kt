@@ -317,31 +317,52 @@ object PrivacySettingsRepository {
 
     private suspend fun isUserSavedInViewerContacts(ownerUserId: String): Boolean {
         val normalizedPhone = getNormalizedPhoneForUser(ownerUserId)
-        if (normalizedPhone.isBlank()) return false
+        if (normalizedPhone.isBlank()) {
+            return false
+        }
         val deviceContactNumbers = getNormalizedDeviceContactNumbers()
-        return normalizedPhone in deviceContactNumbers
+        // When device contacts are empty (no READ_CONTACTS permission, or contacts
+        // haven't been synced yet), we can't verify whether the user is a contact.
+        // Treat this as optimistic — show presence rather than hiding it for every
+        // single "contacts"-privacy user.
+        if (deviceContactNumbers.isEmpty()) {
+            return true
+        }
+        val found = normalizedPhone in deviceContactNumbers
+        return found
     }
 
     fun isUserSavedInCachedViewerContacts(ownerUserId: String): Boolean? {
         val normalizedPhone = getCachedNormalizedPhoneForUser(ownerUserId)
         if (normalizedPhone.isBlank()) return null
         val deviceContactNumbers = getCachedNormalizedDeviceContactNumbers()
+        // When device contacts are empty (no READ_CONTACTS permission or not synced),
+        // we can't verify the restriction — return null so the caller treats it as
+        // "not yet determined" rather than "definitely not a contact."
         if (deviceContactNumbers.isEmpty()) return null
         return normalizedPhone in deviceContactNumbers
     }
 
     private suspend fun getNormalizedPhoneForUser(userId: String): String {
-        getCachedNormalizedPhoneForUser(userId).takeIf { it.isNotBlank() }?.let { return it }
+        getCachedNormalizedPhoneForUser(userId).takeIf { it.isNotBlank() }?.let { cached ->
+            return cached
+        }
 
+        var rawPhone = ""
         val normalizedPhone = runCatching {
             val snapshot = firestore.collection("users").document(userId).get().await()
-            PhoneNumberUtil.normalizeToLast10Digits(snapshot.getString("phoneNumber").orEmpty())
+            rawPhone = snapshot.getString("phoneNumber").orEmpty()
+            PhoneNumberUtil.normalizeToLast10Digits(rawPhone)
         }.getOrElse { error ->
             Log.w(TAG, "Failed to resolve phone number for privacy check: $userId", error)
             ""
         }
 
-        cacheNormalizedPhoneForUser(userId, normalizedPhone)
+        // Only cache successful results — caching "" would poison the cache
+        // and prevent future successful lookups from SharedPreferences.
+        if (normalizedPhone.isNotBlank()) {
+            cacheNormalizedPhoneForUser(userId, normalizedPhone)
+        }
         return normalizedPhone
     }
 

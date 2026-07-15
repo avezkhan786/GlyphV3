@@ -187,6 +187,7 @@ object BlockRepository {
     suspend fun unblockUser(otherUserId: String) {
         val myId = currentUserId ?: throw IllegalStateException("Not authenticated")
 
+
         val batch = firestore.batch()
 
         val myBlockRef = firestore.collection("users").document(myId)

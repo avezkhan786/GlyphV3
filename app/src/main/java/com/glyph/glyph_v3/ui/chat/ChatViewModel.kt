@@ -584,20 +584,31 @@ class ChatViewModel(
     private fun observePresence() {
         if (otherUserId.isEmpty()) return
         viewModelScope.launch {
-            PresenceManager.observeUserPresence(otherUserId).collectLatest { presence ->
-                // If blocked in either direction, hide presence info entirely
-                val blockStatus = _uiState.value.blockStatus
-                if (blockStatus.isBlocked) {
-                    _uiState.update { it.copy(otherUserPresence = "") }
-                    return@collectLatest
-                }
+            combine(
+                PresenceManager.observeUserPresence(otherUserId),
+                BlockRepository.observeBlockStatus(otherUserId)
+            ) { presence, blockStatus ->
+                // Keep block status in sync with the UI state
+                _uiState.update { it.copy(blockStatus = blockStatus) }
 
-                val statusText = when {
-                    presence.isOnline && presence.viewingChatId == chatId -> "Online in-chat"
-                    presence.isOnline -> "Online"
-                    else -> formatLastSeen(presence.lastSeen)
+                if (blockStatus.isBlocked) {
+                    // If blocked in either direction, hide presence info entirely
+                    _uiState.update { it.copy(
+                        otherUserPresence = "",
+                        isTyping = false
+                    ) }
+                    null
+                } else {
+                    when {
+                        presence.isOnline && presence.viewingChatId == chatId -> "Online in-chat"
+                        presence.isOnline -> "Online"
+                        else -> formatLastSeen(presence.lastSeen)
+                    }
                 }
-                _uiState.update { it.copy(otherUserPresence = statusText) }
+            }.collect { statusText ->
+                if (statusText != null) {
+                    _uiState.update { it.copy(otherUserPresence = statusText) }
+                }
             }
         }
     }
@@ -655,14 +666,8 @@ class ChatViewModel(
         if (otherUserId.isEmpty()) return
         viewModelScope.launch {
             BlockRepository.observeBlockStatus(otherUserId).collectLatest { status ->
-                _uiState.update { it.copy(blockStatus = status) }
-                // When block status changes, also update presence text
                 if (status.isBlocked) {
                     stopTyping()
-                    _uiState.update { it.copy(
-                        otherUserPresence = "",
-                        isTyping = false
-                    ) }
                 }
             }
         }

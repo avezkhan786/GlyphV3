@@ -84,6 +84,9 @@ class ChatListComposeFragment : Fragment() {
     private val groupTypingUsersStateFlow = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
     private val groupSenderNamesStateFlow = MutableStateFlow<Map<String, String>>(emptyMap())
     private var currentUserIds: List<String> = emptyList()
+    // Track previous blocked-user set so we can detect unblocks and
+    // restart presence observation for the affected users.
+    private var prevBlockedUserIds: Set<String> = emptySet()
     private var lastPredictivePrefetchChatIds: List<String> = emptyList()
     private val requestedUserInfoChatIds = ConcurrentHashMap.newKeySet<String>()
     private val requestedAvatarPreloadKeys = ConcurrentHashMap.newKeySet<String>()
@@ -594,6 +597,19 @@ class ChatListComposeFragment : Fragment() {
                             startPresenceObservation(newUserIds)
                             startTypingObservation(nonGroupChats.map { it.id to it.otherUserId })
                         }
+
+                        // When users are removed from the blocked set (unblocked),
+                        // restart presence observation.  While blocked their RTDB
+                        // listener was cancelled by Firebase permission rules, and
+                        // the PresenceManager now keeps the flow alive with a
+                        // fallback emission — but the RTDB listener is dead and
+                        // needs to be re-created to get fresh online/lastSeen data.
+                        val unblockedUsers = prevBlockedUserIds - blockedUserIds
+                        if (unblockedUsers.isNotEmpty()) {
+                            startPresenceObservation(newUserIds)
+                        }
+                        prevBlockedUserIds = blockedUserIds
+
                         startGroupTypingObservation(groupChatIds)
 
                         val activelyTypingGroupUserIds = groupTypingUsersByChatId.values.flatten().toSet()
@@ -637,6 +653,9 @@ class ChatListComposeFragment : Fragment() {
             val effectiveIsGroup = isEffectivelyGroupChat(local)
             val isBlocked = !effectiveIsGroup && local.otherUserId in blockedUserIds
             val presence = if (effectiveIsGroup) null else presenceMap[local.otherUserId]
+            if (!effectiveIsGroup && isBlocked) {
+            } else if (!effectiveIsGroup && presence == null) {
+            }
             val isTyping = if (effectiveIsGroup) false else (typingMap["${local.id}_${local.otherUserId}"] ?: false)
             val groupTypingUserIds = if (effectiveIsGroup) {
                 groupTypingUsersByChatId[local.id].orEmpty()
