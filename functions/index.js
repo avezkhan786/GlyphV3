@@ -2076,3 +2076,177 @@ exports.notifyMissedCameraInvite = functions.database
     }
     return null;
   });
+/**
+ * Daily Storage inventory.
+ *
+ * Sums the size of every object in the default Cloud Storage bucket and writes
+ * the running total to `config/storage`, so the admin dashboard can show real
+ * storage usage. The portal reads `config/storage.usedBytes` and falls back to
+ * 0 when this doc is absent (e.g. before the first run).
+ *
+ * Deploy: firebase deploy --only functions:computeStorageInventory
+ */
+exports.computeStorageInventory = functions.pubsub
+  .schedule("every 24 hours")
+  .onRun(async () => {
+    try {
+      const bucket = admin.storage().bucket();
+      const [files] = await bucket.getFiles();
+      let usedBytes = 0;
+      for (const file of files) {
+        const size = Number(file.metadata && file.metadata.size);
+        if (!Number.isNaN(size) && size > 0) usedBytes += size;
+      }
+      await admin
+        .firestore()
+        .collection("config")
+        .doc("storage")
+        .set(
+          { usedBytes, fileCount: files.length, bucket: bucket.name, computedAt: Date.now() },
+          { merge: true },
+        );
+      console.log(`computeStorageInventory: ${files.length} file(s), ${usedBytes} byte(s)`);
+    } catch (err) {
+      console.error("computeStorageInventory failed:", err);
+    }
+    return null;
+  });
+
+/**
+ * Per-minute dispatch of due scheduled notifications.
+ *
+ * Reads `scheduled_notifications` whose `scheduledAt` has passed and whose
+ * status is still "scheduled", sends each via FCM (topic broadcast or
+ * multicast to resolved tokens — mirroring the portal's send path), then marks
+ * the doc sent/failed and updates the linked `notifications_log` entry. The
+ * portal's "Send now" affordance does this manually; this function automates
+ * it so scheduled sends go out without an operator.
+ *
+ * A doc is claimed by flipping its status to "dispatching" before send, so
+ * overlapping runs never double-send the same notification.
+ *
+ * Deploy: firebase deploy --only functions:dispatchScheduledNotifications
+ */
+exports.dispatchScheduledNotifications = functions.pubsub
+  .schedule("every 1 minutes")
+  .onRun(async () => {
+    const now = Date.now();
+    let due;
+    try {
+      const snap = await admin
+        .firestore()
+        .collection("scheduled_notifications")
+        .where("status", "==", "scheduled")
+        .where("scheduledAt", "<=", now)
+        .get();
+      due = snap.docs;
+    } catch (err) {
+      console.error("dispatchScheduledNotifications: query failed:", err);
+      return null;
+    }
+    if (!due.length) return null;
+
+    const BROADCAST_TOPIC = "glyph_broadcast";
+    let dispatched = 0;
+    let failed = 0;
+
+    for (const doc of due) {
+      const data = doc.data();
+      // Claim the doc so an overlapping run won't pick it up again.
+      await doc.ref.update({ status: "dispatching", dispatchedAt: now }).catch(() => {});
+
+      const draft = {
+        title: data.title,
+        body: data.body,
+        imageUrl: data.imageUrl,
+        deepLink: data.deepLink,
+        target: data.target,
+        topic: data.topic,
+        userIds: data.userIds,
+        data: data.data || {},
+      };
+
+      let successCount = 0;
+      let failureCount = 0;
+      const failures = [];
+
+      try {
+        const messaging = admin.messaging();
+        const fcmData = Object.assign({ type: "glyph_admin" }, draft.data || {});
+        if (draft.deepLink) fcmData.deepLink = draft.deepLink;
+        const android = { priority: "high", notification: {} };
+        if (draft.imageUrl) android.notification.imageUrl = draft.imageUrl;
+        if (draft.deepLink) android.notification.clickAction = "OPEN_DEEP_LINK";
+
+        if (draft.target === "userIds" && draft.userIds && draft.userIds.length) {
+          const ids = Array.from(new Set(draft.userIds.filter(Boolean)));
+          const refs = ids.map((id) => admin.firestore().collection("users").doc(id));
+          const snaps = await admin.firestore().getAll(...refs);
+          // Keep the id and token together so a send failure maps back to the
+          // correct user — filtering out users without a token shifts the index
+          // relative to the original `ids` array.
+          const entries = snaps
+            .map((s, i) => ({ id: ids[i], token: s.get("fcmToken") }))
+            .filter((e) => e.token);
+          const tokens = entries.map((e) => e.token);
+          if (!tokens.length) {
+            failureCount = ids.length;
+            failures.push({ error: "No registered FCM tokens for the selected users" });
+          } else {
+            const res = await messaging.sendEachForMulticast({
+              tokens,
+              notification: { title: draft.title, body: draft.body },
+              data: fcmData,
+              android,
+            });
+            successCount = res.successCount;
+            failureCount = res.failureCount;
+            res.responses.forEach((r, i) => {
+              if (!r.success) {
+                failures.push({ id: entries[i].id, error: (r.error && r.error.message) || "send failed" });
+              }
+            });
+          }
+        } else {
+          const topic = draft.target === "topic" && draft.topic ? draft.topic : BROADCAST_TOPIC;
+          await messaging.send({
+            topic,
+            notification: { title: draft.title, body: draft.body },
+            data: fcmData,
+            android,
+          });
+          successCount = 1;
+        }
+      } catch (err) {
+        failureCount = draft.target === "userIds" && draft.userIds ? draft.userIds.length : 1;
+        successCount = 0;
+        failures.push({ error: err.message });
+      }
+
+      const status = failureCount === 0 ? "sent" : successCount === 0 ? "failed" : "partial";
+      await doc.ref
+        .update({ status, sentAt: now, successCount, failureCount })
+        .catch(() => {});
+
+      if (data.logId) {
+        await admin
+          .firestore()
+          .collection("notifications_log")
+          .doc(data.logId)
+          .update({
+            status,
+            sentAt: now,
+            successCount,
+            failureCount,
+            failures: failures.length ? failures : admin.firestore.FieldValue.delete(),
+          })
+          .catch(() => {});
+      }
+
+      if (status === "sent") dispatched++;
+      else failed++;
+    }
+
+    console.log(`dispatchScheduledNotifications: ${dispatched} sent, ${failed} failed`);
+    return null;
+  });

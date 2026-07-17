@@ -45,6 +45,20 @@ service cloud.firestore {
     }
 
     // ──────────────────────────────────────────────────────────
+    // Admin records (portal-managed via the Admin SDK)
+    // The Glyph Admin portal accesses admins/{uid} EXCLUSIVELY through the
+    // Firebase Admin SDK, which bypasses these rules. The Android client gates
+    // admin capability on the `admin` custom claim (context.auth.token.admin),
+    // NOT this document, so it never reads admins/{uid}. As defense-in-depth:
+    //  - writes from clients are DENIED (admin changes happen server-side only);
+    //  - reads are allowed only to authenticated admins (token.admin == true).
+    // ──────────────────────────────────────────────────────────
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.token.admin == true;
+      allow write: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────
     // User Profiles
     // get  (single doc): any authenticated user UNLESS the profile owner blocked the reader
     // list (collection query): any authenticated user — Firestore cannot evaluate per-document
