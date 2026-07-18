@@ -1,12 +1,7 @@
 *.iml
 .gradle
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+/.idea/
 .DS_Store
 /build
 /captures
@@ -24,6 +19,26 @@ deploy-translation.bat
 deploy-translation.sh
 functions/set-api-key.bat
 *.bak
+
+# --- Secrets & credentials (API keys, tokens, keystores) ---
+.env
+.env.*
+!.env.example
+*.local
+*.keystore
+*.jks
+*.p12
+*.pfx
+key.json
+*-service-account*.json
+*-firebase-adminsdk*.json
+google-services.json
+app/google-services.json
+secrets.json
+*.secret
+credentials.json
+*.pem
+*.key
 
 # Claude Code internal
 .commandcode/
