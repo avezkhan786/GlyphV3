@@ -33,6 +33,7 @@ import com.glyph.glyph_v3.data.repo.WalkieTalkieAutoAcceptScope
 import com.glyph.glyph_v3.data.repo.WalkieTalkieAutoAcceptSettingsRepository
 import com.glyph.glyph_v3.data.repo.WalkieTalkieRepository
 import com.glyph.glyph_v3.data.webrtc.CallManager
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.google.firebase.auth.FirebaseAuth
@@ -92,6 +93,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         private const val CAMERA_INVITE_CHANNEL_ID = "camera_invite_channel"
         private const val CAMERA_INVITE_TTL_MS = 15_000L
         private const val GROUP_KEY = "com.glyph.glyph_v3.CHAT_MESSAGES"
+
+        // FCM topic the Glyph Admin portal broadcasts to (target = all/topic). The
+        // Android app must subscribe to receive company broadcasts; without this the
+        // portal's "Send to everyone" notifications are silently dropped by FCM.
+        const val GLYPH_BROADCAST_TOPIC = "glyph_broadcast"
+
+        // Dedicated channel for admin/official notifications so they are visually
+        // distinct from 1:1/mention chat notifications.
+        private const val OFFICIAL_CHANNEL_ID = "glyph_official_channel"
     }
     
     override fun onCreate() {
@@ -148,6 +158,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 }
                 if (fcmType == "STATUS_UPDATE") {
                     handleStatusUpdateNotification(data)
+                    return
+                }
+                // ── ADMIN / OFFICIAL NOTIFICATION ─────────────────────────
+                // Sent by the Glyph Admin portal (Notification Center / Official
+                // Messages / Official Status). Rendered on a dedicated channel with
+                // the real title/body carried in the FCM data map (F1 — Phase 18
+                // populates data["title"]/data["body"]).
+                if (fcmType == "glyph_admin") {
+                    handleAdminNotification(data)
                     return
                 }
                 // ──────────────────────────────────────────────────────────
@@ -245,6 +264,30 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onNewToken(token: String) {
         sendRegistrationToServer(token)
+        // Subscribe to the company broadcast topic so portal "Send to everyone"
+        // notifications are delivered to this device (F3 — Phase 18).
+        subscribeToGlyphBroadcast()
+    }
+
+    /**
+     * Subscribe to the Glyph broadcast topic used by the admin portal for company
+     * notifications / official messages. Topic subscription is idempotent — calling
+     * it repeatedly is safe. The portal sends to [GLYPH_BROADCAST_TOPIC]; without
+     * this subscription the FCM message is never routed to the device.
+     */
+    private fun subscribeToGlyphBroadcast() {
+        runCatching {
+            FirebaseMessaging.getInstance().subscribeToTopic(GLYPH_BROADCAST_TOPIC)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        Log.d(TAG, "Subscribed to topic $GLYPH_BROADCAST_TOPIC")
+                    } else {
+                        Log.w(TAG, "Failed to subscribe to topic $GLYPH_BROADCAST_TOPIC", task.exception)
+                    }
+                }
+        }.onFailure { e ->
+            Log.w(TAG, "subscribeToTopic threw", e)
+        }
     }
 
     private fun handleNow(data: Map<String, String>) {
@@ -2580,5 +2623,88 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         Log.w(TAG, "Notification avatar resolution failed for chat=$chatId user=$otherUserId")
         return null
     }
-    
+
+    /**
+     * Handle a `glyph_admin` FCM push sent from the Glyph Admin portal
+     * (Notification Center, Official Messages, Official Status — Phase 18 F3).
+     *
+     * The real title/body live in the FCM data map (F1 populates
+     * data["title"]/data["body"]). We render on a dedicated "Glyph Updates"
+     * channel so official content is visually distinct from chat messages, and
+     * tapping opens the app. A `deepLink` (if present) is forwarded to the app
+     * for the official inbox/status surfaces (Phase 18 F4) to consume.
+     */
+    private fun handleAdminNotification(data: Map<String, String>) {
+        val title = data["title"]?.takeIf { it.isNotBlank() } ?: "Glyph"
+        val body = data["body"]?.takeIf { it.isNotBlank() }
+            ?: data["text"]?.takeIf { it.isNotBlank() }
+            ?: "You have a new update"
+        val deepLink = data["deepLink"]?.takeIf { it.isNotBlank() }
+        val imageUrl = data["imageUrl"]?.takeIf { it.isNotBlank() }
+        val kind = data["kind"]?.takeIf { it.isNotBlank() } ?: "notification"
+        val officialId = data["officialId"]?.takeIf { it.isNotBlank() }
+
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        ensureOfficialChannel(nm)
+
+        // Tap target: open the app. Forward the deep link + official id so the
+        // official inbox/status UI can deep-link to the relevant item (F4).
+        val contentIntent = Intent(applicationContext, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            deepLink?.let { putExtra("official_deep_link", it) }
+            officialId?.let { putExtra("official_id", it) }
+            putExtra("official_kind", kind)
+        }
+        val contentPi = PendingIntent.getActivity(
+            applicationContext,
+            (officialId ?: kind).hashCode(),
+            contentIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(applicationContext, OFFICIAL_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notifications)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setContentIntent(contentPi)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+
+        // Best-effort large image (official messages can carry an imageUrl).
+        if (imageUrl != null) {
+            runCatching {
+                val bitmap = Glide.with(applicationContext)
+                    .asBitmap()
+                    .load(imageUrl)
+                    .override(512, 512)
+                    .centerCrop()
+                    .submit()
+                    .get()
+                builder.setLargeIcon(bitmap)
+            }.onFailure { e ->
+                Log.w(TAG, "Failed to load official notification image: $imageUrl", e)
+            }
+        }
+
+        val notificationId = (officialId ?: "${kind}_${System.currentTimeMillis()}").hashCode()
+        runCatching { nm.notify(notificationId, builder.build()) }
+            .onFailure { e -> Log.e(TAG, "Failed to post official notification", e) }
+    }
+
+    /** Create the dedicated channel for admin/official notifications (Android O+). */
+    private fun ensureOfficialChannel(nm: NotificationManager) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (nm.getNotificationChannel(OFFICIAL_CHANNEL_ID) != null) return
+            val channel = NotificationChannel(
+                OFFICIAL_CHANNEL_ID,
+                "Glyph Updates",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Official updates, announcements, and status from Glyph"
+            }
+            nm.createNotificationChannel(channel)
+        }
+    }
+
 }

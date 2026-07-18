@@ -44,8 +44,9 @@ class ProfilePreviewDialog : DialogFragment() {
     private var userName: String = ""
     private var userAvatar: String = ""
     private var chatId: String = ""
+    private var isOfficial: Boolean = false
     private var canShowAvatar: Boolean = false
-    
+
     // Animation parameters
     private var startX: Int = 0
     private var startY: Int = 0
@@ -57,6 +58,7 @@ class ProfilePreviewDialog : DialogFragment() {
         private const val ARG_USER_NAME = "user_name"
         private const val ARG_USER_AVATAR = "user_avatar"
         private const val ARG_CHAT_ID = "chat_id"
+        private const val ARG_IS_OFFICIAL = "is_official"
         private const val ARG_START_X = "start_x"
         private const val ARG_START_Y = "start_y"
         private const val ARG_START_WIDTH = "start_width"
@@ -70,7 +72,8 @@ class ProfilePreviewDialog : DialogFragment() {
             startX: Int,
             startY: Int,
             startWidth: Int,
-            startHeight: Int
+            startHeight: Int,
+            isOfficial: Boolean = false
         ): ProfilePreviewDialog {
             return ProfilePreviewDialog().apply {
                 arguments = Bundle().apply {
@@ -78,6 +81,7 @@ class ProfilePreviewDialog : DialogFragment() {
                     putString(ARG_USER_NAME, userName)
                     putString(ARG_USER_AVATAR, userAvatar)
                     putString(ARG_CHAT_ID, chatId)
+                    putBoolean(ARG_IS_OFFICIAL, isOfficial)
                     putInt(ARG_START_X, startX)
                     putInt(ARG_START_Y, startY)
                     putInt(ARG_START_WIDTH, startWidth)
@@ -96,6 +100,7 @@ class ProfilePreviewDialog : DialogFragment() {
             userName = it.getString(ARG_USER_NAME, "")
             userAvatar = it.getString(ARG_USER_AVATAR, "")
             chatId = it.getString(ARG_CHAT_ID, "")
+            isOfficial = it.getBoolean(ARG_IS_OFFICIAL, false)
             startX = it.getInt(ARG_START_X, 0)
             startY = it.getInt(ARG_START_Y, 0)
             startWidth = it.getInt(ARG_START_WIDTH, 0)
@@ -143,6 +148,11 @@ class ProfilePreviewDialog : DialogFragment() {
     private fun setupUI() {
         binding.tvUserName.text = userName
         binding.ivProfilePreview.setImageResource(R.drawable.ic_default_avatar)
+
+        if (isOfficial) {
+            renderOfficialAvatarPreview()
+            return
+        }
 
         if (userId.isBlank()) {
             renderGroupAvatarPreview()
@@ -255,6 +265,18 @@ class ProfilePreviewDialog : DialogFragment() {
             }
         }
     }
+
+    /**
+     * Renders the "Glyph Official" brand mark ([R.drawable.ic_brand_official]) in the
+     * preview, identical to the chat-list / chat-header avatar, and enables tap-to-open
+     * the full-screen view. The official account has no real user photo, so we skip the
+     * avatar-visibility and photo-loading logic and just draw the vector brand mark.
+     */
+    private fun renderOfficialAvatarPreview() {
+        canShowAvatar = true
+        Glide.with(this).clear(binding.ivProfilePreview)
+        binding.ivProfilePreview.setImageResource(R.drawable.ic_brand_official)
+    }
     
     /**
      * Check for avatar updates when user taps to enlarge the avatar.
@@ -352,6 +374,13 @@ class ProfilePreviewDialog : DialogFragment() {
                 dismiss()
                 openInfo()
             }
+        }
+
+        if (isOfficial) {
+            // The official account is one-directional (announcements only):
+            // no calls. Keep Chat (opens OfficialChatActivity) and Info.
+            binding.btnVoiceCall.visibility = View.GONE
+            binding.btnVideoCall.visibility = View.GONE
         }
     }
 
@@ -523,9 +552,29 @@ class ProfilePreviewDialog : DialogFragment() {
     }
 
     private fun openFullScreenImage() {
+        val ctx = context ?: return
+
+        if (isOfficial) {
+            // No photo URL for the brand mark — rasterize the vector drawable to a
+            // temporary PNG and open that in the full-screen viewer so it behaves
+            // like a normal user's avatar tap.
+            val path = renderBrandMarkToCache()
+            if (path != null) {
+                val file = java.io.File(path)
+                startActivity(
+                    FullScreenImageActivity.newIntent(
+                        context = ctx,
+                        imageUrl = "",
+                        userName = userName,
+                        localImagePath = path,
+                        localImageLastModified = file.lastModified()
+                    )
+                )
+            }
+            return
+        }
+
         if (userAvatar.isNotEmpty()) {
-            val ctx = context ?: return
-            
             // Prefer local cached avatar for fullscreen (ensures latest image + avoids stale URL caches)
             val localAvatarPath = if (userId.isNotEmpty()) {
                 com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalAvatarPath(userId)
@@ -552,6 +601,34 @@ class ProfilePreviewDialog : DialogFragment() {
 
             startActivity(intent)
         }
+    }
+
+    /**
+     * Rasterizes [R.drawable.ic_brand_official] (the gradient "loop" glyph on the
+     * indigo `#0E0254` field) to a PNG in the cache dir and returns its path, so the
+     * brand mark can be shown full-screen like a user photo. Returns null on failure.
+     */
+    private fun renderBrandMarkToCache(): String? = try {
+        val res = resources
+        val drawable = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.ic_brand_official)
+            ?: return null
+        val size = 1024
+        val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        // Brand field background so the full-screen mark matches the avatar circle fill.
+        canvas.drawColor(0xFF0E0254.toInt())
+        drawable.setBounds(0, 0, size, size)
+        drawable.draw(canvas)
+
+        val file = java.io.File(requireContext().cacheDir, "official_brand_mark.png")
+        java.io.FileOutputStream(file).use { out ->
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+        }
+        bitmap.recycle()
+        file.absolutePath
+    } catch (e: Exception) {
+        android.util.Log.e("ProfilePreviewDialog", "Failed to rasterize brand mark", e)
+        null
     }
 
     private fun initiateCall(callType: CallType) {
@@ -582,6 +659,12 @@ class ProfilePreviewDialog : DialogFragment() {
 
     private fun openInfo() {
         val ctx = context ?: return
+        if (isOfficial) {
+            // No separate info screen for the official account — open the
+            // announcements chat instead.
+            startActivity(com.glyph.glyph_v3.ui.chat.OfficialChatActivity.newIntent(ctx))
+            return
+        }
         if (userId.isBlank()) {
             // Group chat — open GroupInfoActivity
             startActivity(
@@ -607,13 +690,17 @@ class ProfilePreviewDialog : DialogFragment() {
 
     private fun navigateToChat() {
         val ctx = context ?: return
-        val intent = ChatActivity.newIntent(
-            ctx,
-            chatId,
-            userId,
-            userName,
-            userAvatar
-        )
+        val intent = if (isOfficial) {
+            com.glyph.glyph_v3.ui.chat.OfficialChatActivity.newIntent(ctx)
+        } else {
+            ChatActivity.newIntent(
+                ctx,
+                chatId,
+                userId,
+                userName,
+                userAvatar
+            )
+        }
         startActivity(intent)
     }
 

@@ -18,10 +18,12 @@ import com.glyph.glyph_v3.data.local.entity.LocalChat
 import com.glyph.glyph_v3.data.models.Chat
 import com.glyph.glyph_v3.data.service.DraftMessageStore
 import com.glyph.glyph_v3.data.repo.BlockRepository
+import com.glyph.glyph_v3.data.repo.OfficialContentRepository
 import com.glyph.glyph_v3.data.repo.PresenceManager
 import com.glyph.glyph_v3.data.repo.RealtimeMessageRepository
 import com.glyph.glyph_v3.databinding.FragmentChatListBinding
 import com.glyph.glyph_v3.ui.chat.ChatActivity
+import com.glyph.glyph_v3.ui.chat.OfficialChatActivity
 import com.glyph.glyph_v3.ui.chat.ChatConnectionPrewarmer
 import com.glyph.glyph_v3.ui.chat.ChatOpenPrefetcher
 import com.glyph.glyph_v3.ui.profile.ProfilePreviewDialog
@@ -92,10 +94,14 @@ class ChatListFragment : Fragment() {
         val headerAdapter = ChatListHeaderAdapter()
         chatAdapter = ChatListAdapter(
             onChatClick = { chat ->
-                val otherUserId = if (chat.isGroup) "" else (chat.participants.firstOrNull { it != repository.currentUserId } ?: "")
-                val displayName = if (chat.isGroup) chat.groupName.ifBlank { "Group" } else chat.otherUsername
-                val displayAvatar = if (chat.isGroup) chat.groupIconUrl else chat.otherUserAvatar
-                openChat(chat.id, otherUserId, displayName, displayAvatar)
+                if (chat.isOfficial) {
+                    startActivity(OfficialChatActivity.newIntent(requireContext()))
+                } else {
+                    val otherUserId = if (chat.isGroup) "" else (chat.participants.firstOrNull { it != repository.currentUserId } ?: "")
+                    val displayName = if (chat.isGroup) chat.groupName.ifBlank { "Group" } else chat.otherUsername
+                    val displayAvatar = if (chat.isGroup) chat.groupIconUrl else chat.otherUserAvatar
+                    openChat(chat.id, otherUserId, displayName, displayAvatar)
+                }
             },
             onAvatarClick = { chat, view ->
                 showProfilePreview(chat, view)
@@ -231,6 +237,10 @@ class ChatListFragment : Fragment() {
                                 createdAt = local.createdAt
                             )
                         }
+                    }
+                    .combine(OfficialContentRepository.officialMessages) { chats, msgs -> chats to msgs }
+                    .combine(OfficialContentRepository.lastOpenedAtFlow) { (chats, msgs), lastOpened ->
+                        buildChatListWithOfficial(chats, msgs, lastOpened)
                     }
                     .flowOn(Dispatchers.Default)
                     .collect { chats ->

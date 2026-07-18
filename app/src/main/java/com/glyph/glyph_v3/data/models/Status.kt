@@ -66,5 +66,7 @@ data class UserStatusGroup(
     val statuses: List<Status> = emptyList(),
     val lastStatusTimestamp: Long = 0L,
     val isMine: Boolean = false,
-    val allViewed: Boolean = false
+    val allViewed: Boolean = false,
+    /** True when this group represents the company "Glyph Official" sender. */
+    val isOfficial: Boolean = false
 )

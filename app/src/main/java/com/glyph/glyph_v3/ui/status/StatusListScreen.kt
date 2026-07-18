@@ -56,7 +56,8 @@ fun StatusListScreen(
     onMyStatusClick: () -> Unit,
     onAddTextStatus: () -> Unit,
     onAddMediaStatus: () -> Unit,
-    onContactStatusClick: (UserStatusGroup) -> Unit
+    onContactStatusClick: (UserStatusGroup) -> Unit,
+    onOfficialStatusClick: (UserStatusGroup) -> Unit = {}
 ) {
     val context = LocalContext.current
     val theme = glyphTheme
@@ -116,6 +117,24 @@ fun StatusListScreen(
                     onClick = onMyStatusClick,
                     onAddClick = onAddMediaStatus
                 )
+            }
+
+            // ── Company "Glyph Official" status (Phase 18 F4) ──
+            uiState.officialStatusGroup?.let { group ->
+                item {
+                    Text(
+                        text = "Glyph updates",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = theme.textSecondary,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
+                item {
+                    ContactStatusRow(
+                        group = group,
+                        onClick = { onOfficialStatusClick(group) }
+                    )
+                }
             }
 
             // ── Recent updates header ──

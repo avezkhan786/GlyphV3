@@ -330,6 +330,14 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        if (intent.getBooleanExtra("open_official_status", false)) {
+            // Open the Status section so the user lands on the "Glyph Official"
+            // status entry. Official statuses are loaded independently of contact
+            // status priming (OfficialContentRepository), so no prefetch is needed.
+            binding.mainViewPager.setCurrentItem(1, false)
+            return
+        }
+
         intent.getStringExtra("open_status_user_id")?.takeIf { it.isNotBlank() }?.let { statusOwnerId ->
             val statusId = intent.getStringExtra("open_status_id").orEmpty()
             val ownerName = intent.getStringExtra("open_status_owner_name").orEmpty()

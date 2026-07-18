@@ -23,12 +23,14 @@ import com.glyph.glyph_v3.data.preferences.ChatSettingsDataStore
 import com.glyph.glyph_v3.data.service.DraftMessageStore
 import com.glyph.glyph_v3.data.repo.BlockRepository
 import com.glyph.glyph_v3.data.repo.AvatarVisibilityRepository
+import com.glyph.glyph_v3.data.repo.OfficialContentRepository
 import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.data.repo.PresenceManager
 import com.glyph.glyph_v3.data.repo.RealtimeMessageRepository
 import com.glyph.glyph_v3.GlyphApplication
 import com.glyph.glyph_v3.ui.chat.ChatActivity
+import com.glyph.glyph_v3.ui.chat.OfficialChatActivity
 import com.glyph.glyph_v3.ui.chat.ChatConnectionPrewarmer
 import com.glyph.glyph_v3.ui.chat.ChatOpenPrefetcher
 import com.glyph.glyph_v3.ui.aiagent.AiAgentActivity
@@ -158,9 +160,14 @@ class ChatListComposeFragment : Fragment() {
                     val contactStatusGroups by StatusRepository.contactStatuses.collectAsState()
                     val groupSenderNames by groupSenderNamesStateFlow.collectAsState()
                     val blockedUserIds by BlockRepository.myBlockedUsers.collectAsState()
+                    val officialMessages by OfficialContentRepository.officialMessages.collectAsState()
+                    val officialLastOpenedAt by OfficialContentRepository.lastOpenedAtFlow.collectAsState()
+                    val chatsWithOfficial = remember(uiState.chats, officialMessages, officialLastOpenedAt) {
+                        buildChatListWithOfficial(uiState.chats, officialMessages, officialLastOpenedAt)
+                    }
                     ChatListScreen(
                         title = "Glyph",
-                        chats = uiState.chats,
+                        chats = chatsWithOfficial,
                         groupSenderNamesByUserId = groupSenderNames,
                         statusRingStatesByUserId = remember(contactStatusGroups) {
                             buildMap {
@@ -231,18 +238,23 @@ class ChatListComposeFragment : Fragment() {
                             }
                         },
                         onChatClick = { chat ->
-                            if (uiState.isSelectionMode) {
-                                viewModel.toggleSelection(chat.id)
-                            } else if (chat.id == AiAgentConstants.AI_AGENT_CHAT_ID) {
-                                hideKeyboard()
-                                context?.let { ctx ->
-                                    startActivity(AiAgentActivity.newIntent(ctx))
+                            when {
+                                uiState.isSelectionMode -> viewModel.toggleSelection(chat.id)
+                                chat.isOfficial -> context?.let { ctx ->
+                                    startActivity(OfficialChatActivity.newIntent(ctx))
                                 }
-                            } else {
-                                val otherUserId = if (chat.isGroup) "" else otherParticipantId(chat)
-                                val displayName = if (chat.isGroup) chat.groupName.ifBlank { "Group" } else chat.otherUsername
-                                val displayAvatar = if (chat.isGroup) chat.groupIconUrl else chat.otherUserAvatar
-                                navigateToChat(chat.id, otherUserId, displayName, displayAvatar, isCompose = true)
+                                chat.id == AiAgentConstants.AI_AGENT_CHAT_ID -> {
+                                    hideKeyboard()
+                                    context?.let { ctx ->
+                                        startActivity(AiAgentActivity.newIntent(ctx))
+                                    }
+                                }
+                                else -> {
+                                    val otherUserId = if (chat.isGroup) "" else otherParticipantId(chat)
+                                    val displayName = if (chat.isGroup) chat.groupName.ifBlank { "Group" } else chat.otherUsername
+                                    val displayAvatar = if (chat.isGroup) chat.groupIconUrl else chat.otherUserAvatar
+                                    navigateToChat(chat.id, otherUserId, displayName, displayAvatar, isCompose = true)
+                                }
                             }
                         },
                         onChatLongClick = { chat -> viewModel.toggleSelection(chat.id) },
@@ -529,7 +541,8 @@ class ChatListComposeFragment : Fragment() {
                 startX = startX,
                 startY = startY,
                 startWidth = startWidth,
-                startHeight = startHeight
+                startHeight = startHeight,
+                isOfficial = chat.isOfficial
             )
             dialog.show(childFragmentManager, "profile_preview")
         } catch (e: Exception) {

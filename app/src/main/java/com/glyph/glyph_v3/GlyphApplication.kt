@@ -41,6 +41,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DatabaseReference
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
+import com.glyph.glyph_v3.data.service.MyFirebaseMessagingService
 import com.google.firebase.firestore.PersistentCacheSettings
 import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.appcheck.FirebaseAppCheck
@@ -206,6 +208,12 @@ class GlyphApplication : Application() {
 
             // Observe app lifecycle for foreground/background transitions
             ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleObserver())
+
+            // Phase 18 F3: subscribe to the company broadcast topic so portal
+            // "Send to everyone" notifications are delivered. onNewToken also
+            // subscribes, but a subscription here covers already-installed apps
+            // whose token will not be re-issued on upgrade.
+            subscribeToGlyphBroadcastTopic()
 
             StartupTrace.logStage("app_onCreate_end")
 
@@ -389,6 +397,27 @@ class GlyphApplication : Application() {
         }
     }
 
+    /**
+     * Phase 18 F3: ensure this device is subscribed to the Glyph broadcast topic
+     * used by the admin portal for company notifications. Topic subscriptions are
+     * idempotent and tied to the FCM token (auto-generated), so this is safe to
+     * call on every cold start. `onNewToken` subscribes as well, but that only
+     * fires when the token changes — a startup subscription covers upgrades on
+     * already-installed apps.
+     */
+    private fun subscribeToGlyphBroadcastTopic() {
+        appScope.launch {
+            runCatching {
+                FirebaseMessaging.getInstance()
+                    .subscribeToTopic(MyFirebaseMessagingService.GLYPH_BROADCAST_TOPIC)
+                    .await()
+                Log.d(TAG, "Subscribed to ${MyFirebaseMessagingService.GLYPH_BROADCAST_TOPIC}")
+            }.onFailure { e ->
+                Log.w(TAG, "Failed to subscribe to broadcast topic on startup", e)
+            }
+        }
+    }
+
     private fun configureFirestoreCache() {
         try {
             val firestore = FirebaseFirestore.getInstance()
@@ -554,6 +583,9 @@ class GlyphApplication : Application() {
                     scheduleFirebaseForegroundWarmup(reason = "process_onStart")
                     // Only start message sync, NOT presence
                     startIncomingSyncIfLoggedIn(forceRestart = true)
+                    // Phase 18 F4: begin observing portal official messages / status.
+                    com.glyph.glyph_v3.data.repo.OfficialContentRepository.startListening(this@GlyphApplication)
+                    startOfficialContentNotificationCollector()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in onStart", e)
@@ -563,11 +595,45 @@ class GlyphApplication : Application() {
         override fun onStop(owner: LifecycleOwner) {
             // App went to background - go offline
             try {
-                if (FirebaseAuth.getInstance().currentUser != null) {
+                // Stop observing official content only when the user is actually
+                // signed out; otherwise keep the listener warm while backgrounded.
+                if (FirebaseAuth.getInstance().currentUser == null) {
+                    PresenceManager.goOffline()
+                    com.glyph.glyph_v3.data.repo.OfficialContentRepository.stopListening()
+                } else {
                     PresenceManager.goOffline()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error in onStop", e)
+            }
+        }
+    }
+
+    /**
+     * Collects newly-published official content (from [com.glyph.glyph_v3.data.repo.OfficialContentRepository])
+     * and posts a local notification for each. Started once per process (guarded by
+     * [officialNotifCollectorStarted]); the repository's `newContentEvents` flow only
+     * emits for items not previously seen, so historical content is not re-notified.
+     */
+    private var officialNotifCollectorStarted = false
+    private fun startOfficialContentNotificationCollector() {
+        if (officialNotifCollectorStarted) return
+        officialNotifCollectorStarted = true
+        appScope.launch {
+            com.glyph.glyph_v3.data.repo.OfficialContentRepository.newContentEvents.collect { event ->
+                val ctx = applicationContext
+                try {
+                    when (event) {
+                        is com.glyph.glyph_v3.data.repo.OfficialContentEvent.NewMessage ->
+                            com.glyph.glyph_v3.data.service.OfficialContentNotificationHelper
+                                .postMessage(ctx, event.message)
+                        is com.glyph.glyph_v3.data.repo.OfficialContentEvent.NewStatus ->
+                            com.glyph.glyph_v3.data.service.OfficialContentNotificationHelper
+                                .postStatus(ctx, event.status)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to post official content notification", e)
+                }
             }
         }
     }

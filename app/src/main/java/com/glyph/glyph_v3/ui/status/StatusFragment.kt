@@ -78,6 +78,10 @@ class StatusFragment : Fragment() {
         }
     }
 
+    /**
+     * Open a portal official message (Phase 18 F4). If a deep link is present and
+     * is an http(s)/app-scheme URI, launch it; otherwise surface the body text.
+     */
     private fun shouldHideHostChrome(screen: StatusScreen): Boolean = when (screen) {
         StatusScreen.CreateText,
         StatusScreen.VoiceStatus,
@@ -191,6 +195,9 @@ class StatusFragment : Fragment() {
                                     },
                                     onContactStatusClick = { group ->
                                         currentScreen = StatusScreen.ViewContact(group)
+                                    },
+                                    onOfficialStatusClick = { group ->
+                                        currentScreen = StatusScreen.ViewContact(group)
                                     }
                                 )
 
@@ -273,20 +280,23 @@ class StatusFragment : Fragment() {
                             }
 
                             is StatusScreen.ViewContact -> {
+                                val isOfficial = screen.group.isOfficial
                                 StatusViewerScreen(
                                     statuses = screen.group.statuses,
                                     ownerName = screen.group.username,
                                     ownerAvatarUrl = screen.group.profileImageUrl,
                                     isMine = false,
-                                    onViewStatus = { viewModel.markViewed(it) },
+                                    // Official content is read-only: never write back
+                                    // view/reply/like state to the portal-owned doc.
+                                    onViewStatus = { if (!isOfficial) viewModel.markViewed(it) },
                                     onDeleteStatus = {},
                                     onClose = { closeStatusViewer() },
                                     onBack = { closeStatusViewer() },
                                     onReply = { status, replyText ->
-                                        viewModel.sendStatusReply(status, replyText)
+                                        if (!isOfficial) viewModel.sendStatusReply(status, replyText)
                                     },
                                     onLikeStatus = { status ->
-                                        viewModel.sendStatusLike(status)
+                                        if (!isOfficial) viewModel.sendStatusLike(status)
                                     },
                                     isReplying = uiState.isUploading || uiState.isReplying, // covers both status post and reply
                                     replyStatusId = uiState.replyStatusId,

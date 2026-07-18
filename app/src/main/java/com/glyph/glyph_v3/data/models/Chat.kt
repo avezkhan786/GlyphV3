@@ -33,6 +33,12 @@ data class Chat(
     // Chat lock (local only, not synced — set from ChatSettingsDataStore)
     val isLocked: Boolean = false,
 
+    // ────────────────────────────────────────────────────────────
+    // Official "Glyph Official" chat (portal company announcements).
+    // Synthetic entry injected into the chat list; read-only — no replies/calls.
+    // ────────────────────────────────────────────────────────────
+    val isOfficial: Boolean = false,
+
     // Draft text (local only, not synced)
     val draft: String = "",
 

@@ -12,9 +12,13 @@ import androidx.work.WorkManager
 import com.glyph.glyph_v3.data.models.Status
 import com.glyph.glyph_v3.data.models.StatusPrivacyMode
 import com.glyph.glyph_v3.data.models.StatusPrivacySetting
+import com.glyph.glyph_v3.data.models.OFFICIAL_USER_ID
+import com.glyph.glyph_v3.data.models.OfficialStatus
 import com.glyph.glyph_v3.data.models.StatusType
 import com.glyph.glyph_v3.data.models.User
 import com.glyph.glyph_v3.data.models.UserStatusGroup
+import com.glyph.glyph_v3.data.models.toStatus
+import com.glyph.glyph_v3.data.repo.OfficialContentRepository
 import com.glyph.glyph_v3.data.repo.StatusRepository
 import com.glyph.glyph_v3.data.local.AppDatabase
 import com.glyph.glyph_v3.data.repo.RealtimeMessageRepository
@@ -51,6 +55,8 @@ enum class UploadStage {
 data class StatusUiState(
     val myStatuses: List<Status> = emptyList(),
     val contactStatusGroups: List<UserStatusGroup> = emptyList(),
+    /** Company "Glyph Official" status group (null when no live official status). */
+    val officialStatusGroup: UserStatusGroup? = null,
     val isUploading: Boolean = false,
     val uploadProgress: Float = 0f,
     val uploadStage: UploadStage = UploadStage.IDLE,
@@ -113,6 +119,39 @@ class StatusViewModel(application: Application) : AndroidViewModel(application) 
                 }
             }
         }
+
+        // Phase 18 F4: surface company official status as a dedicated "Glyph
+        // Official" group in the status list, reusing the existing viewer.
+        viewModelScope.launch {
+            OfficialContentRepository.officialStatuses.collect { statuses ->
+                val group = if (statuses.isEmpty()) null else buildOfficialStatusGroup(statuses)
+                updateUiState { current ->
+                    if (current.officialStatusGroup == group) current
+                    else current.copy(officialStatusGroup = group)
+                }
+            }
+        }
+    }
+
+    /**
+     * Build the "Glyph Official" [UserStatusGroup] from live official statuses.
+     * Each [OfficialStatus] is mapped to the app's [Status] model so the
+     * existing status viewer renders it unchanged. The group is flagged
+     * [UserStatusGroup.isOfficial] so write-back actions (reply/like/delete)
+     * are suppressed in the viewer.
+     */
+    private fun buildOfficialStatusGroup(statuses: List<OfficialStatus>): UserStatusGroup {
+        val statusModels = statuses.map { it.toStatus() }
+        return UserStatusGroup(
+            userId = OFFICIAL_USER_ID,
+            username = "Glyph",
+            profileImageUrl = "",
+            statuses = statusModels,
+            lastStatusTimestamp = statusModels.maxOfOrNull { it.timestamp } ?: 0L,
+            isMine = false,
+            allViewed = true,
+            isOfficial = true
+        )
     }
 
     private fun loadMyProfile() {

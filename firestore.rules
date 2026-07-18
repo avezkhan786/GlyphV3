@@ -400,6 +400,28 @@ service cloud.firestore {
     }
 
     // ──────────────────────────────────────────────────────────
+    // Official Messages (portal-published, company broadcasts)
+    // Written by the Glyph Admin portal via the Admin SDK (bypasses rules),
+    // so client writes are DENIED. Any authenticated user may READ — the
+    // Android app observes official_messages/{id} for the official inbox.
+    // ──────────────────────────────────────────────────────────
+    match /official_messages/{id} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Official Status (portal-published, company stories)
+    // Written by the Glyph Admin portal via the Admin SDK (bypasses rules),
+    // so client writes are DENIED. Any authenticated user may READ — the
+    // Android app renders official_status/{id} in the Status UI.
+    // ──────────────────────────────────────────────────────────
+    match /official_status/{id} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────
     // Default: deny all
     // ──────────────────────────────────────────────────────────
     match /{document=**} {

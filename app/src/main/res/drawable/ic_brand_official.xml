@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="4000dp"
+    android:height="4000dp"
+    android:viewportWidth="4000"
+    android:viewportHeight="4000">
+    <!-- Zoom into the brand glyph (bbox ~1417..2583 / 1191..2358, centered
+         at y~1775) and recenter it to the canvas center, so the mark fills
+         ~90% of the circle instead of sitting small in the upper area. -->
+    <group
+        android:scaleX="3.0887"
+        android:scaleY="3.0887"
+        android:translateX="-4177.6"
+        android:translateY="-3477.3">
+        <!-- Indigo background (matches brand_new_icon.svg #0E0254) -->
+        <path
+            android:pathData="M0,0H4000V4000H0Z"
+            android:fillColor="#0E0254" />
+        <!-- Brand glyph: gradient-filled loop shape (clipped Counter path from SVG).
+             SVG <text> (COMPANY NAME / SLOGAN HERE) is intentionally omitted —
+             a VectorDrawable cannot render text and it is placeholder copy. -->
+        <path
+            android:pathData="M2582.903,1191.992h-582.898c-320.594,0-582.898,262.304-582.898,582.898v582.898h582.898c320.594,0,582.898-262.304,582.898-582.898v-94.302h-281.806h-154.016h-193.683c-77.498,0-140.903,63.405-140.903,140.902v140.904h422.271c-55.394,69.031-140.322,113.587-234.76,113.587h-301.09v-301.091c0-165.044,136.047-301.091,301.09-301.091h147.076h154.016H2442c77.736-0.203,140.7-63.169,140.903-140.903V1191.992z"
+            android:fillType="evenOdd">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="1417.574"
+                    android:startY="2227.2439"
+                    android:endX="2910.6543"
+                    android:endY="1067.6223">
+                    <item android:offset="0" android:color="#0463EF" />
+                    <item android:offset="0.38" android:color="#F834EE" />
+                    <item android:offset="1" android:color="#FFFF00" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+</vector>

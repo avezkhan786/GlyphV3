@@ -1,0 +1,36 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="4000dp"
+    android:height="4000dp"
+    android:viewportWidth="4000"
+    android:viewportHeight="4000">
+    <!-- Adaptive foreground: ONLY the brand glyph, transparent elsewhere, so the
+         indigo field comes from the background layer (@color/ic_launcher_background)
+         and the system mask (circle/squircle) does not clip the mark.
+         The glyph is scaled to ~48% of the viewport (well inside the
+         adaptive "safe zone") and centered on its true bbox center
+         (2000, ~1775) so it reads as a smaller mark, not a fill.
+         SVG <text> ("COMPANY NAME" / "SLOGAN HERE") is omitted. -->
+    <group
+        android:scaleX="1.3779"
+        android:scaleY="1.3779"
+        android:translateX="-755.9"
+        android:translateY="-444.4">
+        <path
+            android:pathData="M2582.903,1191.992h-582.898c-320.594,0-582.898,262.304-582.898,582.898v582.898h582.898c320.594,0,582.898-262.304,582.898-582.898v-94.302h-281.806h-154.016h-193.683c-77.498,0-140.903,63.405-140.903,140.902v140.904h422.271c-55.394,69.031-140.322,113.587-234.76,113.587h-301.09v-301.091c0-165.044,136.047-301.091,301.09-301.091h147.076h154.016H2442c77.736-0.203,140.7-63.169,140.903-140.903V1191.992z"
+            android:fillType="evenOdd">
+            <aapt:attr name="android:fillColor">
+                <gradient
+                    android:type="linear"
+                    android:startX="1417.574"
+                    android:startY="2227.2439"
+                    android:endX="2910.6543"
+                    android:endY="1067.6223">
+                    <item android:offset="0" android:color="#0463EF" />
+                    <item android:offset="0.38" android:color="#F834EE" />
+                    <item android:offset="1" android:color="#FFFF00" />
+                </gradient>
+            </aapt:attr>
+        </path>
+    </group>
+</vector>

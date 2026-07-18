@@ -123,6 +123,7 @@ import com.glyph.glyph_v3.data.repo.AvatarVisibilityRepository
 import com.glyph.glyph_v3.ui.aiagent.AiAgentConstants
 import com.glyph.glyph_v3.ui.theme.LocalGlyphTheme
 import com.glyph.glyph_v3.ui.theme.glyphTheme
+import com.glyph.glyph_v3.ui.chat.OfficialGlyphAvatar
 import com.glyph.glyph_v3.util.ChatOpenTrace
 import com.glyph.glyph_v3.utils.ThemeManager
 import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
@@ -1453,27 +1454,33 @@ private fun Avatar(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .size(avatarSize)
-                .clip(CircleShape)
-                .background(bgColor),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isGroupChat) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_group),
-                    contentDescription = null,
-                    tint = Color(0xFFFFD166),
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                Text(
-                    text = initial,
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
+        if (chat.isOfficial) {
+            // Brand mark: the launcher app icon (foreground on the launcher
+            // background), identical to OfficialChatActivity's header avatar.
+            OfficialGlyphAvatar(modifier = Modifier.size(avatarSize))
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(avatarSize)
+                    .clip(CircleShape)
+                    .background(bgColor),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isGroupChat) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_group),
+                        contentDescription = null,
+                        tint = Color(0xFFFFD166),
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Text(
+                        text = initial,
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
 

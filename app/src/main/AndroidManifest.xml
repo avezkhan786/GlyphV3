@@ -90,9 +90,13 @@
         <activity android:name=".ui.groups.CreateGroupActivity" android:exported="false" />
         <activity android:name=".ui.groups.GroupInfoActivity" android:exported="false" />
         <activity android:name=".ui.calls.FavoritesActivity" />
-        <activity 
+        <activity
             android:name=".ui.chat.ChatActivity"
             android:windowSoftInputMode="adjustNothing" />
+        <activity
+            android:name=".ui.chat.OfficialChatActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GlyphV3" />
         <activity
             android:name=".ui.chat.forward.ForwardSelectionActivity"
             android:exported="false"
