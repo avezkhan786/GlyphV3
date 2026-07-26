@@ -179,9 +179,18 @@ class ReactionPopupOverlay private constructor(
             ViewGroup.LayoutParams.WRAP_CONTENT
         ))
 
-        container.isClickable = true
-        container.isFocusable = true
-        container.setOnClickListener { dismiss() }
+        container.isClickable = false
+        container.isFocusable = false
+        container.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                val barRect = Rect()
+                barContainer.getHitRect(barRect)
+                if (!barRect.contains(event.x.toInt(), event.y.toInt())) {
+                    dismiss()
+                }
+            }
+            false // Don't consume — pass through to the chat RecyclerView below
+        }
         barContainer.setOnTouchListener { _, _ -> false }
     }
 
