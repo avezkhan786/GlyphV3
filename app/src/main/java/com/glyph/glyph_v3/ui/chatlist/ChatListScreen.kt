@@ -1,6 +1,7 @@
 package com.glyph.glyph_v3.ui.chatlist
 
 import android.graphics.Rect
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -11,6 +12,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -92,13 +94,18 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.colorResource
@@ -115,6 +122,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Velocity
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.glyph.glyph_v3.R
@@ -139,6 +147,8 @@ enum class ChatStatusRingState {
     SEEN,
     UNSEEN
 }
+
+private const val TAG = "ChatListScroll"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -250,66 +260,183 @@ fun ChatListScreen(
     val hiddenSectionsRowCount = (if (showLockedSection) 1 else 0) + (if (showArchivedSection) 1 else 0)
     val hiddenSectionsHeight = (hiddenSectionsRowCount * 50).dp
     val hiddenSectionsHeightPx = with(density) { hiddenSectionsHeight.roundToPx().toFloat() }
-    val hiddenSectionsRevealKey = remember(
-        showSecretLockedRow,
-        showLockedSection,
-        showArchivedSection,
-        lockedChatsCount,
-        archivedChatsCount,
-        isLockedChatsHidden
-    ) {
-        listOf(
-            showSecretLockedRow,
-            showLockedSection,
-            showArchivedSection,
-            lockedChatsCount,
-            archivedChatsCount,
-            isLockedChatsHidden
-        ).joinToString("|")
-    }
     var revealOffsetPx by remember { mutableFloatStateOf(0f) }
     var revealInteractionNonce by remember { mutableIntStateOf(0) }
+    // Tracks whether the user was pushing up (closing the section) or pulling
+    // down (opening it) during the last scroll gesture.  Used by onPreFling to
+    // snap in the correct direction.
+    var userIsClosingSection by remember { mutableStateOf(false) }
+    // Rate-limit scroll debug logs: log at most once every ~200ms
+    val lastScrollLogMs = remember { mutableStateOf(0L) }
     val revealConnection = remember(showHeaderSections, isArchivedMode, hiddenSectionsHeightPx, chatListState) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (!showHeaderSections || isArchivedMode || hiddenSectionsHeightPx <= 0f) return Offset.Zero
+                val canLog = System.currentTimeMillis() - lastScrollLogMs.value > 200L
+                if (!showHeaderSections || isArchivedMode || hiddenSectionsHeightPx <= 0f) {
+                    if (canLog) {
+                        Log.d(TAG, "onPreScroll SKIP: showHdr=$showHeaderSections archMode=$isArchivedMode hPx=$hiddenSectionsHeightPx")
+                        lastScrollLogMs.value = System.currentTimeMillis()
+                    }
+                    return Offset.Zero
+                }
 
                 val isPushingUp = available.y < 0f
                 val isPullingDown = available.y > 0f
                 val listAtTop = chatListState.firstVisibleItemIndex == 0 &&
                     chatListState.firstVisibleItemScrollOffset == 0
 
-                return when {
+                val result = when {
                     isPullingDown && listAtTop -> {
-                        val nextOffset = (revealOffsetPx + (available.y * 0.75f)).coerceIn(0f, hiddenSectionsHeightPx)
-                        val consumedY = nextOffset - revealOffsetPx
-                        if (consumedY != 0f) {
-                            revealOffsetPx = nextOffset
-                            revealInteractionNonce += 1
-                        }
-                        Offset(0f, consumedY)
-                    }
-
-                    isPushingUp && revealOffsetPx > 0f -> {
+                        // 1:1 finger tracking — no dampening so the section
+                        // reveals smoothly in a single gesture.
+                        userIsClosingSection = false
                         val nextOffset = (revealOffsetPx + available.y).coerceIn(0f, hiddenSectionsHeightPx)
                         val consumedY = nextOffset - revealOffsetPx
                         if (consumedY != 0f) {
                             revealOffsetPx = nextOffset
                             revealInteractionNonce += 1
                         }
+                        if (canLog) {
+                            Log.d(TAG, "onPreScroll PULL-DOWN: avail=${available.y} offset=$revealOffsetPx→$nextOffset consumed=$consumedY nonce=$revealInteractionNonce")
+                            lastScrollLogMs.value = System.currentTimeMillis()
+                        }
                         Offset(0f, consumedY)
                     }
 
-                    else -> Offset.Zero
+                    isPushingUp && revealOffsetPx > 0.5f -> {
+                        userIsClosingSection = true
+                        val nextOffset = (revealOffsetPx + available.y).coerceIn(0f, hiddenSectionsHeightPx)
+                        val consumedY = nextOffset - revealOffsetPx
+                        if (consumedY != 0f) {
+                            revealOffsetPx = nextOffset
+                            revealInteractionNonce += 1
+                        }
+                        // Snap to zero when very close to avoid tiny residuals
+                        // that would consume scroll events on the next gesture.
+                        if (revealOffsetPx < 1f) revealOffsetPx = 0f
+                        if (canLog) {
+                            Log.d(TAG, "onPreScroll PUSH-UP(BLOCKED): avail=${available.y} offset=${revealOffsetPx}→$nextOffset consumed=$consumedY nonce=$revealInteractionNonce listAtTop=$listAtTop")
+                            lastScrollLogMs.value = System.currentTimeMillis()
+                        }
+                        Offset(0f, consumedY)
+                    }
+
+                    else -> {
+                        if (canLog) {
+                            val reason = when {
+                                isPushingUp -> "offset=$revealOffsetPx ≤0.5f → PASS-THROUGH"
+                                isPullingDown -> "!listAtTop (idx=${chatListState.firstVisibleItemIndex} off=${chatListState.firstVisibleItemScrollOffset}) → PASS-THROUGH"
+                                else -> "idle → PASS-THROUGH"
+                            }
+                            Log.d(TAG, "onPreScroll $reason avail.y=${available.y}")
+                            lastScrollLogMs.value = System.currentTimeMillis()
+                        }
+                        Offset.Zero
+                    }
                 }
+                return result
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (!showHeaderSections || isArchivedMode || hiddenSectionsHeightPx <= 0f) {
+                    return Velocity.Zero
+                }
+                // Snap the reveal offset to fully open or fully closed when the
+                // user lifts their finger after a partial reveal.
+                if (revealOffsetPx > 0.5f && revealOffsetPx < hiddenSectionsHeightPx - 0.5f) {
+                    // If the user was pushing up they want to close the section;
+                    // always snap to 0 regardless of how far they pushed.
+                    // If pulling down, snap open only if past the threshold.
+                    val target = if (userIsClosingSection) {
+                        0f
+                    } else {
+                        val threshold = hiddenSectionsHeightPx * 0.35f
+                        if (revealOffsetPx > threshold) hiddenSectionsHeightPx else 0f
+                    }
+                    Log.d(TAG, "onPreFling: snap offset=$revealOffsetPx→$target (closing=$userIsClosingSection)")
+                    animate(
+                        initialValue = revealOffsetPx,
+                        targetValue = target,
+                        animationSpec = tween(200, easing = FastOutSlowInEasing)
+                    ) { value, _ -> revealOffsetPx = value }
+                    if (revealOffsetPx < 1f) revealOffsetPx = 0f
+                }
+                return Velocity.Zero
             }
         }
     }
 
-    LaunchedEffect(hiddenSectionsRevealKey, showHeaderSections, isArchivedMode, hiddenSectionsHeightPx) {
-        // Always start with hidden sections collapsed on first appearance.
-        // The user reveals them via pull-down gesture (NestedScrollConnection).
+    LaunchedEffect(isArchivedMode, showHeaderSections) {
+        // Reset hidden sections offset when entering/leaving archived mode
+        // or when header sections visibility changes structurally.
+        Log.d(TAG, "LaunchedEffect(RESET): archMode=$isArchivedMode showHdr=$showHeaderSections → revealOffsetPx=0")
         revealOffsetPx = 0f
+    }
+
+    // Auto-reveal hidden sections when a chat is newly archived,
+    // then auto-hide after a short delay.
+    var prevArchivedCount by remember { mutableIntStateOf(archivedChatsCount) }
+    LaunchedEffect(archivedChatsCount) {
+        Log.d(TAG, "LaunchedEffect(AUTO): count=$archivedChatsCount prev=$prevArchivedCount archMode=$isArchivedMode showHdr=$showHeaderSections")
+        if (!isArchivedMode && showHeaderSections &&
+            archivedChatsCount > prevArchivedCount && prevArchivedCount >= 0) {
+            val interactionSnap = revealInteractionNonce
+            Log.d(TAG, "LaunchedEffect(AUTO): TRIGGERED — revealing sections. interactionSnap=$interactionSnap startOffset=$revealOffsetPx target=$hiddenSectionsHeightPx")
+            try {
+                // Reveal the sections
+                animate(
+                    initialValue = revealOffsetPx,
+                    targetValue = hiddenSectionsHeightPx,
+                    animationSpec = tween(300, easing = FastOutSlowInEasing)
+                ) { value, _ -> revealOffsetPx = value }
+                Log.d(TAG, "LaunchedEffect(AUTO): reveal animation done. offset=$revealOffsetPx. Waiting 2.5s…")
+
+                // Keep visible briefly so the user can see the change
+                delay(2_500L)
+                Log.d(TAG, "LaunchedEffect(AUTO): delay complete. interactionNonce=${revealInteractionNonce} (snap=$interactionSnap)")
+
+                // Auto-hide only if user hasn't manually interacted
+                if (revealInteractionNonce == interactionSnap) {
+                    Log.d(TAG, "LaunchedEffect(AUTO): auto-hiding — animating offset to 0")
+                    animate(
+                        initialValue = revealOffsetPx,
+                        targetValue = 0f,
+                        animationSpec = tween(300, easing = FastOutSlowInEasing)
+                    ) { value, _ -> revealOffsetPx = value }
+                    Log.d(TAG, "LaunchedEffect(AUTO): auto-hide animation done. offset=$revealOffsetPx")
+                } else {
+                    Log.d(TAG, "LaunchedEffect(AUTO): user interacted — skipping auto-hide")
+                }
+            } finally {
+                // Always snap revealOffsetPx to 0 when this effect finishes
+                // or is cancelled, unless the user has manually interacted.
+                if (revealInteractionNonce == interactionSnap) {
+                    Log.d(TAG, "LaunchedEffect(AUTO): finally — snapping revealOffsetPx=$revealOffsetPx→0")
+                    revealOffsetPx = 0f
+                } else {
+                    Log.d(TAG, "LaunchedEffect(AUTO): finally — user interacted, NOT snapping (nonce=${revealInteractionNonce} vs snap=$interactionSnap)")
+                }
+            }
+        } else {
+            Log.d(TAG, "LaunchedEffect(AUTO): SKIP — condition not met")
+        }
+        prevArchivedCount = archivedChatsCount
+    }
+
+    // Reset revealOffsetPx when the screen restarts (e.g., returning from
+    // ArchivedChatsActivity) so that any residual offset from a previous
+    // manual pull-down doesn't cause the NestedScrollConnection to consume
+    // scroll events intended for the LazyColumn.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                Log.d(TAG, "Lifecycle ON_START → reset revealOffsetPx (was $revealOffsetPx)")
+                revealOffsetPx = 0f
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // Determine Status Bar color based on selection mode
