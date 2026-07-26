@@ -8405,7 +8405,9 @@ class ChatActivity : AppCompatActivity(),
                 val next = if (i < tempResult.size - 1) tempResult[i + 1] else null
                 
                 val hasPrevSame = (prev is ChatListItem.MessageItem) && prev.message.senderId == item.message.senderId
+                        && prev.canGroupWith(item)
                 val hasNextSame = (next is ChatListItem.MessageItem) && next.message.senderId == item.message.senderId
+                        && item.canGroupWith(next)
                 
                 val groupPos = when {
                     hasPrevSame && hasNextSame -> BubbleGroupPosition.MIDDLE
@@ -8469,16 +8471,22 @@ class ChatActivity : AppCompatActivity(),
 
         var appendedGroupPosition = BubbleGroupPosition.SINGLE
         if (previousDate == appendedDate && lastMessageItem.message.senderId == appendedMessage.senderId) {
-            val previousNeighbor = baseList.getOrNull(lastMessageIndex - 1) as? ChatListItem.MessageItem
-            val updatedLastPosition = if (previousNeighbor?.message?.senderId == appendedMessage.senderId) {
-                BubbleGroupPosition.MIDDLE
-            } else {
-                BubbleGroupPosition.TOP
+            // Only group if the same visual category (text ≠ emoji, text ≠ GIF/sticker, etc.)
+            val canGroupNew = canGroupByType(lastMessageItem, appendedMessage)
+            if (canGroupNew) {
+                val previousNeighbor = baseList.getOrNull(lastMessageIndex - 1) as? ChatListItem.MessageItem
+                val updatedLastPosition = if (previousNeighbor != null
+                        && previousNeighbor.message.senderId == appendedMessage.senderId
+                        && previousNeighbor.canGroupWith(lastMessageItem)) {
+                    BubbleGroupPosition.MIDDLE
+                } else {
+                    BubbleGroupPosition.TOP
+                }
+                if (lastMessageItem.groupPosition != updatedLastPosition) {
+                    baseList[lastMessageIndex] = lastMessageItem.copy(groupPosition = updatedLastPosition)
+                }
+                appendedGroupPosition = BubbleGroupPosition.BOTTOM
             }
-            if (lastMessageItem.groupPosition != updatedLastPosition) {
-                baseList[lastMessageIndex] = lastMessageItem.copy(groupPosition = updatedLastPosition)
-            }
-            appendedGroupPosition = BubbleGroupPosition.BOTTOM
         } else if (previousDate != appendedDate) {
             baseList.add(ChatListItem.DateHeader(appendedHeaderText))
         }
@@ -8515,6 +8523,31 @@ class ChatActivity : AppCompatActivity(),
             details = "chatId=${chatId ?: "unknown"} messageId=${appendedMessage.id} total=${messages.size}"
         )
         return baseList
+    }
+
+    /**
+     * Returns true when a [MessageItem] and raw [Message] belong to the same
+     * visual group category (both text, both emoji, both media, etc.) so they
+     * can be stacked together.
+     */
+    private fun canGroupByType(item: ChatListItem.MessageItem, rawMessage: Message): Boolean {
+        // Resolve the raw message's emoji status on the fly
+        val rawIsEmoji = messageEmojiCache.getOrPut(rawMessage.id) {
+            EmojiUtils.isEmojiOnlyMessage(rawMessage.text)
+        }
+        return item.groupCategory() == groupCategory(rawMessage.type, rawIsEmoji)
+    }
+
+    private fun groupCategory(type: MessageType, isEmoji: Boolean): Int = when {
+        isEmoji -> 2
+        type == MessageType.TEXT ||
+        type == MessageType.STATUS_REPLY ||
+        type == MessageType.SYSTEM -> 1
+        type == MessageType.AUDIO -> 3
+        type == MessageType.CONTACT -> 4
+        type == MessageType.MEDIA_GROUP -> 5
+        type == MessageType.DOCUMENT -> 6
+        else -> 7
     }
 
     /**
@@ -8591,7 +8624,9 @@ class ChatActivity : AppCompatActivity(),
                 val prev = if (i > 0) newItems[i - 1] else null
                 val next = if (i < newItems.size - 1) newItems[i + 1] else null
                 val hasPrevSame = (prev is ChatListItem.MessageItem) && prev.message.senderId == item.message.senderId
+                        && prev.canGroupWith(item)
                 val hasNextSame = (next is ChatListItem.MessageItem) && next.message.senderId == item.message.senderId
+                        && item.canGroupWith(next)
                 if (hasPrevSame || hasNextSame) {
                     val groupPos = when {
                         hasPrevSame && hasNextSame -> BubbleGroupPosition.MIDDLE
@@ -8625,15 +8660,18 @@ class ChatActivity : AppCompatActivity(),
             val lastNew = newItems[lastNewMsgIdx] as ChatListItem.MessageItem
             val firstBase = baseList[firstBaseMsgIdx] as ChatListItem.MessageItem
 
-            if (lastNew.message.senderId == firstBase.message.senderId) {
+            if (lastNew.message.senderId == firstBase.message.senderId
+                    && lastNew.canGroupWith(firstBase)) {
                 // The boundary merges two same-sender blocks — adjust both sides.
                 val newPrevIdx = if (lastNewMsgIdx > 0) lastNewMsgIdx - 1 else -1
                 val newPrev = newItems.getOrNull(newPrevIdx) as? ChatListItem.MessageItem
-                val hasPrevSameInNew = newPrev?.message?.senderId == lastNew.message.senderId
+                val hasPrevSameInNew = newPrev != null && newPrev.message.senderId == lastNew.message.senderId
+                        && newPrev.canGroupWith(lastNew)
 
                 val baseNextIdx = if (firstBaseMsgIdx + 1 < baseList.size) firstBaseMsgIdx + 1 else -1
                 val baseNext = baseList.getOrNull(baseNextIdx) as? ChatListItem.MessageItem
-                val hasNextSameInBase = baseNext?.message?.senderId == firstBase.message.senderId
+                val hasNextSameInBase = baseNext != null && baseNext.message.senderId == firstBase.message.senderId
+                        && baseNext.canGroupWith(firstBase)
 
                 val newLastGroup = if (hasPrevSameInNew) BubbleGroupPosition.MIDDLE
                                    else BubbleGroupPosition.TOP

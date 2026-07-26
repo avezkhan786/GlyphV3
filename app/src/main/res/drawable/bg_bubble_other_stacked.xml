@@ -6,8 +6,8 @@
         android:width="1.5dp"
         android:color="?attr/glyphDivider" />
     <corners
-        android:topLeftRadius="4dp"
-        android:topRightRadius="12dp"
-        android:bottomLeftRadius="4dp"
-        android:bottomRightRadius="12dp" />
+        android:topLeftRadius="6dp"
+        android:topRightRadius="16dp"
+        android:bottomLeftRadius="6dp"
+        android:bottomRightRadius="16dp" />
 </shape>

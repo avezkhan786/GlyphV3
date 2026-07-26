@@ -10,9 +10,9 @@
               android:color="?attr/glyphDivider" />
             <corners
                 android:topLeftRadius="0dp"
-                android:topRightRadius="12dp"
-                android:bottomLeftRadius="12dp"
-                android:bottomRightRadius="12dp" />
+                android:topRightRadius="16dp"
+                android:bottomLeftRadius="16dp"
+                android:bottomRightRadius="16dp" />
         </shape>
     </item>
 

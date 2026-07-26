@@ -3,9 +3,11 @@ package com.glyph.glyph_v3.ui.chat
 import android.content.Context
 import android.text.StaticLayout
 import android.util.AttributeSet
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.view.children
 import kotlin.math.max
@@ -53,8 +55,8 @@ class MessageBubbleLayout @JvmOverloads constructor(
         // via setPaddingRelative() on every bind, so these are just the pre-bind defaults.
         bubblePaddingLeft = (9 * resources.displayMetrics.density).toInt()
         bubblePaddingRight = (8 * resources.displayMetrics.density).toInt()
-        bubblePaddingTop = (3 * resources.displayMetrics.density).toInt()
-        bubblePaddingBottom = (2 * resources.displayMetrics.density).toInt()
+        bubblePaddingTop = (6 * resources.displayMetrics.density).toInt()
+        bubblePaddingBottom = (5 * resources.displayMetrics.density).toInt()
 
         clipToPadding = false
         clipChildren = false
@@ -357,7 +359,20 @@ class MessageBubbleLayout @JvmOverloads constructor(
         // but visually the content view is stretched.
         val contentHeight = content.measuredHeight
         val metadataEndInset = if (hasVisibleLinkPreview) previewMetadataEndInset else activePaddingRight
-        val metaLeft = bubbleWidth - metadataEndInset - metadataWidth
+        val isEmoji = cachedTextView?.getTag(com.glyph.glyph_v3.R.id.tag_emoji_only) == true
+        val metaLeft: Int
+        if (isEmoji) {
+            // For emoji-only, align metadata to the same side as the emoji content
+            // (START for incoming, END for outgoing) instead of always right-aligned.
+            val lp = cachedTextView?.layoutParams
+            if (lp is LinearLayout.LayoutParams && lp.gravity == Gravity.START) {
+                metaLeft = activePaddingLeft  // Incoming: metadata at left with emoji
+            } else {
+                metaLeft = bubbleWidth - metadataEndInset - metadataWidth  // Outgoing: metadata at right
+            }
+        } else {
+            metaLeft = bubbleWidth - metadataEndInset - metadataWidth
+        }
         val metaTop = if (fitsInline) {
             val offsetTop = activePaddingTop + contentHeight - metadataHeight + verticalOffset
             offsetTop.coerceAtLeast(activePaddingTop)

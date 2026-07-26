@@ -46,8 +46,10 @@ object ChatTranscriptSnapshotBuilder {
             val previous = result.getOrNull(index - 1) as? ChatListItem.MessageItem
             val next = result.getOrNull(index + 1) as? ChatListItem.MessageItem
 
-            val hasPreviousSameSender = previous?.message?.senderId == current.message.senderId
-            val hasNextSameSender = next?.message?.senderId == current.message.senderId
+            val hasPreviousSameSender = previous != null && previous.message.senderId == current.message.senderId
+                    && previous.canGroupWith(current)
+            val hasNextSameSender = next != null && next.message.senderId == current.message.senderId
+                    && current.canGroupWith(next)
             val position = when {
                 hasPreviousSameSender && hasNextSameSender -> BubbleGroupPosition.MIDDLE
                 hasPreviousSameSender -> BubbleGroupPosition.BOTTOM

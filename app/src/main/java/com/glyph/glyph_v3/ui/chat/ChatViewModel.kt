@@ -563,7 +563,9 @@ class ChatViewModel(
                 val next = if (i < tempResult.size - 1) tempResult[i + 1] else null
 
                 val hasPrevSame = prev is ChatListItem.MessageItem && prev.message.senderId == msg.senderId
+                        && prev.canGroupWith(item)
                 val hasNextSame = next is ChatListItem.MessageItem && next.message.senderId == msg.senderId
+                        && item.canGroupWith(next)
 
                 val groupPos = when {
                     !hasPrevSame && !hasNextSame -> BubbleGroupPosition.SINGLE

@@ -26,6 +26,7 @@ import android.view.ViewGroup
 import android.view.ViewStub
 import android.view.Gravity
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.Toast
 import android.widget.TextView
 import android.util.Log
@@ -2071,8 +2072,8 @@ class ChatAdapter(
 
     private fun resolveBubbleCornerSizes(view: View, groupPosition: BubbleGroupPosition, isIncoming: Boolean): BubbleCornerSizes {
         val density = view.context.resources.displayMetrics.density
-        val fullPx = 12f * density
-        val reducedPx = 4f * density
+        val fullPx = 16f * density
+        val reducedPx = 6f * density
 
         var topLeft = fullPx
         var topRight = fullPx
@@ -2432,18 +2433,23 @@ class ChatAdapter(
 
         val params = messageView.layoutParams
         if (isEmojiOnly) {
-            if (params.width != ViewGroup.LayoutParams.MATCH_PARENT) {
-                params.width = ViewGroup.LayoutParams.MATCH_PARENT
-                messageView.layoutParams = params
+            // Use WRAP_CONTENT so the view is tight around the emoji, plus
+            // layout_gravity to anchor it to the screen-edge side of the content.
+            if (params.width != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                params.width = ViewGroup.LayoutParams.WRAP_CONTENT
             }
-            val horizMask = Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK
-            val targetGravity = if (isIncoming) Gravity.START else Gravity.END
-            if ((messageView.gravity and horizMask) != (targetGravity and horizMask)) {
-                messageView.gravity = targetGravity
+            if (params is LinearLayout.LayoutParams && params.gravity != (if (isIncoming) Gravity.START else Gravity.END)) {
+                params.gravity = if (isIncoming) Gravity.START else Gravity.END
             }
+            messageView.layoutParams = params
         } else {
             if (params.width != ViewGroup.LayoutParams.WRAP_CONTENT) {
                 params.width = ViewGroup.LayoutParams.WRAP_CONTENT
+                messageView.layoutParams = params
+            }
+            // Reset layout_gravity if it was set for emoji
+            if (params is LinearLayout.LayoutParams && params.gravity != Gravity.NO_GRAVITY) {
+                params.gravity = Gravity.NO_GRAVITY
                 messageView.layoutParams = params
             }
             if ((messageView.gravity and Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK) != (Gravity.START and Gravity.RELATIVE_HORIZONTAL_GRAVITY_MASK)) {
@@ -2460,16 +2466,23 @@ class ChatAdapter(
         val bubbleLayout = findMessageBubbleLayout(messageView) ?: return
         val density = messageView.resources.displayMetrics.density
         if (isEmojiOnly) {
-            val ep = (6 * density).toInt()
-            if (bubbleLayout.paddingLeft != ep || bubbleLayout.paddingRight != ep ||
-                bubbleLayout.paddingTop != ep || bubbleLayout.paddingBottom != ep) {
-                bubbleLayout.setPaddingRelative(ep, ep, ep, ep)
+            // Reduce the screen-edge side padding so emojis sit closer to the edge:
+            //   incoming → start (left)  = 2dp   toward screen edge
+            //   outgoing → end   (right) = 2dp
+            // The opposite side keeps 6dp for balance.
+            val startPx = ((if (isIncoming) 2 else 6) * density).toInt()
+            val endPx   = ((if (isIncoming) 6 else 2) * density).toInt()
+            val topPx    = (4 * density).toInt()
+            val bottomPx = (4 * density).toInt()
+            if (bubbleLayout.paddingStart != startPx || bubbleLayout.paddingEnd != endPx ||
+                bubbleLayout.paddingTop != topPx || bubbleLayout.paddingBottom != bottomPx) {
+                bubbleLayout.setPaddingRelative(startPx, topPx, endPx, bottomPx)
             }
         } else {
             val startPx = ((if (isIncoming) 9 else 8) * density).toInt()
             val endPx   = ((if (isIncoming) 8 else 9) * density).toInt()
-            val topPx    = (3 * density).toInt()
-            val bottomPx = (2 * density).toInt()
+            val topPx    = (6 * density).toInt()
+            val bottomPx = (5 * density).toInt()
             if (bubbleLayout.paddingStart != startPx || bubbleLayout.paddingEnd != endPx ||
                 bubbleLayout.paddingTop != topPx || bubbleLayout.paddingBottom != bottomPx) {
                 bubbleLayout.setPaddingRelative(startPx, topPx, endPx, bottomPx)
@@ -2484,6 +2497,43 @@ class ChatAdapter(
             parent = parent.parent
         }
         return null
+    }
+
+    /**
+     * For emoji-only messages: hides the timestamp (and status icon for outgoing)
+     * by default. Reveals them via [toggleEmojiTimestamp] which is wired into
+     * [BaseViewHolder.onMessageClick] so the whole row is tappable.
+     * For non-emoji messages: restores timestamp/status visibility.
+     */
+    private fun setupEmojiTapToReveal(
+        messageView: TextView,
+        isEmojiOnly: Boolean,
+        timestampView: TextView,
+        statusView: ImageView?
+    ) {
+        if (isEmojiOnly) {
+            timestampView.visibility = View.GONE
+            statusView?.visibility = View.GONE
+        } else {
+            timestampView.visibility = View.VISIBLE
+            statusView?.visibility = View.VISIBLE
+        }
+    }
+
+    /**
+     * Toggles the hidden timestamp/status on an emoji-only message visible (and
+     * vice versa), re-measuring the bubble to fit the revealed metadata.
+     */
+    private fun toggleEmojiTimestamp(
+        messageView: TextView,
+        timestampView: TextView,
+        statusView: ImageView?
+    ) {
+        val isHidden = timestampView.visibility == View.GONE
+        val newVis = if (isHidden) View.VISIBLE else View.GONE
+        timestampView.visibility = newVis
+        statusView?.visibility = newVis
+        findMessageBubbleLayout(messageView)?.requestLayout()
     }
 
     /**
@@ -6943,6 +6993,7 @@ class ChatAdapter(
                     val replyVisible = binding.includeReplyPreview.root.visibility == View.VISIBLE
                     val emojiOnly = !msg.isForwarded && !msg.isDeletedForAll && !replyVisible && !linkPreviewVisible && item.isEmojiContent
                     applyEmojiOnlyStyle(binding.cardMessage, binding.tvMessage, emojiOnly, isIncoming = true)
+                    setupEmojiTapToReveal(binding.tvMessage, emojiOnly, binding.tvTimestamp, null)
                     updateGrouping(position)
                     bindSelection(item, animate = false)
                     return
@@ -6959,6 +7010,7 @@ class ChatAdapter(
                 val replyVisible = binding.root.findViewById<View>(R.id.includeReplyPreview)?.visibility == View.VISIBLE
                 val emojiOnly = !msg.isForwarded && !msg.isDeletedForAll && !replyVisible && !linkPreviewVisible && item.isEmojiContent
                 applyEmojiOnlyStyle(binding.cardMessage, binding.tvMessage, emojiOnly, isIncoming = true)
+                setupEmojiTapToReveal(binding.tvMessage, emojiOnly, binding.tvTimestamp, null)
 
                 updateGrouping(position)
                 maybeBounceIncoming(item, binding.cardMessage)
@@ -6974,6 +7026,10 @@ class ChatAdapter(
         }
 
         override fun onMessageClick(item: ChatListItem.MessageItem) {
+            if (item.isEmojiContent) {
+                toggleEmojiTimestamp(binding.tvMessage, binding.tvTimestamp, null)
+                return
+            }
             val previewUrl = getLinkPreviewUrl(item.message)
             if (previewUrl != null) {
                 openLinkPreview(itemView.context, previewUrl)
@@ -7070,6 +7126,7 @@ class ChatAdapter(
                     } else {
                         binding.ivStatus.visibility = View.GONE
                     }
+                    setupEmojiTapToReveal(binding.tvMessage, emojiOnly, binding.tvTimestamp, binding.ivStatus)
                     updateGrouping(position)
                     bindSelection(item, animate = false)
                     return
@@ -7094,6 +7151,7 @@ class ChatAdapter(
                 } else {
                     binding.ivStatus.visibility = View.GONE
                 }
+                setupEmojiTapToReveal(binding.tvMessage, emojiOnly, binding.tvTimestamp, binding.ivStatus)
 
                 updateGrouping(position)
                 maybeBounceIncoming(item, binding.cardMessage)
@@ -7109,6 +7167,10 @@ class ChatAdapter(
         }
 
         override fun onMessageClick(item: ChatListItem.MessageItem) {
+            if (item.isEmojiContent) {
+                toggleEmojiTimestamp(binding.tvMessage, binding.tvTimestamp, binding.ivStatus)
+                return
+            }
             val previewUrl = getLinkPreviewUrl(item.message)
             if (previewUrl != null) {
                 openLinkPreview(itemView.context, previewUrl)

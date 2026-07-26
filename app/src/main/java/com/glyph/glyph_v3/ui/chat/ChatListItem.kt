@@ -1,6 +1,7 @@
 package com.glyph.glyph_v3.ui.chat
 
 import com.glyph.glyph_v3.data.models.Message
+import com.glyph.glyph_v3.data.models.MessageType
 import androidx.compose.runtime.Immutable
 
 enum class BubbleGroupPosition {
@@ -21,6 +22,26 @@ sealed class ChatListItem {
         val isShowingTranslation: Boolean = false,
         val isTranslating: Boolean = false
     ) : ChatListItem() {
+        fun groupCategory(): Int = when {
+            isEmojiContent -> 2          // Emoji-only — separate from text
+            message.type == MessageType.TEXT ||
+            message.type == MessageType.STATUS_REPLY ||
+            message.type == MessageType.SYSTEM -> 1  // Regular text
+            message.type == MessageType.AUDIO -> 3
+            message.type == MessageType.CONTACT -> 4
+            message.type == MessageType.MEDIA_GROUP -> 5
+            message.type == MessageType.DOCUMENT -> 6
+            else -> 7                     // IMAGE, VIDEO, GIF, MEME, STICKER, KLIPY_EMOJI
+        }
+
+        /**
+         * Whether this message can be visually grouped/stacked with [other].
+         * Breaks grouping when the visual type category differs (e.g. text next to
+         * emoji-only, GIF, or sticker should not appear stacked).
+         */
+        fun canGroupWith(other: MessageItem): Boolean {
+            return groupCategory() == other.groupCategory()
+        }
         /**
          * Pre-measured text height in pixels. Stored as a mutable property (NOT a
          * constructor parameter) so it does not affect data-class equals/hashCode.
