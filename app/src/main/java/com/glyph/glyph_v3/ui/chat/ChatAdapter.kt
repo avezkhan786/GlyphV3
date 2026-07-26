@@ -2060,6 +2060,22 @@ class ChatAdapter(
         }
     }
 
+    /**
+     * Applies the top margin for a message at [position], using the tight
+     * [groupedGapPx] when the previous message has the same sender (even if
+     * the visual type differs, e.g. emoji → text), and [senderChangeGapPx]
+     * only for actual sender changes or the very first message.
+     */
+    private fun applyGroupMargin(root: View, position: Int) {
+        val prevIsSameSender = if (position > 0) {
+            val prev = getItem(position - 1)
+            val curr = getItem(position)
+            prev is ChatListItem.MessageItem && curr is ChatListItem.MessageItem
+                    && prev.message.senderId == curr.message.senderId
+        } else false
+        applyItemTopMargin(root, if (prevIsSameSender) groupedGapPx else senderChangeGapPx)
+    }
+
     // Cache for corner shapes to prevent allocation on every bind
     private val shapeCache = java.util.concurrent.ConcurrentHashMap<Long, com.google.android.material.shape.ShapeAppearanceModel>()
 
@@ -4146,8 +4162,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
             applyBubbleCorners(binding.messageBubble, groupPos, isIncoming = true, fullRadiusDp = 12f, imageView = binding.ivImage)
         }
 
@@ -4672,8 +4687,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
             applyBubbleCorners(binding.messageBubble, groupPos, isIncoming = false, fullRadiusDp = 12f, imageView = binding.ivImage)
         }
 
@@ -5196,8 +5210,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
         }
 
         override fun refreshMedia(item: ChatListItem) {
@@ -5616,8 +5629,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
         }
 
         override fun refreshMedia(item: ChatListItem) {
@@ -5832,8 +5844,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
             applyBubbleCorners(binding.messageBubble, groupPos, isIncoming = true, fullRadiusDp = 12f, imageView = binding.collageView)
         }
 
@@ -6042,8 +6053,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
             applyBubbleCorners(binding.messageBubble, groupPos, isIncoming = false, fullRadiusDp = 12f, imageView = binding.collageView)
         }
 
@@ -7042,8 +7052,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
             applyBubbleCorners(binding.cardMessage, groupPos, isIncoming = true, fullRadiusDp = 8f)
             val hasTopSibling = binding.includeReplyPreview.root.visibility == View.VISIBLE
             // Link-preview card lives in a ViewStub; only present once inflated for an actual preview.
@@ -7212,8 +7221,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
             applyBubbleCorners(binding.cardMessage, groupPos, isIncoming = false, fullRadiusDp = 8f)
             val hasTopSibling = binding.includeReplyPreview.root.visibility == View.VISIBLE
             // Link-preview card lives in a ViewStub; only present once inflated for an actual preview.
@@ -7339,8 +7347,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
             applyBubbleCorners(binding.cardMessage, groupPos, isIncoming = true, fullRadiusDp = 8f)
         }
 
@@ -7470,8 +7477,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
             applyBubbleCorners(binding.cardMessage, groupPos, isIncoming = false, fullRadiusDp = 8f)
         }
 
@@ -7622,8 +7628,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
         }
     }
 
@@ -7759,8 +7764,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
         }
     }
 
@@ -7989,8 +7993,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
             applyBubbleCorners(binding.cardMessage, groupPos, isIncoming = true, fullRadiusDp = 8f)
         }
     }
@@ -8108,8 +8111,7 @@ class ChatAdapter(
             if (position == RecyclerView.NO_POSITION) return
             val item = getItem(position) as? ChatListItem.MessageItem ?: return
             val groupPos = item.groupPosition
-            val topMargin = if (groupPos == BubbleGroupPosition.TOP || groupPos == BubbleGroupPosition.SINGLE) senderChangeGapPx else groupedGapPx
-            applyItemTopMargin(binding.root, topMargin)
+            applyGroupMargin(binding.root, position)
             applyBubbleCorners(binding.cardMessage, groupPos, isIncoming = false, fullRadiusDp = 8f)
         }
     }
