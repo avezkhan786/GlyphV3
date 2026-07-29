@@ -187,7 +187,7 @@ private fun OfficialChatScreen(openMessageId: String?) {
                 TopAppBar(
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            OfficialGlyphAvatar(size = 36.dp, contentScale = 0.84f)
+                            OfficialGlyphAvatar(size = 36.dp)
                             Spacer(Modifier.width(10.dp))
                             Column {
                                 Text(

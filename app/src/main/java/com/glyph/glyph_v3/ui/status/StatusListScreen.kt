@@ -31,6 +31,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -47,7 +48,9 @@ import com.glyph.glyph_v3.data.repo.StatusRepository
 import com.glyph.glyph_v3.ui.theme.glyphTheme
 import com.glyph.glyph_v3.utils.ThemeManager
 import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
+import androidx.compose.foundation.Image
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import kotlin.math.roundToInt
 
 @Composable
@@ -399,7 +402,8 @@ private fun ContactStatusRow(
             imageUrl = group.profileImageUrl,
             statusCount = group.statuses.size,
             viewedCount = viewedCount,
-            size = 50
+            size = 50,
+            isOfficial = group.isOfficial
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -430,7 +434,8 @@ fun StatusAvatar(
     imageUrl: String,
     statusCount: Int = 0,
     viewedCount: Int = 0,
-    size: Int = 50
+    size: Int = 50,
+    isOfficial: Boolean = false
 ) {
     val theme = glyphTheme
     val context = LocalContext.current
@@ -488,19 +493,35 @@ fun StatusAvatar(
         }
 
         // Avatar image inside the ring
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(imageUrl.ifEmpty { null })
-                .crossfade(true)
-                .placeholder(R.drawable.ic_default_avatar)
-                .error(R.drawable.ic_default_avatar)
-                .build(),
-            contentDescription = "Avatar",
-            modifier = Modifier
-                .padding((strokeWidthDp + 1.5f).dp)
-                .fillMaxSize()
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop
-        )
+        if (isOfficial) {
+            Image(
+                painter = painterResource(R.drawable.ic_brand_official),
+                contentDescription = "Glyph Official",
+                modifier = Modifier
+                    .padding((strokeWidthDp + 1.5f).dp)
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .graphicsLayer {
+                        scaleX = 1.25f
+                        scaleY = 1.25f
+                    },
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            AsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(imageUrl.ifEmpty { null })
+                    .crossfade(true)
+                    .placeholder(R.drawable.ic_default_avatar)
+                    .error(R.drawable.ic_default_avatar)
+                    .build(),
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .padding((strokeWidthDp + 1.5f).dp)
+                    .fillMaxSize()
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        }
     }
 }
