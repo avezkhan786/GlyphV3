@@ -20,6 +20,8 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
 
+const router = require("./providers/router");
+
 // Firebase Admin is initialized in index.js
 
 // No need for heavy SDK imports - using direct REST API calls
@@ -34,26 +36,21 @@ const CACHE_VERSION = 9;
 
 /**
  * Generate a deterministic cache key from text + language + version.
+ * The active translate + tts provider ids/models are folded in so a provider
+ * switch invalidates any cached entry that would otherwise serve a stale or
+ * foreign voice (AI_PROVIDER_HANDOFF.md §13.3 #8).
  */
-function cacheKey(text, targetLanguage) {
-  // Use original text case for key to avoid "same text different case" collisions if needed, 
+function cacheKey(text, targetLanguage, trRouting, ttsRouting) {
+  // Use original text case for key to avoid "same text different case" collisions if needed,
   // but translation is usually case-sensitive.
   // CRITICAL FIX: Ensure targetLanguage is part of the hash!
   const normalized = text.trim();
+  const tr = trRouting ? `${trRouting.providerId}:${trRouting.model}` : "none";
+  const tt = ttsRouting ? `${ttsRouting.providerId}:${ttsRouting.model}` : "none";
   return crypto
     .createHash("sha256")
-    .update(`${normalized}::${targetLanguage}::${CACHE_VERSION}`)
+    .update(`${normalized}::${targetLanguage}::${tr}::${tt}::${CACHE_VERSION}`)
     .digest("hex");
-}
-
-/**
- * Gemini 2.5 Flash TTS uses universal constellation-named voices.
- * "aoede" is a high-quality multilingual voice that works across all languages.
- */
-const UNIVERSAL_VOICE = "aoede";
-
-function getVoiceConfig(langCode) {
-  return { name: UNIVERSAL_VOICE };
 }
 
 /**
@@ -164,20 +161,16 @@ exports.translateMessage = functions
     const userId = context.auth?.uid || `anon_${context.rawRequest?.ip || 'unknown'}`;
     console.log("Using userId for rate limiting:", userId);
 
-    // 2. Validate API keys are configured
+    // 2. Validate API keys are configured (for logging + legacy-mode guard).
+    // In legacy (unseeded) mode the router uses these keys; in seeded mode the active
+    // provider's own apiKey (falling back to these) is used, so a missing env key is
+    // not fatal once providers are configured.
     // GOOGLE_CLOUD_API_KEY  → Gemini (Generative Language API)
     // GOOGLE_TTS_API_KEY    → Cloud Text-to-Speech API (separate key due to GCP restriction policy)
     const geminiKey = process.env.GOOGLE_CLOUD_API_KEY || functions.config().google?.api_key;
     const ttsKey = process.env.GOOGLE_TTS_API_KEY || functions.config().google?.tts_api_key || geminiKey;
     console.log("Gemini key prefix:", geminiKey ? geminiKey.substring(0, 12) + "..." : "MISSING");
     console.log("TTS key prefix:", ttsKey ? ttsKey.substring(0, 12) + "..." : "MISSING");
-    if (!geminiKey) {
-      console.error("Gemini API key not configured");
-      throw new functions.https.HttpsError(
-        "internal",
-        "Gemini API key not configured. Set GOOGLE_CLOUD_API_KEY in functions/.env"
-      );
-    }
 
     // 2. Validate input
     const { text, targetLanguage, skipAudio } = data;
@@ -217,7 +210,20 @@ exports.translateMessage = functions
         "Valid targetLanguage is required."
       );
     }
-    
+
+    // Resolve the active translate + tts providers. In legacy (unseeded) mode the
+    // router falls back to the hardcoded keys above; enforce that they exist there so
+    // the error contract ("Gemini API key not configured") is preserved pre-seeding.
+    const trRouting = await router.getRouting("translation");
+    const ttsRouting = await router.getRouting("tts");
+    if (trRouting.providerId === "legacy_gemini" && !geminiKey) {
+      console.error("Gemini API key not configured");
+      throw new functions.https.HttpsError(
+        "internal",
+        "Gemini API key not configured. Set GOOGLE_CLOUD_API_KEY in functions/.env"
+      );
+    }
+
     const tInputValidated = Date.now();
     timings.validation = tInputValidated - tStart;
 
@@ -234,8 +240,9 @@ exports.translateMessage = functions
 
     // 4. Check cache
     const db = admin.firestore();
-    // Use targetLanguage in key generation (now fixed in helper above)
-    const key = cacheKey(text, targetLanguage);
+    // Fold translate + tts provider routing into the key so a provider switch
+    // invalidates stale/foreign cached entries (AI_PROVIDER_HANDOFF.md §13.3 #8).
+    const key = cacheKey(text, targetLanguage, trRouting, ttsRouting);
     console.log("Cache key:", key, "for lang:", targetLanguage);
     const cacheRef = db.collection("translation_cache").doc(key);
     const cached = await cacheRef.get();
@@ -305,54 +312,26 @@ exports.translateMessage = functions
     }
     console.log("Cache miss (or partial) - proceeding with API calls");
 
-    // 5. Translate via Gemini API (direct REST call, free AI Studio quota)
-    // Requires: Generative Language API enabled in GCP and no API key restrictions.
+    // 5. Translate via the provider router (Gemini in M2 / Google parity).
+    // Hinglish (hi-Latn) prompt handling lives in providers/gemini.js. The translate
+    // provider + model are folded into the cache key above.
     if (!translatedText) {
       try {
-        console.log("Calling Gemini API for translation...");
+        console.log("Routing translation via provider router...");
         const tGeminiStart = Date.now();
 
-        // Special handling for Hinglish (romanized Hindi)
-        let prompt;
-        if (targetLanguage === "hi-Latn") {
-          prompt = `Convert the following text to Romanized Hindi (Hinglish). Write it using English/Latin letters exactly how a Hindi speaker would type in WhatsApp chats. Preserve natural pronunciation. Do NOT use Devanagari script. Return ONLY the romanized Hindi text, nothing else. No explanations, no quotes, no labels.\n\nText: ${text}`;
-        } else {
-          prompt = `Translate the following text to ${targetLanguage}. Return ONLY the translated text, nothing else. No explanations, no quotes, no labels.\n\nText: ${text}`;
-        }
-
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              safetySettings: [
-                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-              ],
-            }),
-          }
-        );
+        const trResult = await router.translate({ text, targetLanguage });
+        translatedText = trResult.translatedText;
 
         timings.gemini = Date.now() - tGeminiStart;
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Gemini API error response:", errorText);
-          throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        translatedText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
         if (!translatedText) {
-          console.error("Empty translation result from Gemini");
+          console.error("Empty translation result from provider");
           throw new Error("Empty translation result");
         }
         console.log("Translation successful:", translatedText.substring(0, 50) + "...");
       } catch (err) {
-        console.error("Gemini translation error:", err.message, err.stack);
+        console.error("Provider translation error:", err.message, err.stack);
         throw new functions.https.HttpsError(
           "internal",
           "Translation failed. Please try again."
@@ -388,87 +367,27 @@ exports.translateMessage = functions
        };
     }
 
-    // 6. Generate TTS MP3 using Google Cloud Text-to-Speech REST API.
-    // Uses the same API key as Gemini (the key must have Cloud TTS API enabled).
-    // Returns MP3 audio as base64 — no WAV header manipulation needed.
-    let audioUrl;
+    // 6. Generate TTS MP3 via the provider router (Google Cloud TTS in M2 / parity).
+    // The ttsLangMap (voice per language) and MP3 request now live in
+    // providers/google_tts.js; the result is base64 MP3, played inline by Android
+    // (audioUrl stays null — invariant §13.3 #1).
     try {
-      console.log("Calling Google Cloud Text-to-Speech API...");
+      console.log("Routing TTS via provider router...");
       const tTtsStart = Date.now();
       console.log("Generating audio for:", translatedText.substring(0, 50));
 
-      // Map language code → BCP-47 languageCode + voice name for Cloud TTS.
-      // Cloud TTS voices: https://cloud.google.com/text-to-speech/docs/voices
-      const ttsLangMap = {
-        "ur":      { languageCode: "ur-PK", name: "ur-PK-Standard-A" },
-        "ar":      { languageCode: "ar-XA", name: "ar-XA-Standard-A" },
-        "hi":      { languageCode: "hi-IN", name: "hi-IN-Standard-A" },
-        "hi-Latn": { languageCode: "hi-IN", name: "hi-IN-Standard-A" }, // Hinglish reads as Hindi
-        "zh":      { languageCode: "cmn-CN", name: "cmn-CN-Standard-A" },
-        "zh-TW":   { languageCode: "cmn-TW", name: "cmn-TW-Standard-A" },
-        "ja":      { languageCode: "ja-JP", name: "ja-JP-Standard-A" },
-        "ko":      { languageCode: "ko-KR", name: "ko-KR-Standard-A" },
-        "fr":      { languageCode: "fr-FR", name: "fr-FR-Standard-A" },
-        "de":      { languageCode: "de-DE", name: "de-DE-Standard-A" },
-        "es":      { languageCode: "es-ES", name: "es-ES-Standard-A" },
-        "pt":      { languageCode: "pt-BR", name: "pt-BR-Standard-A" },
-        "it":      { languageCode: "it-IT", name: "it-IT-Standard-A" },
-        "ru":      { languageCode: "ru-RU", name: "ru-RU-Standard-A" },
-        "tr":      { languageCode: "tr-TR", name: "tr-TR-Standard-A" },
-        "nl":      { languageCode: "nl-NL", name: "nl-NL-Standard-A" },
-        "pl":      { languageCode: "pl-PL", name: "pl-PL-Standard-A" },
-        "sv":      { languageCode: "sv-SE", name: "sv-SE-Standard-A" },
-        "da":      { languageCode: "da-DK", name: "da-DK-Standard-A" },
-        "fi":      { languageCode: "fi-FI", name: "fi-FI-Standard-A" },
-        "no":      { languageCode: "nb-NO", name: "nb-NO-Standard-A" },
-        "id":      { languageCode: "id-ID", name: "id-ID-Standard-A" },
-        "ms":      { languageCode: "ms-MY", name: "ms-MY-Standard-A" },
-        "th":      { languageCode: "th-TH", name: "th-TH-Standard-A" },
-        "vi":      { languageCode: "vi-VN", name: "vi-VN-Standard-A" },
-        "en":      { languageCode: "en-US", name: "en-US-Standard-C" },
-      };
-      const voiceCfg = ttsLangMap[targetLanguage] || { languageCode: "en-US", name: "en-US-Standard-C" };
-      console.log("TTS voice config:", voiceCfg, "for language:", targetLanguage);
-
-      const ttsRequestBody = {
-        input: { text: translatedText },
-        voice: {
-          languageCode: voiceCfg.languageCode,
-          name: voiceCfg.name,
-        },
-        audioConfig: {
-          audioEncoding: "MP3",
-        },
-      };
-      console.log("TTS request body:", JSON.stringify(ttsRequestBody));
-
-      const ttsResponse = await fetch(
-        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${ttsKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(ttsRequestBody),
-        }
-      );
-
-      if (!ttsResponse.ok) {
-        const errorText = await ttsResponse.text();
-        console.error("❌ Cloud TTS API ERROR ❌");
-        console.error("Status:", ttsResponse.status, ttsResponse.statusText);
-        console.error("Response:", errorText);
-        throw new Error(`TTS API error: ${ttsResponse.status} ${ttsResponse.statusText}`);
-      }
-
-      const ttsResult = await ttsResponse.json();
+      const ttsResult = await router.synthesizeSpeech({
+        text: translatedText,
+        targetLanguage,
+      });
       const audioContent = ttsResult.audioContent; // already base64 MP3
 
       if (!audioContent) {
-        console.error("❌ NO AUDIO CONTENT IN TTS RESPONSE ❌");
+        console.error("❌ NO AUDIO CONTENT FROM TTS PROVIDER ❌");
         throw new Error("No audio content received from TTS API");
       }
 
       console.log("✅ Cloud TTS MP3 received, base64 length:", audioContent.length);
-      const wavBase64 = audioContent; // Cloud TTS returns MP3, client plays it directly
       timings.tts = Date.now() - tTtsStart;
       timings.total = Date.now() - tStart;
 
@@ -488,24 +407,24 @@ exports.translateMessage = functions
       }
 
       console.log("=== Translation request completed successfully ===");
-      console.log("Returning MP3 audio content length:", wavBase64.length);
-      
+      console.log("Returning MP3 audio content length:", audioContent.length);
+
       return {
         translatedText,
-        audioContent: wavBase64, // Base64 string with WAV header
+        audioContent, // Base64 MP3, played inline by Android
         audioUrl: null,
         cached: false,
         timings
       };
 
     } catch (err) {
-      console.error("❌ TTS/Storage ERROR ❌");
+      console.error("❌ TTS ERROR ❌");
       console.error("Error type:", err.constructor.name);
       console.error("Error message:", err.message);
       console.error("Stack trace:", err.stack);
       console.error("Translated text:", translatedText?.substring(0, 100));
       console.error("Target language:", targetLanguage);
-      
+
       // Translation succeeded but TTS failed — still return translation
       return {
           translatedText,

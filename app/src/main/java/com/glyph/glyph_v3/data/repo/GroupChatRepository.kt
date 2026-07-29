@@ -90,7 +90,7 @@ class GroupChatRepository(
      * @param memberUids initial members (must NOT include the creator — added automatically)
      */
     suspend fun createGroup(name: String, iconUri: Uri?, memberUids: List<String>): String {
-        val creatorUid = requireUid()
+        val creatorUid = requireUid() ?: throw IllegalStateException("Cannot create group — account may be restricted")
         val trimmedName = name.trim()
         require(trimmedName.isNotEmpty()) { "Group name must not be blank" }
 
@@ -150,7 +150,7 @@ class GroupChatRepository(
 
     /** Add new members to an existing group. Caller must be an admin. */
     suspend fun addMembers(chatId: String, newMemberUids: List<String>) {
-        val callerUid = requireUid()
+        val callerUid = requireUid() ?: throw IllegalStateException("Action not allowed — account may be restricted")
         val snap = firestore.collection("chats").document(chatId).get().await()
         require(snap.getBoolean("isGroup") == true) { "Not a group chat" }
         val currentParticipants = (snap.get("participants") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
@@ -180,7 +180,7 @@ class GroupChatRepository(
 
     /** Remove a member from the group. Caller must be an admin (or removing themselves). */
     suspend fun removeMember(chatId: String, memberUid: String) {
-        val callerUid = requireUid()
+        val callerUid = requireUid() ?: throw IllegalStateException("Action not allowed — account may be restricted")
         val snap = firestore.collection("chats").document(chatId).get().await()
         require(snap.getBoolean("isGroup") == true) { "Not a group chat" }
         val currentParticipants = (snap.get("participants") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
@@ -210,12 +210,13 @@ class GroupChatRepository(
 
     /** Convenience: caller leaves the group. */
     suspend fun leaveGroup(chatId: String) {
-        removeMember(chatId, requireUid())
+        val uid = requireUid() ?: return
+        removeMember(chatId, uid)
     }
 
     /** Promote a member to admin. Caller must already be an admin. */
     suspend fun promoteAdmin(chatId: String, memberUid: String) {
-        val callerUid = requireUid()
+        val callerUid = requireUid() ?: throw IllegalStateException("Action not allowed — account may be restricted")
         val snap = firestore.collection("chats").document(chatId).get().await()
         require(snap.getBoolean("isGroup") == true) { "Not a group chat" }
         val currentAdmins = (snap.get("admins") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
@@ -236,7 +237,7 @@ class GroupChatRepository(
 
     /** Demote an admin back to a regular member. Caller must be an admin and not the only admin. */
     suspend fun demoteAdmin(chatId: String, adminUid: String) {
-        val callerUid = requireUid()
+        val callerUid = requireUid() ?: throw IllegalStateException("Action not allowed — account may be restricted")
         val snap = firestore.collection("chats").document(chatId).get().await()
         require(snap.getBoolean("isGroup") == true) { "Not a group chat" }
         val currentAdmins = (snap.get("admins") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
@@ -263,7 +264,7 @@ class GroupChatRepository(
         iconUri: Uri? = null,
         clearIcon: Boolean = false
     ) {
-        val callerUid = requireUid()
+        val callerUid = requireUid() ?: throw IllegalStateException("Action not allowed — account may be restricted")
         val snap = firestore.collection("chats").document(chatId).get().await()
         require(snap.getBoolean("isGroup") == true) { "Not a group chat" }
         val currentAdmins = (snap.get("admins") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
@@ -297,7 +298,7 @@ class GroupChatRepository(
 
     /** Update only the group description. Any group member may call this. */
     suspend fun updateGroupDescription(chatId: String, description: String) {
-        val callerUid = requireUid()
+        val callerUid = requireUid() ?: throw IllegalStateException("Action not allowed — account may be restricted")
         val snap = firestore.collection("chats").document(chatId).get().await()
         require(snap.getBoolean("isGroup") == true) { "Not a group chat" }
         val participants = (snap.get("participants") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
@@ -345,7 +346,7 @@ class GroupChatRepository(
         replyPreviewUrl: String? = null,
         clientTimestamp: Long? = null
     ) {
-        val senderUid = requireUid()
+        val senderUid = requireUid() ?: return
         val snap = firestore.collection("chats").document(chatId).get().await()
         require(snap.getBoolean("isGroup") == true) { "Not a group chat" }
         val participants = (snap.get("participants") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
@@ -547,7 +548,7 @@ class GroupChatRepository(
         replyToType: MessageType? = null,
         replyPreviewUrl: String? = null
     ) {
-        val senderUid = requireUid()
+        val senderUid = requireUid() ?: return
         val messageId = UUID.randomUUID().toString()
         val timestamp = System.currentTimeMillis()
 
@@ -710,7 +711,7 @@ class GroupChatRepository(
         replyToType: MessageType? = null,
         replyPreviewUrl: String? = null
     ) {
-        val senderUid = requireUid()
+        val senderUid = requireUid() ?: return
         val messageId = UUID.randomUUID().toString()
         val timestamp = System.currentTimeMillis()
 
@@ -872,7 +873,7 @@ class GroupChatRepository(
         voiceFile: java.io.File,
         duration: Long
     ) {
-        val senderUid = requireUid()
+        val senderUid = requireUid() ?: return
         val messageId = UUID.randomUUID().toString()
         val timestamp = System.currentTimeMillis()
 
@@ -974,7 +975,7 @@ class GroupChatRepository(
         documentUri: Uri,
         caption: String = ""
     ) {
-        val senderUid = requireUid()
+        val senderUid = requireUid() ?: return
         val messageId = UUID.randomUUID().toString()
         val timestamp = System.currentTimeMillis()
 
@@ -1188,7 +1189,7 @@ class GroupChatRepository(
         replyToType: MessageType? = null,
         replyPreviewUrl: String? = null
     ): Boolean {
-        val senderUid = requireUid()
+        val senderUid = requireUid() ?: return false
         val messageId = UUID.randomUUID().toString()
         val timestamp = System.currentTimeMillis()
 
@@ -1276,7 +1277,7 @@ class GroupChatRepository(
         contactName: String,
         contactPhone: String
     ): Boolean {
-        val senderUid = requireUid()
+        val senderUid = requireUid() ?: return false
         val messageId = UUID.randomUUID().toString()
         val timestamp = System.currentTimeMillis()
         val previewText = "Contact: $contactName"
@@ -1700,7 +1701,7 @@ class GroupChatRepository(
         caption: String = ""
     ) {
         if (uris.isEmpty()) return
-        val senderUid = requireUid()
+        val senderUid = requireUid() ?: return
         val timestamp = System.currentTimeMillis()
         val messageId = UUID.randomUUID().toString()
 
@@ -1903,8 +1904,7 @@ class GroupChatRepository(
     //  Internals
     // ────────────────────────────────────────────────────────────
 
-    private fun requireUid(): String {
+    private fun requireUid(): String? {
         return auth.currentUser?.uid
-            ?: error("GroupChatRepository requires an authenticated user")
     }
 }

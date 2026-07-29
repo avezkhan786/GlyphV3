@@ -12,5 +12,11 @@ data class User(
     val profileImageFullUrl: String = "",
     val isOnline: Boolean = false,
     val lastSeen: Long = 0L,
-    val fcmToken: String = ""
-)
+    val fcmToken: String = "",
+    val appVersion: String = "",
+    val deviceModel: String = "",
+    val deviceOsVersion: String = "",
+    val accountStatus: String = "active"
+) {
+    val isAccountRestricted: Boolean get() = accountStatus != "active"
+}

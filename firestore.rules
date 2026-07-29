@@ -422,6 +422,28 @@ service cloud.firestore {
     }
 
     // ──────────────────────────────────────────────────────────
+    // AI Provider Management (Dynamic AI Provider Management System)
+    // api_providers, ai_settings, provider_metrics, config_version hold
+    // third-party API keys + routing config. They are written ONLY by the
+    // Admin portal / Cloud Functions via the Admin SDK (which bypasses these
+    // rules). The Android app must NEVER read or write them, so clients are
+    // explicitly denied. The default catch-all below also denies, but these
+    // explicit blocks document intent and defend against future catch-alls.
+    // ──────────────────────────────────────────────────────────
+    match /api_providers/{id} {
+      allow read, write: if false;
+    }
+    match /ai_settings/{capability} {
+      allow read, write: if false;
+    }
+    match /provider_metrics/{id} {
+      allow read, write: if false;
+    }
+    match /config_version/{doc} {
+      allow read, write: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────
     // Default: deny all
     // ──────────────────────────────────────────────────────────
     match /{document=**} {

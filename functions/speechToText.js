@@ -15,6 +15,8 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 
+const router = require("./providers/router");
+
 // Firebase Admin is initialized in index.js
 
 // ─── Rate limiter (shared with translate.js) ──────────────
@@ -66,9 +68,12 @@ exports.speechToText = functions
     const userId = context.auth?.uid || `anon_${context.rawRequest?.ip || "unknown"}`;
     console.log("User ID:", userId);
 
-    // 2. API key — reads from functions/.env (modern dotenv), fallback to legacy config
+    // 2. API key — reads from functions/.env (modern dotenv), fallback to legacy config.
+    // Gate the hard error on legacy (unseeded) mode: when a provider is configured it
+    // supplies its own key, so a missing env key must not block it (AI_PROVIDER_HANDOFF §13.3 #9).
     const apiKey = process.env.GOOGLE_CLOUD_API_KEY || functions.config().google?.api_key;
-    if (!apiKey) {
+    const sttRouting = await router.getRouting("stt");
+    if (sttRouting.providerId === "legacy_gemini" && !apiKey) {
       throw new functions.https.HttpsError(
         "internal",
         "Google Cloud API key not configured."
@@ -106,92 +111,26 @@ exports.speechToText = functions
     }
     timings.rateLimit = Date.now() - tValidated;
 
-    // 5. Speech-to-Text using Gemini 2.5 Flash (multimodal)
-    // Gemini can directly process audio and transcribe it
+    // 5. Speech-to-Text via the provider router (Gemini in M2 / Google parity).
+    // Hinglish prompt handling + SAFETY_SETTINGS (all BLOCK_NONE) live in
+    // providers/gemini.js; the contents array (prompt + inline audio) is assembled there.
     let recognizedText = null;
     // Check if Hinglish (romanized Hindi) is requested
     const wantHinglish = targetLanguage === "hi-Latn";
     try {
-      console.log("Calling Gemini API for speech recognition...");
+      console.log("Routing speech recognition via provider router...");
       const tSttStart = Date.now();
 
-      const languageInstruction = languageHint
-        ? `The audio is likely in ${languageHint}. `
-        : "";
-
-      let prompt;
-      if (wantHinglish) {
-        // Directly transcribe into Romanized Hindi (Hinglish)
-        prompt = `${languageInstruction}Transcribe the following audio into Romanized Hindi (Hinglish / Roman Hindi). Write the Hindi words using English/Latin letters, exactly how a Hindi speaker would type in WhatsApp chats. Preserve natural pronunciation. Do NOT use Devanagari script. Return ONLY the romanized text, nothing else. No explanations, no labels, no quotes. If the audio is unclear or empty, return "[inaudible]".
-
-Examples of expected output style:
-- "mujhe aapse baat karni hai"
-- "kya haal hai bhai"
-- "main kal aa raha hoon"`;
-      } else {
-        prompt = `${languageInstruction}Transcribe the following audio accurately. Return ONLY the transcribed text, nothing else. No explanations, no labels, no quotes. If the audio is unclear or empty, return "[inaudible]".`;
-      }
-
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: prompt },
-                  {
-                    inlineData: {
-                      mimeType: "audio/mp4",
-                      data: audioBase64,
-                    },
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.1, // Low temperature for accurate transcription
-              maxOutputTokens: 2048,
-            },
-            safetySettings: [
-              {
-                category: "HARM_CATEGORY_HARASSMENT",
-                threshold: "BLOCK_NONE",
-              },
-              {
-                category: "HARM_CATEGORY_HATE_SPEECH",
-                threshold: "BLOCK_NONE",
-              },
-              {
-                category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                threshold: "BLOCK_NONE",
-              },
-              {
-                category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-                threshold: "BLOCK_NONE",
-              },
-            ],
-          }),
-        }
-      );
+      const sttResult = await router.speechToText({
+        audioBase64,
+        mimeType: data.mimeType || "audio/mp4", // original always sent audio/mp4
+        languageHint,
+        targetLanguage,
+      });
+      recognizedText = sttResult.text;
 
       const tSttEnd = Date.now();
       timings.stt = tSttEnd - tSttStart;
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Gemini STT API error:", errorText);
-        throw new Error(
-          `Gemini API error: ${response.status} ${response.statusText}`
-        );
-      }
-
-      const result = await response.json();
-      recognizedText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
       if (!recognizedText || recognizedText === "[inaudible]") {
         console.log("No speech recognized or audio was inaudible");
@@ -231,63 +170,17 @@ Examples of expected output style:
         console.log("Translating recognized text to:", targetLanguage);
         const tTranslateStart = Date.now();
 
-        let translatePrompt;
-        // Special handling for translation TO Hinglish from non-Hindi audio
-        if (targetLanguage === "hi-Latn") {
-          translatePrompt = `Convert the following text to Romanized Hindi (Hinglish). Write it using English/Latin letters exactly how a Hindi speaker would type in WhatsApp. Do NOT use Devanagari script. Return ONLY the romanized Hindi text.\n\nText: ${recognizedText}`;
-        } else {
-          translatePrompt = `Translate the following text to ${targetLanguage}. Return ONLY the translated text, nothing else. No explanations, no quotes, no labels.\n\nText: ${recognizedText}`;
-        }
-
-        const translateResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    {
-                      text: translatePrompt,
-                    },
-                  ],
-                },
-              ],
-              safetySettings: [
-                {
-                  category: "HARM_CATEGORY_HARASSMENT",
-                  threshold: "BLOCK_NONE",
-                },
-                {
-                  category: "HARM_CATEGORY_HATE_SPEECH",
-                  threshold: "BLOCK_NONE",
-                },
-              ],
-            }),
-          }
-        );
+        const trResult = await router.translate({
+          text: recognizedText,
+          targetLanguage,
+        });
+        translatedText = trResult.translatedText;
 
         timings.translation = Date.now() - tTranslateStart;
-
-        if (!translateResponse.ok) {
-          console.error(
-            "Translation API error:",
-            await translateResponse.text()
-          );
-          // Don't fail the whole request, just return without translation
-          translatedText = null;
-        } else {
-          const translateResult = await translateResponse.json();
-          translatedText =
-            translateResult.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          console.log(
-            "Translation successful:",
-            (translatedText || "").substring(0, 50)
-          );
-        }
+        console.log(
+          "Translation successful:",
+          (translatedText || "").substring(0, 50)
+        );
       } catch (err) {
         console.error("Translation error (non-fatal):", err.message);
         // Translation failure is non-fatal - we still have the recognized text

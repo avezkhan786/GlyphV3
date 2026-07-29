@@ -9052,6 +9052,13 @@ class ChatActivity : AppCompatActivity(),
         val id = chatId ?: return
         // Phase 5: groups don't have an `otherUserId`. Allow sends without it.
         val otherId = if (isGroupChat) "" else (otherUserId ?: return)
+
+        // Prevent sends if account is restricted (checked via global singleton)
+        if (com.glyph.glyph_v3.data.repo.AccountStatusManager.isRestricted) {
+            Toast.makeText(this, "Your account is restricted. You can read messages but cannot send.", Toast.LENGTH_LONG).show()
+            return
+        }
+
         traceUi(stage = "send_tap", details = "chatId=$id otherUserId=$otherId textLen=${text.length}")
         StartupTrace.logStage("chat_send_tapped", "chatId=$id length=${text.length}")
         val activeSharedPreview = pendingSharedLinkPreview?.takeIf {
@@ -9103,47 +9110,55 @@ class ChatActivity : AppCompatActivity(),
             pendingScrollToBottomOnNextListCommit = true
             val replyMsg = replyToMessage // Capture current reply state
             lifecycleScope.launch {
-                traceUi(stage = "send_launch", details = "chatId=$id reply=${replyMsg != null} preview=${activeSharedPreview != null}")
-                val rText = if (replyMsg?.type == MessageType.CONTACT) {
-                    "${replyMsg.contactName ?: "Contact"}: ${replyMsg.contactPhone ?: ""}"
-                } else if (replyMsg?.type == MessageType.DOCUMENT) {
-                    "📄 ${replyMsg.text.ifBlank { "Document" }}"
-                } else {
-                    replyMsg?.text
-                }
+                try {
+                    traceUi(stage = "send_launch", details = "chatId=$id reply=${replyMsg != null} preview=${activeSharedPreview != null}")
+                    val rText = if (replyMsg?.type == MessageType.CONTACT) {
+                        "${replyMsg.contactName ?: "Contact"}: ${replyMsg.contactPhone ?: ""}"
+                    } else if (replyMsg?.type == MessageType.DOCUMENT) {
+                        "📄 ${replyMsg.text.ifBlank { "Document" }}"
+                    } else {
+                        replyMsg?.text
+                    }
 
-                if (isGroupChat) {
-                    // Phase 5: groups go through GroupChatRepository which writes to the same
-                    // Firestore /chats/{chatId}/messages/{messageId} subcollection but skips
-                    // the 1:1 pending_messages fan-out. Notifications for groups are handled
-                    // separately (see Phase 6).
-                    groupRepository.sendGroupTextMessage(
-                        chatId = id,
-                        text = text,
-                        replyToMessageId = replyMsg?.id,
-                        replyToText = rText,
-                        replyToSenderId = replyMsg?.senderId,
-                        replyToType = replyMsg?.type
-                    )
-                } else {
-                    repository.sendMessage(
-                        chatId = id,
-                        text = text,
-                        otherUserId = otherId,
-                        otherUsername = otherUsername.ifEmpty { "Unknown" },
-                        otherUserAvatar = otherUserAvatar,
-                        previewThumbnailUrl = activeSharedPreview?.thumbnailUrl,
-                        previewTitle = activeSharedPreview?.title,
-                        previewDomain = activeSharedPreview?.domain,
-                        replyToMessageId = replyMsg?.id,
-                        replyToText = rText,
-                        replyToSenderId = replyMsg?.senderId,
-                        replyToType = replyMsg?.type
-                    )
+                    if (isGroupChat) {
+                        groupRepository.sendGroupTextMessage(
+                            chatId = id,
+                            text = text,
+                            replyToMessageId = replyMsg?.id,
+                            replyToText = rText,
+                            replyToSenderId = replyMsg?.senderId,
+                            replyToType = replyMsg?.type
+                        )
+                    } else {
+                        repository.sendMessage(
+                            chatId = id,
+                            text = text,
+                            otherUserId = otherId,
+                            otherUsername = otherUsername.ifEmpty { "Unknown" },
+                            otherUserAvatar = otherUserAvatar,
+                            previewThumbnailUrl = activeSharedPreview?.thumbnailUrl,
+                            previewTitle = activeSharedPreview?.title,
+                            previewDomain = activeSharedPreview?.domain,
+                            replyToMessageId = replyMsg?.id,
+                            replyToText = rText,
+                            replyToSenderId = replyMsg?.senderId,
+                            replyToType = replyMsg?.type
+                        )
+                    }
+                    maybeTriggerRomanticMessageEffect(text)
+                    traceUi(stage = "send_returned", details = "chatId=$id otherUserId=$otherId")
+                    playSendSound()
+                } catch (e: Exception) {
+                    // Catch PERMISSION_DENIED and other errors from restricted accounts
+                    Log.w("ChatActivity", "Send failed (account may be restricted)", e)
+                    runOnUiThread {
+                        Toast.makeText(
+                            this@ChatActivity,
+                            "Your account is restricted. You can read messages but cannot send.",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
-                maybeTriggerRomanticMessageEffect(text)
-                traceUi(stage = "send_returned", details = "chatId=$id otherUserId=$otherId")
-                playSendSound()
             }
             binding.etMessageInput.text.clear()
             cancelReply()

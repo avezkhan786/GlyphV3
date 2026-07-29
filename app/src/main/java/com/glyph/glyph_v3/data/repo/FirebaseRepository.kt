@@ -69,7 +69,10 @@ class FirebaseRepository {
             "username" to username,
             "profileImageUrl" to imageUrl,
             "profileImageFullUrl" to imageUrl,
-            "bio" to bio
+            "bio" to bio,
+            "appVersion" to com.glyph.glyph_v3.BuildConfig.VERSION_NAME,
+            "deviceModel" to android.os.Build.MODEL,
+            "deviceOsVersion" to android.os.Build.VERSION.RELEASE
         )
 
         firestore.collection("users").document(uid).set(userData)
@@ -271,6 +274,19 @@ class FirebaseRepository {
             .addOnFailureListener { e -> Log.e("FirebaseRepo", "Error updating FCM token", e) }
     }
 
+    fun updateDeviceInfo() {
+        val userId = currentUserId ?: return
+        val deviceInfo = hashMapOf<String, Any>(
+            "appVersion" to com.glyph.glyph_v3.BuildConfig.VERSION_NAME,
+            "deviceModel" to android.os.Build.MODEL,
+            "deviceOsVersion" to android.os.Build.VERSION.RELEASE
+        )
+        firestore.collection("users").document(userId)
+            .update(deviceInfo)
+            .addOnSuccessListener { Log.d("FirebaseRepo", "Device info updated") }
+            .addOnFailureListener { e -> Log.e("FirebaseRepo", "Error updating device info", e) }
+    }
+
     fun markMessageAsRead(chatId: String, messageId: String) {
         firestore.collection("chats").document(chatId)
             .collection("messages").document(messageId)
@@ -280,7 +296,7 @@ class FirebaseRepository {
 
     // Profile management functions
     suspend fun uploadProfileImage(uri: Uri, onProgress: (Float) -> Unit): String {
-        val uid = currentUserId ?: throw Exception("User not logged in")
+        val uid = currentUserId ?: throw IllegalStateException("Account not available — it may have been restricted")
         val ref = storage.reference.child("profile_images/$uid.jpg")
         
         return try {
@@ -312,7 +328,7 @@ class FirebaseRepository {
         croppedImageUri: Uri,
         onProgress: (Float) -> Unit
     ): Pair<String, String> {
-        val uid = currentUserId ?: throw Exception("User not logged in")
+        val uid = currentUserId ?: throw IllegalStateException("Account not available — it may have been restricted")
         val fullRef = storage.reference.child("profile_images/${uid}_full.jpg")
         val thumbRef = storage.reference.child("profile_images/${uid}.jpg")
 
@@ -344,7 +360,7 @@ class FirebaseRepository {
     }
 
     suspend fun removeProfileImage() {
-        val uid = currentUserId ?: throw Exception("User not logged in")
+        val uid = currentUserId ?: throw IllegalStateException("Account not available — it may have been restricted")
         val thumbRef = storage.reference.child("profile_images/${uid}.jpg")
         val fullRef = storage.reference.child("profile_images/${uid}_full.jpg")
         
@@ -373,7 +389,7 @@ class FirebaseRepository {
     }
 
     suspend fun updateUserProfile(username: String? = null, bio: String? = null) {
-        val uid = currentUserId ?: throw Exception("User not logged in")
+        val uid = currentUserId ?: throw IllegalStateException("Account not available — it may have been restricted")
         
         val updates = mutableMapOf<String, Any>()
         username?.let { updates["username"] = it }

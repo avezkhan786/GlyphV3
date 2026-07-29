@@ -19,15 +19,9 @@
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const router = require("./providers/router");
 
 // ─── Constants ────────────────────────────────────────────
-
-// Lazy getter — avoids calling functions.config() at module load time,
-// which causes Firebase CLI deploy-time timeouts.
-function getApiKey() {
-  return process.env.GOOGLE_CLOUD_API_KEY || functions.config().google?.api_key;
-}
-const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 // Models – cost-optimized per mode
 const MODEL_CHAT = "gemini-2.5-flash";          // fast general chat
@@ -48,15 +42,6 @@ const RATE_LIMIT_MAX = 20; // 20 requests/min
 // Defaults to UTC if client doesn't provide one. Reset per invocation.
 let _userTimezone = "UTC";
 let _userTzLabel = "UTC";
-
-// ─── Safety settings (match enhanceMessage.js) ───────────
-
-const SAFETY_SETTINGS = [
-  { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-  { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-  { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-  { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE" },
-];
 
 // ─── App Knowledge (inline, lightweight) ──────────────────
 
@@ -216,42 +201,9 @@ function checkRateLimit(userId) {
 }
 
 // ─── Gemini API helpers ───────────────────────────────────
-
-async function callGemini(model, contents, generationConfig = {}) {
-  const url = `${GEMINI_BASE}/${model}:generateContent?key=${getApiKey()}`;
-
-  const body = {
-    contents,
-    safetySettings: SAFETY_SETTINGS,
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 2048,
-      ...generationConfig,
-    },
-  };
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error(`Gemini API error (${model}):`, errText);
-    throw new Error(`Gemini API ${response.status}`);
-  }
-
-  const result = await response.json();
-  const text = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-  if (!text) {
-    console.error("Empty Gemini response", JSON.stringify(result).slice(0, 300));
-    throw new Error("Empty AI response");
-  }
-
-  return text;
-}
+// All Gemini calls now go through the provider router (providers/router.js →
+// providers/gemini.js). The router preserves the verbatim contents array, attaches
+// SAFETY_SETTINGS, and falls back to the legacy key when no provider is seeded.
 
 // ─── Media-type label helper ──────────────────────────────
 
@@ -1231,7 +1183,7 @@ async function handleChat(message, clientContents, profile, userContext, options
   // Use lower temperature for factual/data queries (contact lookups, last message, etc.)
   const isFactualQuery = !!deepContextBlock || /\b(last|latest|recent|unread|how many|who\s+messaged|when\s+did)\b/i.test(message);
   const chatTemp = isFactualQuery ? 0.3 : 0.7;
-  const reply = await callGemini(MODEL_CHAT, contents, { temperature: chatTemp });
+  const reply = (await router.generateText({ model: MODEL_CHAT, contents, generationConfig: { temperature: chatTemp } })).text;
   return { reply, mode: "chat" };
 }
 
@@ -1317,7 +1269,7 @@ async function handleSearch(message, userId, options, profile) {
              }]
            }];
            
-           const reply = await callGemini(MODEL_SEARCH, contents, { temperature: 0.4 });
+           const reply = (await router.generateText({ model: MODEL_SEARCH, contents, generationConfig: { temperature: 0.4 } })).text;
            return { reply, mode: "search", sources: [] };
         }
       }
@@ -1401,7 +1353,7 @@ async function handleSearch(message, userId, options, profile) {
               }]
             }];
             
-            const reply = await callGemini(MODEL_SEARCH, contents, { temperature: 0.3 });
+            const reply = (await router.generateText({ model: MODEL_SEARCH, contents, generationConfig: { temperature: 0.3 } })).text;
             return { reply, mode: "search", sources: [] };
           }
         }
@@ -1631,10 +1583,11 @@ async function handleSearch(message, userId, options, profile) {
     },
   ];
 
-  const reply = await callGemini(MODEL_SEARCH, contents, {
-    temperature: 0.3,
-    maxOutputTokens: 1500,
-  });
+  const reply = (await router.generateText({
+    model: MODEL_SEARCH,
+    contents,
+    generationConfig: { temperature: 0.3, maxOutputTokens: 1500 },
+  })).text;
 
   // 5. Build source citations
   const sources = topResults.slice(0, 5).map((r) => ({
@@ -1678,10 +1631,11 @@ async function handleApp(message, clientContents, profile) {
     });
   }
 
-  const reply = await callGemini(MODEL_APP, contents, {
-    temperature: 0.3,
-    maxOutputTokens: 1024,
-  });
+  const reply = (await router.generateText({
+    model: MODEL_APP,
+    contents,
+    generationConfig: { temperature: 0.3, maxOutputTokens: 1024 },
+  })).text;
 
   // Try to extract navigationHint from reply
   let navigationHint = null;
@@ -1856,10 +1810,11 @@ async function handleWeeklySummary(userId, profile) {
     `6. Use "you" for the owner, the contact's name for the other person.\n` +
     `7. Keep the total response under 400 words.\n`;
 
-  const reply = await callGemini(MODEL_SEARCH, [{ role: "user", parts: [{ text: prompt }] }], {
-    temperature: 0.2,
-    maxOutputTokens: 2000,
-  });
+  const reply = (await router.generateText({
+    model: MODEL_SEARCH,
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 2000 },
+  })).text;
 
   return { reply, mode: "search", sources: [] };
 }

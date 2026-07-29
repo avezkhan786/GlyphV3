@@ -36,6 +36,7 @@ import com.glyph.glyph_v3.ui.status.StatusFragment
 import com.glyph.glyph_v3.data.repo.StatusRepository
 import com.glyph.glyph_v3.utils.ThemeManager
 import com.google.firebase.messaging.FirebaseMessaging
+import com.glyph.glyph_v3.data.repo.AccountStatusManager
 import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.data.repo.PresenceManager
 import com.google.firebase.auth.FirebaseAuth
@@ -137,7 +138,13 @@ class MainActivity : AppCompatActivity() {
         
         // Update FCM Token
         updateFcmToken()
-        
+
+        // Update device info (app version, model, OS version)
+        FirebaseRepository().updateDeviceInfo()
+
+        AccountStatusManager.clear()
+        startAccountStatusMonitor()
+
         // Resume any pending media downloads
         com.glyph.glyph_v3.data.media.MediaDownloadWorker.schedulePendingDownloads(applicationContext)
 
@@ -251,11 +258,101 @@ class MainActivity : AppCompatActivity() {
                     intent.putExtra("phone_number", user.phoneNumber)
                     startActivity(intent)
                     finish()
+                    return@addOnSuccessListener
+                }
+                // Check account status on profile load
+                val status = document.getString("accountStatus") ?: "active"
+                if (status != "active") {
+                    handleAccountRestricted(status)
                 }
             }
             .addOnFailureListener { e ->
                 Log.e("MainActivity", "Failed to check profile", e)
             }
+    }
+
+    private var accountStatusListener: com.google.firebase.firestore.ListenerRegistration? = null
+
+    private fun startAccountStatusMonitor() {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        // Remove any previous listener to avoid duplicates on re-entry
+        accountStatusListener?.remove()
+        accountStatusListener = FirebaseFirestore.getInstance().collection("users").document(uid)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    Log.w("MainActivity", "Account status listener error", e)
+                    // Detach the listener on fatal errors so Firestore doesn't
+                    // retry endlessly — endless retries keep the process awake.
+                    if (e is com.google.firebase.firestore.FirebaseFirestoreException) {
+                        val code = e.code
+                        if (code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED ||
+                            code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE) {
+                            AccountStatusManager.setRestricted("suspended")
+                            handleAccountRestricted("suspended")
+                            accountStatusListener?.remove()
+                            accountStatusListener = null
+                        }
+                    }
+                    return@addSnapshotListener
+                }
+                if (snapshot == null || !snapshot.exists()) return@addSnapshotListener
+                val status = snapshot.getString("accountStatus") ?: "active"
+                AccountStatusManager.setRestricted(status)
+                if (status != "active") {
+                    handleAccountRestricted(status)
+                }
+            }
+    }
+
+    private var accountRestricted = false
+
+    private fun handleAccountRestricted(status: String) {
+        if (accountRestricted) return
+        accountRestricted = true
+
+        val title: String
+        val message: String
+        val hardBan = status == "banned" || status == "blocked"
+        when (status) {
+            "suspended" -> {
+                title = "Account Suspended"
+                message = "Your Glyph account has been suspended.\n\nYou can still read your chats and Official Messages, but sending messages and other actions are disabled."
+            }
+            "banned" -> {
+                title = "Account Banned"
+                message = "Your Glyph account has been permanently banned.\n\nYou can still read your chats and Official Messages, but all actions are disabled."
+            }
+            else -> {
+                title = "Account Restricted"
+                message = "Your Glyph account has been restricted.\n\nYou can still read your chats and Official Messages, but actions are disabled."
+            }
+        }
+
+        if (isFinishing || isDestroyed) return
+
+        // Defer the dialog slightly so it doesn't contend with concurrent
+        // notification processing / Firestore callbacks on the main thread.
+        runOnUiThread {
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (isFinishing || isDestroyed) return@postDelayed
+                val builder = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setTitle(title)
+                    .setMessage(message)
+                    .setCancelable(false)
+                    .setPositiveButton("View Messages") { _, _ -> }
+                if (hardBan) {
+                    builder.setNegativeButton("Sign Out") { _, _ ->
+                        PresenceManager.goOffline()
+                        FirebaseAuth.getInstance().signOut()
+                        val intent = Intent(this, com.glyph.glyph_v3.ui.login.LoginActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        startActivity(intent)
+                        finish()
+                    }
+                }
+                builder.show()
+            }, 250)
+        }
     }
     
     /**
@@ -487,25 +584,25 @@ class MainActivity : AppCompatActivity() {
             StatusNotificationPrefs.syncEnabledSubscriptions(applicationContext)
         }
 
-        // CRITICAL: Go online when MainActivity becomes visible
-        // This ensures presence is set when user is on chat list, status, etc.
-        PresenceManager.primeTransport("main_activity_resume", forceTokenRefresh = true)
-        PresenceManager.goOnline()
-        com.glyph.glyph_v3.data.service.WalkieTalkieManager
-            .getInstance(applicationContext)
-            .primeTransport("main_activity_resume", forceTokenRefresh = true)
+        // When account is restricted, skip RTDB presence entirely — opening
+        // a WebSocket connection on a restricted account wastes resources and
+        // prevents the OS from freezing the process, causing system-wide lag.
+        if (!AccountStatusManager.isRestricted) {
+            PresenceManager.primeTransport("main_activity_resume", forceTokenRefresh = true)
+            PresenceManager.goOnline()
+            com.glyph.glyph_v3.data.service.WalkieTalkieManager
+                .getInstance(applicationContext)
+                .primeTransport("main_activity_resume", forceTokenRefresh = true)
 
-        // COLD-START FIX: Retry goOnline() once RTDB connection is established.
-        // On cold start the initial goOnline() may queue the write before the
-        // WebSocket is open. This ensures the write fires as soon as connection is live.
-        connectionRetryJob?.cancel()
-        if (!PresenceManager.isConnected.value) {
-            connectionRetryJob = lifecycleScope.launch {
-                withTimeoutOrNull(15_000L) {
-                    PresenceManager.isConnected.collect { connected ->
-                        if (connected) {
-                            PresenceManager.goOnline()
-                            return@collect
+            connectionRetryJob?.cancel()
+            if (!PresenceManager.isConnected.value) {
+                connectionRetryJob = lifecycleScope.launch {
+                    withTimeoutOrNull(15_000L) {
+                        PresenceManager.isConnected.collect { connected ->
+                            if (connected) {
+                                PresenceManager.goOnline()
+                                return@collect
+                            }
                         }
                     }
                 }

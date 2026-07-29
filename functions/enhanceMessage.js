@@ -24,18 +24,21 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
 
+const router = require("./providers/router");
+
 const CACHE_VERSION = 1;
 const MAX_TEXT_LENGTH = 1000;
 const RATE_LIMIT_PER_MINUTE = 30;
 
 // ─── Helpers ────────────────────────────────────────────
 
-function cacheKey(text, action, options) {
+function cacheKey(text, action, options, routing) {
   const normalized = text.trim();
   const optStr = options ? JSON.stringify(options) : "";
+  const rt = routing ? `${routing.providerId}:${routing.model}` : "none";
   return crypto
     .createHash("sha256")
-    .update(`${normalized}::${action}::${optStr}::${CACHE_VERSION}`)
+    .update(`${normalized}::${action}::${optStr}::${rt}::${CACHE_VERSION}`)
     .digest("hex");
 }
 
@@ -129,9 +132,6 @@ exports.enhanceMessage = functions
     const userId =
       context.auth?.uid || `anon_${context.rawRequest?.ip || "unknown"}`;
 
-    // 2. API key — reads from functions/.env (modern dotenv), fallback to legacy config
-    const apiKey = process.env.GOOGLE_CLOUD_API_KEY || functions.config().google?.api_key;
-
     // 3. Validate input
     const { text, action, options } = data;
 
@@ -178,8 +178,10 @@ exports.enhanceMessage = functions
 
     timings.validation = Date.now() - tStart;
 
-    // 5. Check cache
-    const key = cacheKey(text, action, options);
+    // 5. Check cache — fold the active LLM provider + model into the key so a provider
+    // switch invalidates stale cached enhancements (AI_PROVIDER_HANDOFF.md §13.3 #8).
+    const llmRouting = await router.getRouting("llm");
+    const key = cacheKey(text, action, options, llmRouting);
     const cacheRef = admin.firestore().collection("enhance_cache").doc(key);
 
     try {
@@ -204,49 +206,29 @@ exports.enhanceMessage = functions
       console.error("Cache read error (non-fatal):", e.message);
     }
 
-    // 6. Call Gemini API
+    // 6. Call the provider router (Gemini in M2 / Google parity).
+    // buildPrompt / cache / rate-limit are unchanged. The contents array is forwarded
+    // verbatim and SAFETY_SETTINGS is attached by providers/gemini.js.
     let enhancedText;
     try {
-      console.log(`Calling Gemini API for action: ${action}`);
+      console.log(`Routing enhancement via provider router (action: ${action})`);
       const tGeminiStart = Date.now();
 
       const prompt = buildPrompt(text, action, options);
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            safetySettings: [
-              { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-              {
-                category: "HARM_CATEGORY_HATE_SPEECH",
-                threshold: "BLOCK_NONE",
-              },
-            ],
-            generationConfig: {
-              temperature: action === "grammar" ? 0.1 : 0.7,
-              maxOutputTokens: 1024,
-            },
-          }),
-        }
-      );
+      const genResult = await router.generateText({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: action === "grammar" ? 0.1 : 0.7,
+          maxOutputTokens: 1024,
+        },
+      });
+      enhancedText = genResult.text;
 
       timings.gemini = Date.now() - tGeminiStart;
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Gemini API error:", errorText);
-        throw new Error(`Gemini API error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      enhancedText = result.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
       if (!enhancedText) {
-        console.error("Empty result from Gemini");
+        console.error("Empty result from provider");
         throw new Error("Empty enhancement result");
       }
 
@@ -255,7 +237,7 @@ exports.enhanceMessage = functions
         enhancedText.substring(0, 60) + "..."
       );
     } catch (err) {
-      console.error("Gemini enhancement error:", err.message);
+      console.error("Provider enhancement error:", err.message);
       throw new functions.https.HttpsError(
         "internal",
         "Enhancement failed. Please try again."

@@ -112,12 +112,34 @@ class LoginActivity : AppCompatActivity() {
     private fun checkUserProfile() {
         repository.getUser { user ->
             if (user != null && user.username.isNotEmpty()) {
+                // Suspended users can still log in — MainActivity shows restriction UI
+                if (user.accountStatus == "banned" || user.accountStatus == "blocked") {
+                    showAccountRestrictedDialog(user.accountStatus)
+                    return@getUser
+                }
                 navigateToMain()
             } else {
                 // New user, pass the phone number to the setup screen
                 navigateToSetupProfile()
             }
         }
+    }
+
+    private fun showAccountRestrictedDialog(status: String) {
+        val message = when (status) {
+            "banned" -> "Your Glyph account has been permanently banned.\n\nIf you believe this is a mistake, please contact support."
+            "blocked" -> "Your Glyph account has been restricted.\n\nPlease contact support for more information."
+            else -> "Your Glyph account has been restricted.\n\nPlease contact support for more information."
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Account Restricted")
+            .setMessage(message)
+            .setCancelable(false)
+            .setPositiveButton("Sign Out") { _, _ ->
+                auth.signOut()
+                finish()
+            }
+            .show()
     }
     
     private fun navigateToMain() {

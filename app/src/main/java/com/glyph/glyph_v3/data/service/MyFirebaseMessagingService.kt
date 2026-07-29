@@ -101,7 +101,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         // Dedicated channel for admin/official notifications so they are visually
         // distinct from 1:1/mention chat notifications.
-        private const val OFFICIAL_CHANNEL_ID = "glyph_official_channel"
+        private const val OFFICIAL_CHANNEL_ID = "glyph_official_updates"
     }
     
     override fun onCreate() {
@@ -2669,27 +2669,31 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(contentPi)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-
-        // Best-effort large image (official messages can carry an imageUrl).
-        if (imageUrl != null) {
-            runCatching {
-                val bitmap = Glide.with(applicationContext)
-                    .asBitmap()
-                    .load(imageUrl)
-                    .override(512, 512)
-                    .centerCrop()
-                    .submit()
-                    .get()
-                builder.setLargeIcon(bitmap)
-            }.onFailure { e ->
-                Log.w(TAG, "Failed to load official notification image: $imageUrl", e)
-            }
-        }
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
 
         val notificationId = (officialId ?: "${kind}_${System.currentTimeMillis()}").hashCode()
         runCatching { nm.notify(notificationId, builder.build()) }
             .onFailure { e -> Log.e(TAG, "Failed to post official notification", e) }
+
+        // Load the large icon asynchronously on IO dispatcher — never block
+        // the main thread with synchronous Glide .get() calls.
+        if (imageUrl != null) {
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                runCatching {
+                    val bitmap = Glide.with(applicationContext)
+                        .asBitmap()
+                        .load(imageUrl)
+                        .override(512, 512)
+                        .centerCrop()
+                        .submit()
+                        .get()
+                    builder.setLargeIcon(bitmap)
+                    runCatching { nm.notify(notificationId, builder.build()) }
+                }.onFailure { e ->
+                    Log.w(TAG, "Failed to load official notification image: $imageUrl", e)
+                }
+            }
+        }
     }
 
     /** Create the dedicated channel for admin/official notifications (Android O+). */
@@ -2699,9 +2703,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             val channel = NotificationChannel(
                 OFFICIAL_CHANNEL_ID,
                 "Glyph Updates",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "Official updates, announcements, and status from Glyph"
+                // IMPORTANCE_DEFAULT avoids the Samsung OneUI heads-up popup
+                // animation which causes notification-drawer lag on some devices.
             }
             nm.createNotificationChannel(channel)
         }
