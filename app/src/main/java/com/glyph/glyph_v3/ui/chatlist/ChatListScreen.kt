@@ -19,6 +19,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -882,19 +883,19 @@ private fun AiAgentRow(onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // AI avatar
+        // AI avatar — 54dp outer wrapper matches ChatRow's status-ring container
+        // so the circular avatar aligns horizontally with all other chat avatars
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(aiAccentColor),
+            modifier = Modifier.size(54.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
+            Image(
                 painter = painterResource(id = R.drawable.ic_ai_agent),
                 contentDescription = "Glyph AI",
-                tint = Color.Unspecified,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
             )
         }
 

@@ -19,19 +19,24 @@ import com.glyph.glyph_v3.R
  * zoomed so the center logo fills the badge. Shared by the chat-list
  * row ([com.glyph.glyph_v3.ui.chatlist.ChatListScreen]),
  * [OfficialChatActivity], and the status screen.
+ *
+ * @param modifier The modifier that controls the avatar size — caller MUST
+ *   include [Modifier.size] (e.g. `Modifier.size(46.dp)`) for proper sizing.
+ * @param size Convenience parameter; when provided, applies [Modifier.size] to
+ *   the modifier chain. When null (default), the caller's modifier is used as-is.
  */
-private const val LOGO_SCALE = 1.25f
+private const val LOGO_SCALE = 1.45f
 
 @Composable
 fun OfficialGlyphAvatar(
     modifier: Modifier = Modifier,
-    size: Dp = 36.dp
+    size: Dp? = null
 ) {
+    val finalModifier = if (size != null) modifier.size(size) else modifier
     Image(
         painter = painterResource(R.drawable.ic_brand_official),
         contentDescription = "Glyph Official",
-        modifier = modifier
-            .size(size)
+        modifier = finalModifier
             .clip(CircleShape)
             .graphicsLayer {
                 scaleX = LOGO_SCALE
