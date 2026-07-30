@@ -150,6 +150,9 @@ enum class ChatStatusRingState {
 
 private const val TAG = "ChatListScroll"
 
+/** Process-level guard: auto-reveal hidden sections only once per cold start. */
+private var sColdStartRevealDone = false
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatListScreen(
@@ -373,13 +376,23 @@ fun ChatListScreen(
         revealOffsetPx = 0f
     }
 
-    // Auto-reveal hidden sections when a chat is newly archived,
-    // then auto-hide after a short delay.
-    var prevArchivedCount by remember { mutableIntStateOf(archivedChatsCount) }
+    // Auto-reveal hidden sections on cold start (once per process) and when
+    // a chat is newly archived, then auto-hide after a short delay.
+    var prevArchivedCount by remember { mutableIntStateOf(-1) }
     LaunchedEffect(archivedChatsCount) {
-        Log.d(TAG, "LaunchedEffect(AUTO): count=$archivedChatsCount prev=$prevArchivedCount archMode=$isArchivedMode showHdr=$showHeaderSections")
-        if (!isArchivedMode && showHeaderSections &&
-            archivedChatsCount > prevArchivedCount && prevArchivedCount >= 0) {
+        val isColdStartReveal = !sColdStartRevealDone && !isArchivedMode && showHeaderSections &&
+            archivedChatsCount > 0
+        val isNewArchive = sColdStartRevealDone && !isArchivedMode && showHeaderSections &&
+            archivedChatsCount > prevArchivedCount && prevArchivedCount > 0
+
+        Log.d(TAG, "LaunchedEffect(AUTO): count=$archivedChatsCount prev=$prevArchivedCount " +
+            "coldStart=$isColdStartReveal newArchive=$isNewArchive")
+
+        if (isColdStartReveal || isNewArchive) {
+            if (isColdStartReveal) {
+                sColdStartRevealDone = true
+                delay(1_500L) // brief pause before reveal so the user sees the list first
+            }
             val interactionSnap = revealInteractionNonce
             Log.d(TAG, "LaunchedEffect(AUTO): TRIGGERED — revealing sections. interactionSnap=$interactionSnap startOffset=$revealOffsetPx target=$hiddenSectionsHeightPx")
             try {
