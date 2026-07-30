@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.core.view.WindowCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,19 +18,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,13 +37,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -57,16 +52,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.collectAsState
 import coil.compose.AsyncImage
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.models.OfficialMessage
 import com.glyph.glyph_v3.data.repo.OfficialContentRepository
 import com.glyph.glyph_v3.ui.theme.GlyphThemeProvider
 import com.glyph.glyph_v3.ui.theme.glyphTheme
-import com.glyph.glyph_v3.utils.ThemeManager
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -84,13 +79,12 @@ class OfficialChatActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Edge-to-edge: let the header background extend under the status & nav bar
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        // Uniform color under the navigation bar (matches main background for seamless look)
-        window.navigationBarColor = MainBackground.toArgb()
-        window.statusBarColor = TopAppBarColor.toArgb()
+        // Edge-to-edge: transparent system bars let the composable backgrounds show through
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
         val lightStatusBar = false // dark header -> light status bar icons
-        WindowCompat.getInsetsController(window, window.decorView)
+        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
             .isAppearanceLightStatusBars = lightStatusBar
         OfficialContentRepository.markOpened()
         val openMessageId = intent.getStringExtra(EXTRA_OPEN_MESSAGE_ID)
@@ -115,18 +109,11 @@ class OfficialChatActivity : ComponentActivity() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Dark forest palette — exact hex codes from the spec
+// Cached formatters — thread-safe, zero-allocation after init
 // ─────────────────────────────────────────────────────────────
-private val MainBackground        = Color(0xFF10110E) // app background
-private val TopAppBarColor        = Color(0xFF1E1F1C) // top app bar / bottom input / dividers
-private val IncomingBubble        = Color(0xFF292927) // incoming bubble
-private val OutgoingBubble        = Color(0xFF414839) // outgoing bubble (forest green)
-private val OutgoingBubbleHi      = Color(0xFF4B5440) // outgoing highlight (e.g. pinned)
-private val MessageText           = Color(0xFFF1F1EC) // primary message text
-private val SecondaryText         = Color(0xFFB6B6AF) // secondary text
-private val HintText              = Color(0xFF8D8F88) // hint text
-private val IconColor             = Color(0xFFE8E8E3) // icons
-private val OutlineButtonColor    = Color(0xFF4A4A47) // outline buttons
+private val DateHeaderFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
+private val OfficialTimeFormatter = DateTimeFormatter.ofPattern("MMM d, h:mm a", Locale.getDefault())
+private val ZoneIdSystem = ZoneId.systemDefault()
 
 // ─────────────────────────────────────────────────────────────
 // Bubble position in group for proper stacked rounding
@@ -142,46 +129,52 @@ private enum class BubblePosition {
 @Composable
 private fun OfficialChatScreen(openMessageId: String?) {
     val context = LocalContext.current
+    val theme = glyphTheme
     val messages by OfficialContentRepository.officialMessages.collectAsState()
 
-    val sorted = remember(messages) {
-        messages.sortedWith(
-            compareByDescending<OfficialMessage> { it.pinned }
-                .thenBy { if (it.publishedAt > 0) it.publishedAt else it.createdAt }
-        )
+    // Derived: sort messages chronologically (pinned already grouped by repo)
+    val sorted by remember {
+        derivedStateOf {
+            messages.sortedBy { if (it.publishedAt > 0) it.publishedAt else it.createdAt }
+        }
     }
 
-    // Group messages by date label (e.g. "Today", "Yesterday", "Jul 22, 2026")
-    // for stacked grouped style similar to Telegram's chat list scroll.
-    val grouped = remember(sorted) {
-        val groups = mutableListOf<Pair<String, List<OfficialMessage>>>()
-        for (msg in sorted) {
-            val label = dateLabelFor(msg)
-            if (groups.isEmpty() || groups.last().first != label) {
-                groups.add(label to listOf(msg))
-            } else {
-                groups[groups.size - 1] = label to (groups.last().second + msg)
+    // Derived: group consecutive messages by date label — O(n) with mutable inner lists,
+    // converting to immutable lists once per group at the end (also O(n) total)
+    val grouped by remember {
+        derivedStateOf {
+            val groups = mutableListOf<Pair<String, MutableList<OfficialMessage>>>()
+            for (msg in sorted) {
+                val label = dateLabelFor(msg)
+                val lastGroup = groups.lastOrNull()
+                if (lastGroup == null || lastGroup.first != label) {
+                    groups.add(label to mutableListOf(msg))
+                } else {
+                    lastGroup.second.add(msg)
+                }
             }
+            groups.map { (label, msgs) -> label to msgs.toList() }
         }
-        groups
     }
 
     val listState = rememberLazyListState()
-    LaunchedEffect(openMessageId, sorted) {
-        if (openMessageId != null) {
-            val idx = sorted.indexOfFirst { it.id == openMessageId }
-            if (idx >= 0) listState.scrollToItem(idx)
+
+    // Scroll to a specific message (e.g. from a notification deep-link)
+    if (openMessageId != null) {
+        LaunchedEffect(openMessageId, sorted) {
+            val targetIndex = findLazyColumnIndex(grouped, openMessageId)
+            if (targetIndex != null) listState.scrollToItem(targetIndex)
         }
     }
 
     Scaffold(
-        containerColor = MainBackground,
+        containerColor = theme.backgroundPrimary,
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         topBar = {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(TopAppBarColor)
+                    .background(theme.surfaceHeader)
                     .statusBarsPadding()
             ) {
                 TopAppBar(
@@ -194,12 +187,12 @@ private fun OfficialChatScreen(openMessageId: String?) {
                                     "Glyph Official",
                                     fontWeight = FontWeight.Bold,
                                     style = MaterialTheme.typography.titleMedium,
-                                    color = MessageText
+                                    color = theme.textPrimary
                                 )
                                 Text(
                                     "Announcements",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = SecondaryText
+                                    color = theme.textSecondary
                                 )
                             }
                         }
@@ -209,15 +202,15 @@ private fun OfficialChatScreen(openMessageId: String?) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_back),
                                 contentDescription = "Back",
-                                tint = IconColor
+                                tint = theme.headerIcon
                             )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
-                        titleContentColor = MessageText,
-                        navigationIconContentColor = IconColor,
-                        actionIconContentColor = IconColor
+                        titleContentColor = theme.textPrimary,
+                        navigationIconContentColor = theme.headerIcon,
+                        actionIconContentColor = theme.headerIcon
                     )
                 )
             }
@@ -227,14 +220,13 @@ private fun OfficialChatScreen(openMessageId: String?) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MainBackground)
-                    .padding(padding)
-                    .navigationBarsPadding(),
+                    .background(theme.backgroundPrimary)
+                    .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     "No official messages yet",
-                    color = SecondaryText
+                    color = theme.textSecondary
                 )
             }
         } else {
@@ -242,18 +234,18 @@ private fun OfficialChatScreen(openMessageId: String?) {
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MainBackground)
+                    .background(theme.backgroundPrimary)
                     .padding(padding),
                 contentPadding = PaddingValues(
                     start = 8.dp,
                     end = 8.dp,
                     top = 8.dp,
-                    bottom = 8.dp
+                    bottom = 80.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
                 grouped.forEachIndexed { groupIndex, (dateLabel, msgs) ->
-                    item(key = "header_$dateLabel") {
+                    item(key = "header_${groupIndex}_$dateLabel", contentType = "date_header") {
                         DateHeaderChip(dateLabel)
                     }
                     msgs.forEachIndexed { msgIndex, message ->
@@ -263,7 +255,7 @@ private fun OfficialChatScreen(openMessageId: String?) {
                             msgIndex == msgs.size - 1 -> BubblePosition.Last
                             else -> BubblePosition.Middle
                         }
-                        item(key = "msg_${message.id}") {
+                        item(key = "msg_${message.id}", contentType = "message_bubble") {
                             OfficialMessageBubble(
                                 message = message,
                                 positionInGroup = positionInGroup,
@@ -272,10 +264,6 @@ private fun OfficialChatScreen(openMessageId: String?) {
                         }
                     }
                 }
-                // Extra bottom space behind the navigation bar for a uniform color
-                item(key = "bottom_spacer") {
-                    Spacer(modifier = Modifier.height(80.dp))
-                }
             }
         }
     }
@@ -283,6 +271,7 @@ private fun OfficialChatScreen(openMessageId: String?) {
 
 @Composable
 private fun DateHeaderChip(label: String) {
+    val theme = glyphTheme
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -291,14 +280,14 @@ private fun DateHeaderChip(label: String) {
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
-            color = TopAppBarColor,
+            color = theme.dateHeaderBackground,
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
             Text(
                 label,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                color = SecondaryText,
+                color = theme.dateHeaderText,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold
             )
@@ -309,20 +298,14 @@ private fun DateHeaderChip(label: String) {
 private fun dateLabelFor(message: OfficialMessage): String {
     val ts = if (message.publishedAt > 0) message.publishedAt else message.createdAt
     if (ts <= 0) return ""
-    val date = Date(ts)
-    val cal = java.util.Calendar.getInstance().apply { time = date }
-    val today = java.util.Calendar.getInstance()
-    val yesterday = java.util.Calendar.getInstance().apply { add(java.util.Calendar.DAY_OF_YEAR, -1) }
+    val localDate = Instant.ofEpochMilli(ts).atZone(ZoneIdSystem).toLocalDate()
+    val today = LocalDate.now(ZoneIdSystem)
+    val yesterday = today.minusDays(1)
     return when {
-        isSameDay(cal, today) -> "Today"
-        isSameDay(cal, yesterday) -> "Yesterday"
-        else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(date)
+        localDate == today -> "Today"
+        localDate == yesterday -> "Yesterday"
+        else -> localDate.format(DateHeaderFormatter)
     }
-}
-
-private fun isSameDay(a: java.util.Calendar, b: java.util.Calendar): Boolean {
-    return a.get(java.util.Calendar.YEAR) == b.get(java.util.Calendar.YEAR) &&
-            a.get(java.util.Calendar.DAY_OF_YEAR) == b.get(java.util.Calendar.DAY_OF_YEAR)
 }
 
 @Composable
@@ -331,42 +314,34 @@ private fun OfficialMessageBubble(
     positionInGroup: BubblePosition = BubblePosition.Single,
     onClick: () -> Unit
 ) {
-    // Wrap in a Row to align bubble to the start (left) - incoming message style
+    val theme = glyphTheme
+
+    // Cache bubble shapes — matches ChatScreen BubbleShapeCache for incoming (isSelf=false)
+    val shape = remember(positionInGroup) {
+        val r = 18.dp  // fully rounded
+        val s = 6.dp   // slightly rounded tail (screen-edge side, connecting corners)
+        when (positionInGroup) {
+            BubblePosition.Single -> RoundedCornerShape(r)
+            BubblePosition.First  -> RoundedCornerShape(topStart = r, topEnd = r, bottomEnd = r, bottomStart = s)
+            BubblePosition.Middle -> RoundedCornerShape(topStart = s, topEnd = r, bottomEnd = r, bottomStart = s)
+            BubblePosition.Last   -> RoundedCornerShape(topStart = s, topEnd = r, bottomEnd = r, bottomStart = r)
+        }
+    }
+
+    // Stable callback keyed by message id to avoid recomposition
+    val stableOnClick = remember(message.id) { { onClick() } }
+
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 1.dp),
+            .fillMaxWidth(),
         horizontalArrangement = Arrangement.Start
     ) {
-        // Chat bubble with Telegram-like rounded corners:
-        // smaller radius on bottom-left (tail corner), larger on other corners
-        // Stacked grouped style: consecutive messages share visual grouping via sub-radius
-        // Official messages are incoming from Glyph — use OutgoingBubble for the new color
-        val bubbleColor = OutgoingBubble
-
-        // Dynamic rounding based on bubble position in group:
-        // Tail corner (bottomStart): 4dp for stacked, 18dp for standalone single
-        val shape = when (positionInGroup) {
-            BubblePosition.Single -> RoundedCornerShape(
-                topStart = 18.dp, topEnd = 18.dp, bottomEnd = 18.dp, bottomStart = 18.dp
-            )
-            BubblePosition.First -> RoundedCornerShape(
-                topStart = 18.dp, topEnd = 18.dp, bottomEnd = 4.dp, bottomStart = 4.dp
-            )
-            BubblePosition.Middle -> RoundedCornerShape(
-                topStart = 0.dp, topEnd = 4.dp, bottomEnd = 4.dp, bottomStart = 4.dp
-            )
-            BubblePosition.Last -> RoundedCornerShape(
-                topStart = 0.dp, topEnd = 4.dp, bottomEnd = 18.dp, bottomStart = 4.dp
-            )
-        }
-
         Surface(
             modifier = Modifier
                 .widthIn(max = 300.dp)
-                .clickable { onClick() },
+                .clickable(onClick = stableOnClick),
             shape = shape,
-            color = bubbleColor,
+            color = Color(0xFF414839), // Official bubble — forest green
             tonalElevation = 0.dp,
             shadowElevation = 0.dp
         ) {
@@ -379,7 +354,7 @@ private fun OfficialMessageBubble(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
-                        color = SecondaryText
+                        color = theme.textSecondary
                     )
                     if (message.pinned) {
                         Spacer(Modifier.width(8.dp))
@@ -388,7 +363,7 @@ private fun OfficialMessageBubble(
                             fontSize = 9.sp,
                             color = Color.White,
                             modifier = Modifier
-                                .background(Color(0xFFB45309), RoundedCornerShape(4.dp))
+                                .background(theme.actionWarning, RoundedCornerShape(4.dp))
                                 .padding(horizontal = 5.dp, vertical = 2.dp)
                         )
                     }
@@ -412,7 +387,7 @@ private fun OfficialMessageBubble(
                     Text(
                         message.body,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MessageText
+                        color = theme.textPrimary
                     )
                 }
 
@@ -420,7 +395,7 @@ private fun OfficialMessageBubble(
                     Spacer(Modifier.height(6.dp))
                     Text(
                         "Tap to open",
-                        color = SecondaryText,
+                        color = theme.textSecondary,
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -434,7 +409,7 @@ private fun OfficialMessageBubble(
                     Text(
                         formatOfficialTime(message),
                         style = MaterialTheme.typography.labelSmall,
-                        color = HintText
+                        color = theme.textTertiary
                     )
                 }
             }
@@ -446,10 +421,29 @@ private fun formatOfficialTime(message: OfficialMessage): String {
     val ts = if (message.publishedAt > 0) message.publishedAt else message.createdAt
     if (ts <= 0) return ""
     return try {
-        SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(ts))
+        Instant.ofEpochMilli(ts).atZone(ZoneIdSystem).format(OfficialTimeFormatter)
     } catch (_: Exception) {
         ""
     }
+}
+
+/**
+ * Finds the LazyColumn index for a message, accounting for interspersed date headers.
+ * Returns null if the message id is not found in any group.
+ */
+private fun findLazyColumnIndex(
+    grouped: List<Pair<String, List<OfficialMessage>>>,
+    targetId: String
+): Int? {
+    var index = 0
+    for ((_, msgs) in grouped) {
+        index++ // date header
+        for (msg in msgs) {
+            if (msg.id == targetId) return index
+            index++
+        }
+    }
+    return null
 }
 
 /**

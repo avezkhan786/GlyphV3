@@ -1,5 +1,7 @@
 package com.glyph.glyph_v3.data.models
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Official content published by the Glyph Admin portal (Phase 18 F4).
  *
@@ -29,6 +31,7 @@ enum class OfficialStatusLifecycle { LIVE, SCHEDULED, EXPIRED }
  * A company announcement/message from the portal's Official Messages feature.
  * Firestore path: /official_messages/{id}
  */
+@Immutable
 data class OfficialMessage(
     val id: String = "",
     val kind: OfficialMessageKind = OfficialMessageKind.ANNOUNCEMENT,
