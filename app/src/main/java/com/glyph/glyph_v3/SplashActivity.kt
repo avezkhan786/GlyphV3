@@ -11,7 +11,6 @@ import com.glyph.glyph_v3.data.backup.BackupPreferences
 import com.glyph.glyph_v3.data.backup.DriveRepository
 import com.glyph.glyph_v3.ui.login.LoginActivity
 import com.glyph.glyph_v3.ui.onboarding.RestoreOfferActivity
-import com.glyph.glyph_v3.utils.ThemeManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
@@ -21,12 +20,7 @@ import kotlinx.coroutines.launch
 class SplashActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val app = applicationContext as GlyphApplication
-        if (!GlyphApplication.splashShown) {
-            setTheme(R.style.Theme_GlyphV3_SplashBranded)
-            GlyphApplication.splashShown = true
-        }
-        ThemeManager.applyTheme(this)
+        GlyphApplication.splashShown = true
         super.onCreate(savedInstanceState)
 
         // Fire-and-forget health check

@@ -487,16 +487,16 @@
     <style name="Theme.GlyphV3" parent="Theme.GlyphV3.Light" />
 
     <!--
-        Branded splash: applied before super.onCreate() on the first cold-start frame.
-        Uses a white window background so the launcher icon transition is smooth.
-        ThemeManager replaces this with the real app theme immediately after.
+        Branded splash: applied via manifest so the very first cold-start frame
+        shows the icon centered on a matching background, making the whole
+        screen appear uniform from the first pixel.
     -->
     <style name="Theme.GlyphV3.SplashBranded" parent="Theme.AppCompat.NoActionBar">
-        <item name="android:windowBackground">@color/white</item>
+        <item name="android:windowBackground">@drawable/splash_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">@color/white</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
     <style name="Theme.GlyphV3.TransparentLiveAudio" parent="Theme.AppCompat.NoActionBar">
