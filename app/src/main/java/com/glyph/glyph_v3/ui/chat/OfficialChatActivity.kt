@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -120,9 +121,9 @@ private val ZoneIdSystem = ZoneId.systemDefault()
 // ─────────────────────────────────────────────────────────────
 private enum class BubblePosition {
     Single,    // Only message in group — fully rounded
-    First,     // First in group — round top
+    First,     // First in group (oldest, at top of group) — round top
     Middle,    // Middle in group — minimal rounding (straight sides)
-    Last       // Last in group — round bottom
+    Last       // Last in group (newest, at bottom of group) — round bottom
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -132,17 +133,17 @@ private fun OfficialChatScreen(openMessageId: String?) {
     val theme = glyphTheme
     val messages by OfficialContentRepository.officialMessages.collectAsState()
 
-    // Derived: sort messages chronologically (pinned already grouped by repo)
-    val sorted by remember {
-        derivedStateOf {
-            messages.sortedBy { if (it.publishedAt > 0) it.publishedAt else it.createdAt }
-        }
+    // Sort messages chronologically: oldest first, pinned messages first within each date
+    val sorted = remember(messages) {
+        messages.sortedWith(
+            compareBy<OfficialMessage> { it.publishedAt.takeIf { it > 0 } ?: it.createdAt }
+        )
     }
 
-    // Derived: group consecutive messages by date label — O(n) with mutable inner lists,
-    // converting to immutable lists once per group at the end (also O(n) total)
-    val grouped by remember {
+    // Group consecutive messages by date label — O(n) with mutable inner lists
+    val grouped = remember(sorted) {
         derivedStateOf {
+            if (sorted.isEmpty()) return@derivedStateOf emptyList<Pair<String, List<OfficialMessage>>>()
             val groups = mutableListOf<Pair<String, MutableList<OfficialMessage>>>()
             for (msg in sorted) {
                 val label = dateLabelFor(msg)
@@ -157,13 +158,31 @@ private fun OfficialChatScreen(openMessageId: String?) {
         }
     }
 
+    val groupedList = grouped.value
     val listState = rememberLazyListState()
+
+    // Track if we've auto-scrolled to avoid re-scrolling on data updates
+    val hasAutoScrolled = remember { mutableStateOf(false) }
+
+    // Auto-scroll to bottom (newest messages) when chat first opens
+    LaunchedEffect(groupedList) {
+        // Only scroll once on initial load, not on every data update
+        if (!hasAutoScrolled.value && groupedList.isNotEmpty()) {
+            hasAutoScrolled.value = true
+            // Calculate the index of the last item (bottom of list in normal order)
+            // Each group has 1 header + N messages
+            val lastIndex = groupedList.sumOf { it.second.size } + groupedList.size
+            listState.scrollToItem(maxOf(0, lastIndex - 1))
+        }
+    }
 
     // Scroll to a specific message (e.g. from a notification deep-link)
     if (openMessageId != null) {
-        LaunchedEffect(openMessageId, sorted) {
-            val targetIndex = findLazyColumnIndex(grouped, openMessageId)
-            if (targetIndex != null) listState.scrollToItem(targetIndex)
+        LaunchedEffect(openMessageId, groupedList) {
+            val targetIndex = findLazyColumnIndex(groupedList, openMessageId)
+            if (targetIndex != null) {
+                listState.scrollToItem(targetIndex)
+            }
         }
     }
 
@@ -232,6 +251,7 @@ private fun OfficialChatScreen(openMessageId: String?) {
         } else {
             LazyColumn(
                 state = listState,
+                // NO reverseLayout - normal chat order: oldest at top, newest at bottom
                 modifier = Modifier
                     .fillMaxSize()
                     .background(theme.backgroundPrimary)
@@ -244,15 +264,17 @@ private fun OfficialChatScreen(openMessageId: String?) {
                 ),
                 verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
-                grouped.forEachIndexed { groupIndex, (dateLabel, msgs) ->
+                groupedList.forEachIndexed { groupIndex, (dateLabel, msgs) ->
                     item(key = "header_${groupIndex}_$dateLabel", contentType = "date_header") {
                         DateHeaderChip(dateLabel)
                     }
                     msgs.forEachIndexed { msgIndex, message ->
+                        // msgIndex 0 = oldest (top of group) = round top
+                        // msgIndex size-1 = newest (bottom of group) = round bottom
                         val positionInGroup = when {
                             msgs.size == 1 -> BubblePosition.Single
-                            msgIndex == 0 -> BubblePosition.First
-                            msgIndex == msgs.size - 1 -> BubblePosition.Last
+                            msgIndex == 0 -> BubblePosition.First   // Oldest in group
+                            msgIndex == msgs.size - 1 -> BubblePosition.Last   // Newest in group
                             else -> BubblePosition.Middle
                         }
                         item(key = "msg_${message.id}", contentType = "message_bubble") {
@@ -317,13 +339,14 @@ private fun OfficialMessageBubble(
     val theme = glyphTheme
 
     // Cache bubble shapes — matches ChatScreen BubbleShapeCache for incoming (isSelf=false)
+    // Normal layout: position 0 is at top (oldest in group), round top
     val shape = remember(positionInGroup) {
         val r = 18.dp  // fully rounded
         val s = 6.dp   // slightly rounded tail (screen-edge side, connecting corners)
         when (positionInGroup) {
             BubblePosition.Single -> RoundedCornerShape(r)
             BubblePosition.First  -> RoundedCornerShape(topStart = r, topEnd = r, bottomEnd = r, bottomStart = s)
-            BubblePosition.Middle -> RoundedCornerShape(topStart = s, topEnd = r, bottomEnd = r, bottomStart = s)
+            BubblePosition.Middle -> RoundedCornerShape(topStart = s, topEnd = s, bottomEnd = s, bottomStart = s)
             BubblePosition.Last   -> RoundedCornerShape(topStart = s, topEnd = r, bottomEnd = r, bottomStart = r)
         }
     }
