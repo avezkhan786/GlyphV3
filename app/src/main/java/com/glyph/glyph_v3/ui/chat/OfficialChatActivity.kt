@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,8 +56,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.glyph.glyph_v3.R
+import com.glyph.glyph_v3.data.models.OFFICIAL_USER_ID
 import com.glyph.glyph_v3.data.models.OfficialMessage
 import com.glyph.glyph_v3.data.repo.OfficialContentRepository
+import com.glyph.glyph_v3.ui.chat.ConversationType
+import com.glyph.glyph_v3.ui.chat.OfficialConversationFooter
+import com.glyph.glyph_v3.ui.chat.ReadOnlyConversation
+import com.glyph.glyph_v3.ui.chat.rememberOfficialConversationFooterState
 import com.glyph.glyph_v3.ui.theme.GlyphThemeProvider
 import com.glyph.glyph_v3.ui.theme.glyphTheme
 import java.time.Instant
@@ -161,6 +167,15 @@ private fun OfficialChatScreen(openMessageId: String?) {
     val groupedList = grouped.value
     val listState = rememberLazyListState()
 
+    // Reusable read-only footer banner. The "Glyph Official" chat is always read-only,
+    // so the conversation's type drives the banner's visibility (see setConversation).
+    val footerState = rememberOfficialConversationFooterState(
+        ReadOnlyConversation(
+            id = OFFICIAL_USER_ID,
+            type = ConversationType.OFFICIAL_ANNOUNCEMENT
+        )
+    )
+
     // Track if we've auto-scrolled to avoid re-scrolling on data updates
     val hasAutoScrolled = remember { mutableStateOf(false) }
 
@@ -235,16 +250,16 @@ private fun OfficialChatScreen(openMessageId: String?) {
             }
         }
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(theme.backgroundPrimary)
                 .padding(padding)
         ) {
             if (sorted.isEmpty()) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .weight(1f)
+                        .fillMaxWidth()
                         .background(theme.backgroundPrimary),
                     contentAlignment = Alignment.Center
                 ) {
@@ -258,47 +273,50 @@ private fun OfficialChatScreen(openMessageId: String?) {
                     state = listState,
                     // NO reverseLayout - normal chat order: oldest at top, newest at bottom
                     modifier = Modifier
-                        .fillMaxSize()
+                        .weight(1f)
+                        .fillMaxWidth()
                         .background(theme.backgroundPrimary),
                     contentPadding = PaddingValues(
                         start = 8.dp,
                         end = 8.dp,
                         top = 8.dp,
-                        bottom = 56.dp // Room for footer banner
+                        bottom = 12.dp
                     ),
                     verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
-                    groupedList.forEachIndexed { groupIndex, (dateLabel, msgs) ->
-                        item(key = "header_${groupIndex}_$dateLabel", contentType = "date_header") {
-                            DateHeaderChip(dateLabel)
+                groupedList.forEachIndexed { groupIndex, (dateLabel, msgs) ->
+                    item(key = "header_${groupIndex}_$dateLabel", contentType = "date_header") {
+                        DateHeaderChip(dateLabel)
+                    }
+                    msgs.forEachIndexed { msgIndex, message ->
+                        // msgIndex 0 = oldest (top of group) = round top
+                        // msgIndex size-1 = newest (bottom of group) = round bottom
+                        val positionInGroup = when {
+                            msgs.size == 1 -> BubblePosition.Single
+                            msgIndex == 0 -> BubblePosition.First   // Oldest in group
+                            msgIndex == msgs.size - 1 -> BubblePosition.Last   // Newest in group
+                            else -> BubblePosition.Middle
                         }
-                        msgs.forEachIndexed { msgIndex, message ->
-                            // msgIndex 0 = oldest (top of group) = round top
-                            // msgIndex size-1 = newest (bottom of group) = round bottom
-                            val positionInGroup = when {
-                                msgs.size == 1 -> BubblePosition.Single
-                                msgIndex == 0 -> BubblePosition.First   // Oldest in group
-                                msgIndex == msgs.size - 1 -> BubblePosition.Last   // Newest in group
-                                else -> BubblePosition.Middle
-                            }
-                            item(key = "msg_${message.id}", contentType = "message_bubble") {
-                                OfficialMessageBubble(
-                                    message = message,
-                                    positionInGroup = positionInGroup,
-                                    onClick = { openOfficialMessage(context, message) }
-                                )
-                            }
+                        item(key = "msg_${message.id}", contentType = "message_bubble") {
+                            OfficialMessageBubble(
+                                message = message,
+                                positionInGroup = positionInGroup,
+                                onClick = { openOfficialMessage(context, message) }
+                            )
                         }
                     }
                 }
             }
-            // Read-only footer banner - fixed at bottom
+
+            // Pinned read-only footer banner — sits above the navigation gesture area
+            // and never overlaps the message list (which scrolls behind it).
             OfficialConversationFooter(
-                isReadOnly = true,
-                modifier = Modifier.align(Alignment.BottomCenter)
+                state = footerState,
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
+}
 }
 
 @Composable
