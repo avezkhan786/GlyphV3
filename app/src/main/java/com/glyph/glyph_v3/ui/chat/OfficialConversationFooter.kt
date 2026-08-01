@@ -10,7 +10,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,9 +38,8 @@ import androidx.compose.ui.unit.sp
  * Features:
  * - Fixed position - stays pinned while content scrolls
  * - Full-width, 56dp height
- * - Theme-adaptive background (lighter than chat background)
- * - 1dp top divider
- * - Respects gesture/navigation insets
+ * - Theme-adaptive background (slightly lighter than chat background)
+ * - 1dp top divider (separating banner from message list)
  * - Fade-in + slide-up animation on open
  * - Accessibility optimized
  */
@@ -56,13 +54,13 @@ fun OfficialConversationFooter(
 
     val theme = MaterialTheme.colorScheme
 
-    // Calculate background color as slightly lighter than primary background
+    // Background: slightly lighter than main background for contrast
     val backgroundColor = theme.surface
-
     // Text color at 75% opacity for proper contrast
     val textColor = theme.onSurface.copy(alpha = 0.75f)
+    // Divider color
+    val dividerColor = theme.outline.copy(alpha = 0.3f)
 
-    // Track whether to show the footer - starts true when isReadOnly is true
     var isVisible by remember { mutableStateOf(isReadOnly) }
 
     // Handle visibility with animation
@@ -94,11 +92,12 @@ fun OfficialConversationFooter(
                         .background(backgroundColor),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Top divider
+                    // Top divider - separates banner from message list
                     Divider(
                         modifier = Modifier
-                            .fillMaxWidth(),
-                        color = theme.outline.copy(alpha = 0.3f),
+                            .fillMaxWidth()
+                            .height(1.dp),
+                        color = dividerColor,
                         thickness = 1.dp
                     )
 
@@ -107,8 +106,7 @@ fun OfficialConversationFooter(
                         color = textColor,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        modifier = Modifier.padding(horizontal = 8.dp)
+                        maxLines = 1
                     )
                 }
             }
