@@ -235,58 +235,68 @@ private fun OfficialChatScreen(openMessageId: String?) {
             }
         }
     ) { padding ->
-        if (sorted.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(theme.backgroundPrimary)
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    "No official messages yet",
-                    color = theme.textSecondary
-                )
-            }
-        } else {
-            LazyColumn(
-                state = listState,
-                // NO reverseLayout - normal chat order: oldest at top, newest at bottom
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(theme.backgroundPrimary)
-                    .padding(padding),
-                contentPadding = PaddingValues(
-                    start = 8.dp,
-                    end = 8.dp,
-                    top = 8.dp,
-                    bottom = 80.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(1.dp)
-            ) {
-                groupedList.forEachIndexed { groupIndex, (dateLabel, msgs) ->
-                    item(key = "header_${groupIndex}_$dateLabel", contentType = "date_header") {
-                        DateHeaderChip(dateLabel)
-                    }
-                    msgs.forEachIndexed { msgIndex, message ->
-                        // msgIndex 0 = oldest (top of group) = round top
-                        // msgIndex size-1 = newest (bottom of group) = round bottom
-                        val positionInGroup = when {
-                            msgs.size == 1 -> BubblePosition.Single
-                            msgIndex == 0 -> BubblePosition.First   // Oldest in group
-                            msgIndex == msgs.size - 1 -> BubblePosition.Last   // Newest in group
-                            else -> BubblePosition.Middle
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(theme.backgroundPrimary)
+                .padding(padding)
+        ) {
+            if (sorted.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(theme.backgroundPrimary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No official messages yet",
+                        color = theme.textSecondary
+                    )
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    // NO reverseLayout - normal chat order: oldest at top, newest at bottom
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(theme.backgroundPrimary),
+                    contentPadding = PaddingValues(
+                        start = 8.dp,
+                        end = 8.dp,
+                        top = 8.dp,
+                        bottom = 56.dp // Room for footer banner
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
+                    groupedList.forEachIndexed { groupIndex, (dateLabel, msgs) ->
+                        item(key = "header_${groupIndex}_$dateLabel", contentType = "date_header") {
+                            DateHeaderChip(dateLabel)
                         }
-                        item(key = "msg_${message.id}", contentType = "message_bubble") {
-                            OfficialMessageBubble(
-                                message = message,
-                                positionInGroup = positionInGroup,
-                                onClick = { openOfficialMessage(context, message) }
-                            )
+                        msgs.forEachIndexed { msgIndex, message ->
+                            // msgIndex 0 = oldest (top of group) = round top
+                            // msgIndex size-1 = newest (bottom of group) = round bottom
+                            val positionInGroup = when {
+                                msgs.size == 1 -> BubblePosition.Single
+                                msgIndex == 0 -> BubblePosition.First   // Oldest in group
+                                msgIndex == msgs.size - 1 -> BubblePosition.Last   // Newest in group
+                                else -> BubblePosition.Middle
+                            }
+                            item(key = "msg_${message.id}", contentType = "message_bubble") {
+                                OfficialMessageBubble(
+                                    message = message,
+                                    positionInGroup = positionInGroup,
+                                    onClick = { openOfficialMessage(context, message) }
+                                )
+                            }
                         }
                     }
                 }
             }
+            // Read-only footer banner - fixed at bottom
+            OfficialConversationFooter(
+                isReadOnly = true,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }
