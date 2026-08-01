@@ -15,8 +15,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.sp
  * this is a read-only conversation - only Glyph can send messages.
  *
  * Features:
- * - Fixed position - stays pinned while content scrolls
+ * - Fixed position at bottom of screen
  * - Full-width, 56dp height
  * - Theme-adaptive background (slightly lighter than chat background)
  * - 1dp top divider (separating banner from message list)
@@ -54,16 +54,8 @@ fun OfficialConversationFooter(
 
     val theme = MaterialTheme.colorScheme
 
-    // Background: slightly lighter than main background for contrast
-    val backgroundColor = theme.surface
-    // Text color at 75% opacity for proper contrast
-    val textColor = theme.onSurface.copy(alpha = 0.75f)
-    // Divider color
-    val dividerColor = theme.outline.copy(alpha = 0.3f)
-
     var isVisible by remember { mutableStateOf(isReadOnly) }
 
-    // Handle visibility with animation
     LaunchedEffect(isReadOnly) {
         isVisible = isReadOnly
     }
@@ -72,15 +64,15 @@ fun OfficialConversationFooter(
         AnimatedVisibility(
             visible = isVisible,
             enter = fadeIn(animationSpec = tween(150)) +
-                    slideInVertically(animationSpec = tween(150)),
+                    slideInVertically(animationSpec = tween(150)) { height -> -height / 4 },
             exit = fadeOut(animationSpec = tween(150)) +
-                    slideOutVertically(animationSpec = tween(150))
+                    slideOutVertically(animationSpec = tween(150)) { height -> -height / 4 }
         ) {
             Surface(
                 modifier = modifier
                     .fillMaxWidth()
                     .height(56.dp)
-                    .background(backgroundColor)
+                    .background(theme.surface)
                     .alpha(animationProgress),
                 color = Color.Transparent,
                 tonalElevation = 0.dp,
@@ -89,21 +81,18 @@ fun OfficialConversationFooter(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(backgroundColor),
+                        .background(theme.surface),
                     contentAlignment = Alignment.Center
                 ) {
                     // Top divider - separates banner from message list
                     Divider(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp),
-                        color = dividerColor,
+                        color = theme.outline.copy(alpha = 0.3f),
                         thickness = 1.dp
                     )
 
                     Text(
                         text = "Only Glyph can send messages",
-                        color = textColor,
+                        color = theme.onSurface.copy(alpha = 0.75f),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1
