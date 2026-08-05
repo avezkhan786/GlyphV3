@@ -128,8 +128,12 @@ class ChatListComposeFragment : Fragment() {
         // Start repository pre-warming as early as possible (onCreate instead of
         // onCreateView) so DB creation + repository init overlap with layout
         // inflation and Compose setup rather than blocking the first frame.
+        // warmStartupChats=true is harmless here: Application.onCreate already
+        // requested it, and completeSharedRepositoryStartupAsync is guarded by
+        // sharedRepositoryStartupComplete / sharedRepositoryStartupInFlight, so
+        // this is a no-op once the app-level prewarm is in flight or done.
         val app = requireContext().applicationContext as GlyphApplication
-        app.ensureSharedRepositoryStartup(reason = "chat_list_compose_open")
+        app.ensureSharedRepositoryStartup(reason = "chat_list_compose_open", warmStartupChats = true)
     }
 
     override fun onCreateView(
@@ -643,6 +647,12 @@ class ChatListComposeFragment : Fragment() {
                         )
                     }
                     .combine(ContactDisplayNameResolver.cacheVersion) { chats, _ -> chats }
+                    // Suppress duplicate emissions: without this, every combine
+                    // source init causes a cascade of identical list emissions
+                    // (14+ in the first 2s), each triggering updateChats → StateFlow
+                    // → Compose recomposition → visible list jerk. Identical lists
+                    // are equal by Chat data-class equality (all fields same).
+                    .distinctUntilChanged()
                     .flowOn(Dispatchers.Default)
                     .collect { chats ->
                         viewModel.updateChats(chats)

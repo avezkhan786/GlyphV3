@@ -88,6 +88,24 @@ object AvatarStateManager {
     }
 
     /**
+     * Observe a GROUP chat icon's avatar state. Identical to [observe] but keyed
+     * by the group-icon cache id so it resolves to the locally-cached group icon
+     * file on disk.
+     *
+     * CRITICAL FOR FIRST-FRAME: like [observe], this reads the local path
+     * SYNCHRONOUSLY via [AvatarCacheManager.getLocalGroupAvatarPath] so the very
+     * first composition already has [AvatarState.localPath] populated when the
+     * icon is cached. The previous group path used an async LaunchedEffect that
+     * always started with localPath=null on the first frame → white flash. Using
+     * the synchronous seed here eliminates that flash on cold start once the icon
+     * is cached locally.
+     */
+    fun observeGroup(chatId: String, remoteUrl: String): StateFlow<AvatarState> {
+        val groupCacheId = AvatarCacheManager.groupIconCacheIdPublic(chatId)
+        return observe(groupCacheId, remoteUrl)
+    }
+
+    /**
      * Synchronously get the current state without creating a subscription.
      * Use for one-shot reads (e.g. share intent, notification).
      */

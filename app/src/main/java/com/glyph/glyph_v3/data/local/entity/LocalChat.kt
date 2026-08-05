@@ -4,7 +4,14 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "chats", indices = [Index(value = ["lastMessageTimestamp"])])
+@Entity(tableName = "chats", indices = [
+    Index(value = ["lastMessageTimestamp"]),
+    // Composite index for the chat-list query
+    // "SELECT * FROM chats WHERE isArchived = 0 ORDER BY lastMessageTimestamp DESC"
+    // so the archived filter and the timestamp sort both use the index instead of
+    // scanning + sorting the whole table. Name must match Room's generated name.
+    Index(value = ["isArchived", "lastMessageTimestamp"])
+])
 data class LocalChat(
     @PrimaryKey val id: String,              // chatId (e.g., "userId1_userId2" or "group_<uuid>")
     val otherUserId: String,                 // 1:1 only — empty for groups

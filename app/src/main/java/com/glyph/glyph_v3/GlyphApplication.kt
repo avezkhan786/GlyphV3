@@ -172,6 +172,15 @@ class GlyphApplication : Application() {
             // (This must happen before any Firestore usage)
             configureFirestoreCache()
 
+            // Install the optimized Coil ImageLoader singleton (35% memory cache,
+            // strong refs, 500MB disk, crossfade off) BEFORE any image load. This
+            // must run before the chat-prewarm coroutine enqueues avatars into the
+            // Coil memory cache (see ensureSharedRepositoryStartup below) and before
+            // any Compose AsyncImage renders, so the prewarm and AsyncImage share one
+            // ImageLoader and one memory cache. Building an ImageLoader is object
+            // construction only (no network/decode); cost is a few ms on the main thread.
+            ensureCoilInitialized()
+
             // Restore block-status in-memory caches from SharedPreferences so
             // getBlockStatus() returns the correct answer synchronously on cold start.
             // Without this the in-memory cache is empty → NOT_BLOCKED → banner GONE
@@ -193,6 +202,17 @@ class GlyphApplication : Application() {
 
             // Initialize shared data layer prewarming (lightweight)
             prewarmSharedDataLayerAsync(reason = "app_onCreate_early")
+
+            // Start the full shared-repository startup AND the chat-list prewarm on
+            // a background coroutine. warmStartupChats=true triggers
+            // warmStartupChatSnapshots(): it pre-seeds ChatListViewModel.prewarmCache
+            // (so the first ViewModel starts with isInitialLoading=false → no shimmer)
+            // and preloads the top-20 avatars into the Coil memory cache (so avatars are
+            // present on the first frame). Overlapped with the splash screen + MainActivity
+            // inflation, the cache is warm before the chat-list fragment renders. Firebase
+            // sync also starts here but writes to Room asynchronously — it never blocks
+            // first render.
+            ensureSharedRepositoryStartup(reason = "app_onCreate", warmStartupChats = true)
 
             // Schedule Firebase foreground warmup
             scheduleFirebaseForegroundWarmup(reason = "app_onCreate", force = true)
@@ -304,13 +324,35 @@ class GlyphApplication : Application() {
                 val db = getOrCreateAppDatabase()
                 val repo = getOrCreateRealtimeRepository()
                 StartupTrace.logStage("repository_ready", "reason=$reason")
-                startIncomingSyncIfLoggedIn()
-                repo.startGlobalDeliveryReceiptSync(forceRestart = true)
-                repo.startGroupMetadataSync(forceRestart = true)
-                PrivacySettingsRepository.warmCacheIfNeeded()
+
+                // CRITICAL FOR FIRST-FRAME PERFORMANCE: run the chat-list prewarm
+                // FIRST, before any Firestore fetch. warmStartupChatSnapshots only
+                // needs the local Room DB (already open) — it pre-seeds
+                // ChatListViewModel.prewarmCache (so the first ViewModel starts with
+                // isInitialLoading=false and chats visible, eliminating shimmer)
+                // and enqueues the top-20 avatars into the Coil memory cache (so
+                // avatars are present on the first frame, no white flash).
+                //
+                // This MUST run before the Firestore calls below: warmCacheIfNeeded()
+                // and the delivery-receipt/group-metadata syncs are suspend / await
+                // network, and on a cold or offline start they can hang for seconds
+                // (Firestore retries until timeout). If the prewarm is sequenced
+                // after them, the ViewModel cache stays empty until that network
+                // work completes, so the chat list shows shimmer/empty then pops in
+                // late — exactly the staged rendering we are eliminating.
                 if (warmStartupChats) {
-                    warmStartupChatSnapshots(db, repo)
+                    runCatching { warmStartupChatSnapshots(db, repo) }
+                        .onFailure { Log.w(TAG, "Chat prewarm failed", it) }
                 }
+
+                // Firestore-backed syncs run AFTER the local prewarm so they never
+                // delay first-frame data. They enrich Room asynchronously; the
+                // reactive Room Flow re-emits and the UI updates incrementally.
+                runCatching { startIncomingSyncIfLoggedIn() }
+                runCatching { repo.startGlobalDeliveryReceiptSync(forceRestart = true) }
+                runCatching { repo.startGroupMetadataSync(forceRestart = true) }
+                runCatching { PrivacySettingsRepository.warmCacheIfNeeded() }
+
                 sharedRepositoryStartupComplete.set(true)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to complete shared repository startup", e)
@@ -361,29 +403,52 @@ class GlyphApplication : Application() {
             }
             ChatListViewModel.prewarmCache("main", uiChats)
 
+            // 1:1 avatars to warm into the Coil memory cache for the first frame.
             val avatarsToWarm = topChats.mapNotNull { chat ->
                 val avatarUrl = chat.otherUserAvatar.takeIf { it.isNotBlank() } ?: return@mapNotNull null
                 chat.otherUserId to avatarUrl
             }
 
+            // GROUP icon avatars to warm. Group avatars are not gated by
+            // AvatarVisibilityRepository (that only applies to 1:1 profile photos),
+            // so any group with an icon URL is eligible. This preloads the icon
+            // file (downloading if missing) and enqueues the decoded bitmap into
+            // Coil's memory cache, so group chats display their icon from cache on
+            // the first frame — no white flash on cold start.
+            val groupAvatarsToWarm = topChats.mapNotNull { chat ->
+                val effectiveIsGroup = chat.isGroup ||
+                    com.glyph.glyph_v3.data.repo.GroupChatRepository.isGroupChatId(chat.id)
+                if (!effectiveIsGroup) return@mapNotNull null
+                val iconUrl = chat.groupIconUrl.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                chat.id to iconUrl
+            }
+
             StartupTrace.logStage(
                 "startup_chat_prefetch_scheduled",
-                "count=${topChatIds.size} avatars=${avatarsToWarm.size}"
+                "count=${topChatIds.size} avatars=${avatarsToWarm.size} groupAvatars=${groupAvatarsToWarm.size}"
             )
 
+            // Preload ALL 1:1 avatars unconditionally into the Coil memory cache.
+            // Previous code filtered through getCachedProfilePhotoVisibility()
+            // which may not be warm at prewarm time (150ms into cold start),
+            // causing avatars with valid local files to be skipped → Coil cache
+            // miss at first composition → brief empty decode window → flash.
+            // The composable's own canShowAvatar gate (blockedUserIds) handles
+            // blocking correctly at the UI layer. Preloading all files into Coil
+            // guarantees a memory-cache hit and zero-flash first-frame render.
             if (avatarsToWarm.isNotEmpty()) {
-                val visibleAvatarsToWarm = avatarsToWarm.filter { (userId, _) ->
-                    AvatarVisibilityRepository.getCachedProfilePhotoVisibility(userId)?.isVisible == true
-                }
-                if (visibleAvatarsToWarm.isNotEmpty()) {
-                    AvatarCacheManager.preloadAvatars(visibleAvatarsToWarm, this@GlyphApplication)
-                }
-
+                AvatarCacheManager.preloadAvatars(avatarsToWarm, this@GlyphApplication)
+                // Refresh profile-photo visibility asynchronously (for future
+                // compositions, not first frame) — does NOT gate the preload.
                 avatarsToWarm.forEach { (userId, _) ->
                     appScope.launch {
                         runCatching { AvatarVisibilityRepository.refreshProfilePhotoVisibility(userId) }
                     }
                 }
+            }
+
+            if (groupAvatarsToWarm.isNotEmpty()) {
+                AvatarCacheManager.preloadGroupAvatars(groupAvatarsToWarm, this@GlyphApplication)
             }
 
             ChatOpenPrefetcher.warmChatsAsync(

@@ -149,3 +149,56 @@ PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getBubbleBorder-0d7_KjU()J
 PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getCornerRadiusMedium-D9Ej5fM()F
 PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getGradientBubbleOutgoing()Landroidx/compose/ui/graphics/Brush;
 PLcom/glyph/glyph_v3/ui/theme/GlyphThemeTokens;->getGradientBubbleIncoming()Landroidx/compose/ui/graphics/Brush;
+
+# ── Chat LIST cold-start path (Jetpack Compose) ──────────────────────────────
+# The chat list is rendered by ChatListComposeFragment + ChatListScreen (Compose
+# LazyColumn), NOT the XML RecyclerView path profiled above. These rules AOT-compile
+# the chat-list composables, ViewModel, and helpers so the first frame is not JIT
+# warming. Catch-alls are used because no macrobenchmark module exists to derive
+# exact method signatures; unmatched rules are skipped with a warning (never fail
+# the build). Hand-authored best-effort rules.
+HSPLcom/glyph/glyph_v3/ui/chatlist/**->**(**)**
+Lcom/glyph/glyph_v3/ui/chatlist/**
+
+# Chat-list data layer touched during the cold-start prewarm + first emission.
+# ChatListViewModel.prewarmCache / chatSnapshot + OfficialChatList row builder.
+HSPLcom/glyph/glyph_v3/ui/chatlist/ChatListViewModel;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chatlist/ChatListViewModel$**->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chatlist/OfficialChatList;->**(**)**
+HSPLcom/glyph/glyph_v3/ui/chatlist/OfficialChatList$**->**(**)**
+HSPLcom/glyph/glyph_v3/ui/main/MainPagerAdapter;->**(**)**
+
+# Contact display-name resolution used per chat row on first frame.
+HSPLcom/glyph/glyph_v3/data/resolver/**->**(**)**
+Lcom/glyph/glyph_v3/data/resolver/**
+
+# ── Coil image pipeline (Compose path) — broader catch-alls for avatar decode ──
+# The XML path rules above target specific Glide classes; the chat-list avatars
+# load via Coil. Mark the core Coil packages hot so the first avatar decode/
+# memory-cache hit is AOT compiled.
+HSPLcoil/**->**(**)**
+Lcoil/**
+HSPLcoil/compose/**->**(**)**
+HSPLcoil/memory/**->**(**)**
+HSPLcoil/request/**->**(**)**
+HSPLcoil/decode/**->**(**)**
+
+# ── Compose runtime / foundation broad catch-alls for the chat-list first frame ──
+# Compose subcomposition, state tracking, and lazy list layout are the hot path
+# for the chat list's first composition. Mark the runtime + foundation lazy packages
+# hot so class loading and JIT are front-loaded.
+HSPLandroidx/compose/runtime/**->**(**)**
+Landroidx/compose/runtime/**
+HSPLandroidx/compose/foundation/lazy/**->**(**)**
+Landroidx/compose/foundation/lazy/**
+HSPLandroidx/compose/foundation/**->**(**)**
+Landroidx/compose/foundation/**
+HSPLandroidx/compose/ui/**->**(**)**
+Landroidx/compose/ui/**
+
+# ── App startup + Application prewarm classes (cold start) ──
+HSPLcom/glyph/glyph_v3/GlyphApplication;->**(**)**
+HSPLcom/glyph/glyph_v3/GlyphApplication$**->**(**)**
+HSPLcom/glyph/glyph_v3/MainActivity;->**(**)**
+HSPLcom/glyph/glyph_v3/MainActivity$**->**(**)**
+

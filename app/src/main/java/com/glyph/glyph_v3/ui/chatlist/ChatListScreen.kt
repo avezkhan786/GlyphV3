@@ -1488,38 +1488,31 @@ private fun Avatar(
 
     // Single source of truth for the local avatar path — reactive, so it
     // updates the moment AvatarStateManager re-downloads after unblock.
-    val avatarState by remember(otherUserId, avatarUrl) {
-        if (otherUserId.isNotEmpty() && !isGroupChat) {
-            com.glyph.glyph_v3.data.cache.AvatarStateManager.observe(otherUserId, avatarUrl)
-        } else {
-            kotlinx.coroutines.flow.MutableStateFlow(
-                com.glyph.glyph_v3.data.cache.AvatarStateManager.AvatarState(
-                    localPath = null, remoteUrl = "", isDownloaded = false, version = 0L
+    //
+    // Both 1:1 AND group avatars use AvatarStateManager.observe / observeGroup,
+    // which seed localPath SYNCHRONOUSLY from disk on first access. This is
+    // CRITICAL for eliminating the group-avatar white flash on cold start: the
+    // previous group path used an async LaunchedEffect that always started with
+    // localPath=null on the first frame, so the cached group icon only appeared
+    // after the effect completed → flash. With a synchronous disk seed the cached
+    // icon is present on the very first composition.
+    val avatarState by remember(otherUserId, avatarUrl, chat.id, isGroupChat) {
+        when {
+            !isGroupChat && otherUserId.isNotEmpty() ->
+                com.glyph.glyph_v3.data.cache.AvatarStateManager.observe(otherUserId, avatarUrl)
+            isGroupChat ->
+                com.glyph.glyph_v3.data.cache.AvatarStateManager.observeGroup(chat.id, avatarUrl)
+            else ->
+                kotlinx.coroutines.flow.MutableStateFlow(
+                    com.glyph.glyph_v3.data.cache.AvatarStateManager.AvatarState(
+                        localPath = null, remoteUrl = "", isDownloaded = false, version = 0L
+                    )
                 )
-            )
         }
     }.collectAsState()
 
-    // Load group avatar path asynchronously to avoid blocking the composition thread
-    var groupAvatarPath by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(canShowAvatar, isGroupChat, chat.id) {
-        if (canShowAvatar && isGroupChat) {
-            groupAvatarPath = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                com.glyph.glyph_v3.data.cache.AvatarCacheManager.getLocalGroupAvatarPath(chat.id)
-            }
-        } else if (!canShowAvatar) {
-            groupAvatarPath = null
-        }
-    }
-
-    val localAvatarPath = remember(avatarState.version, canShowAvatar, isGroupChat, groupAvatarPath) {
-        if (!canShowAvatar) {
-            null
-        } else if (isGroupChat) {
-            groupAvatarPath
-        } else {
-            avatarState.localPath
-        }
+    val localAvatarPath = remember(avatarState.version, canShowAvatar) {
+        if (!canShowAvatar) null else avatarState.localPath
     }
     val visibleAvatarUrl = remember(canShowAvatar, avatarUrl) {
         avatarUrl.takeIf { canShowAvatar && it.isNotBlank() }.orEmpty()
@@ -1636,7 +1629,7 @@ private fun Avatar(
                 .build()
         }
 
-        if (canShowAvatar && (imageFile != null || visibleAvatarUrl.isNotEmpty())) {
+        if (canShowAvatar && imageFile != null) {
             AsyncImage(
                 model = imageRequest,
                 contentDescription = "Avatar",

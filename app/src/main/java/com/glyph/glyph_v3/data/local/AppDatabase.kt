@@ -23,7 +23,7 @@ import com.glyph.glyph_v3.data.local.entity.TranslationCache
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [LocalMessage::class, LocalChat::class, LocalDeletedMessage::class, TranslationCache::class, AiMessage::class, CachedStatus::class, LocalCallLog::class], version = 38, exportSchema = false)
+@Database(entities = [LocalMessage::class, LocalChat::class, LocalDeletedMessage::class, TranslationCache::class, AiMessage::class, CachedStatus::class, LocalCallLog::class], version = 39, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
@@ -243,6 +243,25 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Composite index for the chat-list query
+        // "SELECT * FROM chats WHERE isArchived = 0 ORDER BY lastMessageTimestamp DESC"
+        // (and the archived-mode "WHERE isArchived = 1" variant).
+        //
+        // CRITICAL: the SQL MUST exactly match Room's generated index DDL
+        // ("CREATE INDEX index_… ON …(…)") — WITHOUT "IF NOT EXISTS". Room's
+        // migration schema validation compares createSql verbatim, so an extra
+        // "IF NOT EXISTS" makes the validated schema mismatch the @Entity schema,
+        // which throws at DB open and (with fallbackToDestructiveMigration present)
+        // leaves the database unusable. Match Room's generated form precisely.
+        private val MIGRATION_38_39 = object : Migration(38, 39) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "CREATE INDEX index_chats_isArchived_lastMessageTimestamp " +
+                        "ON chats(isArchived, lastMessageTimestamp)"
+                )
+            }
+        }
+
         // Group chat support \u2014 strictly additive columns. 1:1 chats keep working with defaults.
         private val MIGRATION_34_35 = object : Migration(34, 35) {
             override fun migrate(database: SupportSQLiteDatabase) {
@@ -292,7 +311,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "glyph_database"
                 )
-                .addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38)
+                .addMigrations(MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35, MIGRATION_35_36, MIGRATION_36_37, MIGRATION_37_38, MIGRATION_38_39)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

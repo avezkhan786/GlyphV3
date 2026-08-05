@@ -7,12 +7,15 @@ import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -55,6 +58,18 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
+    // First-frame synchronization (cold start only): hold the window's first draw
+    // until the chat-list Compose screen reports its first laid-out frame, so the
+    // native GlyphBottomNavigationView and the Compose top bar / search bar / chat
+    // rows all paint on a single frame instead of appearing staggered.
+    @Volatile private var chatListFirstFrameReady = false
+    private var firstFrameGateInstalled = false
+    private var firstFrameGateReleased = false
+    private val firstFrameHandler = Handler(Looper.getMainLooper())
+    private val firstFrameTimeout = Runnable {
+        if (!chatListFirstFrameReady) chatListFirstFrameReady = true // safety release; never hang
+    }
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -81,6 +96,36 @@ class MainActivity : AppCompatActivity() {
         
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Cold-start first-draw gate: hold the window's first draw until the
+        // chat-list Compose screen signals draw-ready (onChatListFirstFrameReady).
+        // The selected theme's colorBackground (== chat-list surface) shows during
+        // the hold — no flash. A 500ms safety timeout guarantees release. Skipped on
+        // rotation/process-restore (savedInstanceState != null) and on back-nav
+        // (MainActivity is singleTop → onCreate is not re-run).
+        if (savedInstanceState == null) {
+            firstFrameGateInstalled = true
+            firstFrameHandler.postDelayed(firstFrameTimeout, 500L)
+            binding.root.viewTreeObserver.addOnPreDrawListener(
+                object : ViewTreeObserver.OnPreDrawListener {
+                    override fun onPreDraw(): Boolean {
+                        if (chatListFirstFrameReady) {
+                            if (!firstFrameGateReleased) {
+                                firstFrameGateReleased = true
+                                binding.root.viewTreeObserver.removeOnPreDrawListener(this)
+                                firstFrameHandler.removeCallbacks(firstFrameTimeout)
+                            }
+                            return true
+                        }
+                        // Suppress this traversal's draw; rescheduled on the next vsync
+                        // (vsync-paced, not a CPU spin). The ready flag is set during the
+                        // same traversal's layout phase (onGloballyPositioned), so the
+                        // released draw paints the whole window atomically on one frame.
+                        return false
+                    }
+                }
+            )
+        }
         
         // Setup ViewPager2 (WhatsApp-style swipe)
         val pagerAdapter = com.glyph.glyph_v3.ui.main.MainPagerAdapter(this)
@@ -190,6 +235,19 @@ class MainActivity : AppCompatActivity() {
             // not trigger fragment/view creation on the gesture path.
             binding.mainViewPager.offscreenPageLimit = 3
         }
+    }
+
+    /**
+     * Called by ChatListComposeFragment once its root Scaffold has been composed and
+     * laid out (onGloballyPositioned), i.e. the chat-list screen is draw-ready.
+     * Releases the cold-start first-draw gate so bottom nav + chat-list paint
+     * together. Idempotent and safe to call when the gate is not installed
+     * (rotation / process-restore); the installed OnPreDrawListener observes the
+     * flag on its next invocation and self-removes.
+     */
+    fun onChatListFirstFrameReady() {
+        if (chatListFirstFrameReady) return
+        chatListFirstFrameReady = true
     }
 
     override fun onDestroy() {

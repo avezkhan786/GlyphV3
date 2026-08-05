@@ -9,7 +9,10 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -40,15 +43,31 @@ object AvatarCacheManager {
     
     private lateinit var avatarsDir: File
     private val localAvatarPathIndex = ConcurrentHashMap<String, String>()
-    
+
+    /**
+     * Application-scoped scope for background index maintenance. Supervised so a
+     * single failed scan does not cancel subsequent ones.
+     */
+    private val indexScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     fun init(context: Context) {
-        // Use internal storage (not cache) for permanent storage
+        // Use internal storage (not cache) for permanent storage.
+        // avatarsDir MUST be assigned synchronously: getLocalAvatarPath() and
+        // other lookups guard on ::avatarsDir.isInitialized and fall back to
+        // File(avatarsDir, "$userId.jpg").exists() when the in-memory index is
+        // empty, so resolving an avatar stays correct and synchronous even
+        // before the background index scan completes.
         avatarsDir = File(context.filesDir, AVATARS_DIR)
         if (!avatarsDir.exists()) {
             val created = avatarsDir.mkdirs()
         } else {
         }
-        rebuildLocalAvatarIndex()
+        // Defer the directory scan off the main thread. Scanning every .jpg file
+        // in filesDir/avatars is disk I/O that was previously blocking
+        // Application.onCreate. getLocalAvatarPath()'s File.exists() fallback
+        // keeps avatar resolution correct in the brief window before the scan
+        // finishes; the index is only a fast-path warm cache.
+        indexScope.launch { rebuildLocalAvatarIndex() }
     }
     
     /**
@@ -433,6 +452,9 @@ object AvatarCacheManager {
             }
     }
 
+    /** Public so [AvatarStateManager.observeGroup] can resolve the same cache key. */
+    fun groupIconCacheIdPublic(chatId: String): String = "$GROUP_ICON_PREFIX$chatId"
+
     private fun groupIconCacheId(chatId: String): String = "$GROUP_ICON_PREFIX$chatId"
 
     private fun enqueueAvatarIntoCoilMemory(context: Context, data: Any, cacheKey: String) {
@@ -446,6 +468,7 @@ object AvatarCacheManager {
                     .build()
             )
         }.onFailure { e ->
+            Log.w(TAG, "Failed to enqueue avatar into Coil cache: key=$cacheKey", e)
         }
     }
 

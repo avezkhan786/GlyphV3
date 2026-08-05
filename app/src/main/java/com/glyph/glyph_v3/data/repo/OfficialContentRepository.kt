@@ -11,6 +11,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -49,12 +51,15 @@ object OfficialContentRepository {
     private const val PREFS_NAME = "official_content"
     private const val KEY_SEEN_IDS = "seen_ids"
     private const val KEY_LAST_OPENED = "last_opened"
+    private const val KEY_CACHED_MESSAGES = "cached_messages_json"
 
     private const val MAX_SEEN_IDS = 500
 
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val gson = Gson()
+    private val officialMessagesListType = object : TypeToken<List<OfficialMessage>>() {}.type
 
     private var appContext: Context? = null
     private var prefs: SharedPreferences? = null
@@ -94,12 +99,47 @@ object OfficialContentRepository {
             val persistedSeen = prefs?.getStringSet(KEY_SEEN_IDS, emptySet()) ?: emptySet()
             seenIds.addAll(persistedSeen)
             prefsWereEmpty = persistedSeen.isEmpty()
+
+            // OFFLINE-FIRST: seed official messages from the local cache so the
+            // "Glyph Official" chat row is present on the FIRST frame of cold
+            // start. Without this, _officialMessages starts empty and the official
+            // row only appears once the Firestore snapshot listener responds
+            // (often delayed or offline-unreachable), which prepends the row at
+            // index 0 and shifts every other chat down — the "official chat
+            // displays after a delay + other chats readjust" symptom. With the
+            // cache seed the row is rendered immediately; Firestore then updates
+            // it in place (same OFFICIAL_USER_ID key) without any position change.
+            seedMessagesFromCache()
         }
         if (currentUserId == null) return
         firstMessagesEmission = false
         firstStatusesEmission = false
         startListeningMessages()
         startListeningStatuses()
+    }
+
+    /** Load the last persisted official-message list from prefs, if any. */
+    private fun seedMessagesFromCache() {
+        val p = prefs ?: return
+        val json = p.getString(KEY_CACHED_MESSAGES, null) ?: return
+        runCatching {
+            val cached: List<OfficialMessage> = gson.fromJson(json, officialMessagesListType) ?: emptyList()
+            if (cached.isNotEmpty()) {
+                // Mark these ids as already-seen so the first Firestore emission
+                // does NOT fire a "new content" notification for historical items
+                // already shown from cache.
+                cached.forEach { seenIds.add(it.id) }
+                _officialMessages.value = cached
+            }
+        }.onFailure { Log.w(TAG, "Failed to read cached official messages", it) }
+    }
+
+    /** Persist the current official-message list to prefs for the next cold start. */
+    private fun persistMessagesToCache(messages: List<OfficialMessage>) {
+        val p = prefs ?: return
+        runCatching {
+            p.edit().putString(KEY_CACHED_MESSAGES, gson.toJson(messages)).apply()
+        }.onFailure { Log.w(TAG, "Failed to persist cached official messages", it) }
     }
 
     fun stopListening() {
@@ -188,6 +228,8 @@ object OfficialContentRepository {
                 firstMessagesEmission = true
                 if (_officialMessages.value != messages) {
                     _officialMessages.value = messages
+                    // Persist for next cold start (offline-first cache seed).
+                    persistMessagesToCache(messages)
                 }
             }
     }
