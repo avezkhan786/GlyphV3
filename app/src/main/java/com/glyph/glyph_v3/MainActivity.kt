@@ -312,7 +312,7 @@ class MainActivity : AppCompatActivity() {
             .addOnSuccessListener { document ->
                 val hasProfile = document.exists() && !document.getString("username").isNullOrEmpty()
                 if (!hasProfile) {
-                    val intent = Intent(this, com.glyph.glyph_v3.ui.login.SetupProfileActivity::class.java)
+                    val intent = Intent(this, com.glyph.glyph_v3.ui.auth.SetupProfileActivity::class.java)
                     intent.putExtra("phone_number", user.phoneNumber)
                     startActivity(intent)
                     finish()
@@ -402,7 +402,11 @@ class MainActivity : AppCompatActivity() {
                     builder.setNegativeButton("Sign Out") { _, _ ->
                         PresenceManager.goOffline()
                         FirebaseAuth.getInstance().signOut()
-                        val intent = Intent(this, com.glyph.glyph_v3.ui.login.LoginActivity::class.java)
+                        com.glyph.glyph_v3.ui.auth.AuthFlowSession.clear()
+                        runCatching {
+                            com.google.firebase.firestore.FirebaseFirestore.getInstance().clearPersistence()
+                        }
+                        val intent = Intent(this, com.glyph.glyph_v3.ui.auth.WelcomeActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                         startActivity(intent)
                         finish()

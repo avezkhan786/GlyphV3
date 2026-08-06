@@ -35,7 +35,7 @@ import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.data.repo.RealtimeMessageRepository
 import com.glyph.glyph_v3.databinding.ActivityUserListBinding
 import com.glyph.glyph_v3.ui.chat.ChatActivity
-import com.glyph.glyph_v3.ui.login.LoginActivity
+import com.glyph.glyph_v3.ui.auth.WelcomeActivity
 import com.glyph.glyph_v3.ui.users.ContactListItem
 import com.glyph.glyph_v3.utils.PhoneNumberUtil
 import com.glyph.glyph_v3.utils.ThemeManager
@@ -222,7 +222,7 @@ class ShareTargetActivity : AppCompatActivity() {
     }
 
     private fun routeToLogin() {
-        val loginIntent = Intent(this, LoginActivity::class.java).apply {
+        val loginIntent = Intent(this, WelcomeActivity::class.java).apply {
             action = intent.action
             type = intent.type
             clipData = intent.clipData

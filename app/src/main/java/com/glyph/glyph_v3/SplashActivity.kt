@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.glyph.glyph_v3.data.auth.GoogleSignInRepository
 import com.glyph.glyph_v3.data.backup.BackupPreferences
 import com.glyph.glyph_v3.data.backup.DriveRepository
-import com.glyph.glyph_v3.ui.login.LoginActivity
+import com.glyph.glyph_v3.ui.auth.WelcomeActivity
 import com.glyph.glyph_v3.ui.onboarding.RestoreOfferActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -41,7 +41,7 @@ class SplashActivity : AppCompatActivity() {
         if (currentUser != null) {
             checkForBackupAndRoute()
         } else {
-            startActivity(Intent(this, LoginActivity::class.java))
+            startActivity(Intent(this, WelcomeActivity::class.java))
             overrideTransition()
             finish()
         }

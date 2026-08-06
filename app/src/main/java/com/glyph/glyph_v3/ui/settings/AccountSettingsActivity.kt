@@ -24,7 +24,7 @@ import androidx.lifecycle.lifecycleScope
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
-import com.glyph.glyph_v3.ui.login.LoginActivity
+import com.glyph.glyph_v3.ui.auth.WelcomeActivity
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -265,7 +265,18 @@ class AccountSettingsActivity : AppCompatActivity() {
     private fun performLogout() {
         ContactDisplayNameResolver.shutdown()
         FirebaseAuth.getInstance().signOut()
-        val intent = Intent(this, LoginActivity::class.java).apply {
+        com.glyph.glyph_v3.ui.auth.AuthFlowSession.clear()
+
+        // Clear Firestore persistence to drop all cached watch targets from the
+        // current session. Without this, stale listeners can reconnect after the
+        // next sign-in and conflict with the new auth token, causing PERMISSION_DENIED.
+        // clearPersistence() is fire-and-forget here — WelcomeActivity doesn't touch
+        // Firestore, so the async clear completes before PhoneNumberActivity needs it.
+        runCatching {
+            com.google.firebase.firestore.FirebaseFirestore.getInstance().clearPersistence()
+        }
+
+        val intent = Intent(this, WelcomeActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
@@ -292,7 +303,11 @@ class AccountSettingsActivity : AppCompatActivity() {
                 // Sign out
                 ContactDisplayNameResolver.shutdown()
                 FirebaseAuth.getInstance().signOut()
-                val intent = android.content.Intent(this@AccountSettingsActivity, com.glyph.glyph_v3.ui.login.LoginActivity::class.java)
+                com.glyph.glyph_v3.ui.auth.AuthFlowSession.clear()
+                runCatching {
+                    com.google.firebase.firestore.FirebaseFirestore.getInstance().clearPersistence()
+                }
+                val intent = android.content.Intent(this@AccountSettingsActivity, com.glyph.glyph_v3.ui.auth.WelcomeActivity::class.java)
                 intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
                 startActivity(intent)
                 finish()

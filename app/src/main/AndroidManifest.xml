@@ -73,10 +73,27 @@
             </intent-filter>
         </activity>
 
+        <!-- Auth flow (new Compose-based screens) -->
+        <activity
+            android:name=".ui.auth.WelcomeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ui.auth.PhoneNumberActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.auth.OtpVerificationActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.auth.SetupProfileActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".ui.login.LoginActivity"
             android:exported="false" />
-        
+
         <activity android:name=".ui.login.SetupProfileActivity" />
         <activity android:name=".ui.settings.EditProfileActivity" />
         <activity 
