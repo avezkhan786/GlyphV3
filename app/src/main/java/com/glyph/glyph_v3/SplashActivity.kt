@@ -6,7 +6,6 @@ import android.util.Log
 import android.app.Activity
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import com.glyph.glyph_v3.data.auth.GoogleSignInRepository
 import com.glyph.glyph_v3.data.backup.BackupPreferences
 import com.glyph.glyph_v3.data.backup.DriveRepository
@@ -17,7 +16,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 class SplashActivity : AppCompatActivity() {
 
@@ -41,17 +39,14 @@ class SplashActivity : AppCompatActivity() {
         val currentUser = auth.currentUser
 
         if (currentUser != null) {
-            // CRITICAL: Refresh the auth token BEFORE launching MainActivity
-            // to ensure Firestore listeners in MainActivity have a valid token.
-            // This prevents PERMISSION_DENIED errors on cold start.
-            lifecycleScope.launch {
-                try {
-                    currentUser.getIdToken(true).await()
-                } catch (e: Exception) {
-                    Log.w("SplashActivity", "Token refresh failed, proceeding anyway", e)
-                }
-                checkForBackupAndRoute()
-            }
+            // Firestore token refresh runs non-blocking in GlyphApplication.onCreate()
+            // and MainActivity.ensureAuthenticated(); both refresh in the background
+            // without holding the first frame of the chat list. Awaiting it here would
+            // keep SplashActivity's branded window background (centered app icon) on
+            // screen for the entire network round-trip — creating an extra visible
+            // "logo screen" between the system splash and the chat list. So we just
+            // route.
+            checkForBackupAndRoute()
         } else {
             startActivity(Intent(this, WelcomeActivity::class.java))
             overrideTransition()
