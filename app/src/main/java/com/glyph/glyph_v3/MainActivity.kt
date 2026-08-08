@@ -187,6 +187,8 @@ class MainActivity : AppCompatActivity() {
         // Update device info (app version, model, OS version)
         FirebaseRepository().updateDeviceInfo()
 
+        Log.d("MainActivity", "=== MainActivity.onCreate() START - currentUser: ${FirebaseAuth.getInstance().currentUser?.uid ?: "NULL"} ===")
+
         AccountStatusManager.clear()
         startAccountStatusMonitor()
 
@@ -216,13 +218,14 @@ class MainActivity : AppCompatActivity() {
 
         if (savedInstanceState == null) {
             // Default fragment is handled by ViewPager2 (index 0)
-            
+
             // Check for deep link
             handleIntent(intent)
         }
 
         // Non-blocking profile validation (does not delay first render)
         checkUserProfileAsync()
+        Log.d("MainActivity", "=== MainActivity.onCreate() COMPLETE ===")
     }
 
     fun preloadSecondaryTabsAfterChatReady() {
@@ -637,6 +640,15 @@ class MainActivity : AppCompatActivity() {
                     Log.e("MainActivity", "Anonymous auth failed", e)
                 }
         } else {
+            // CRITICAL: Refresh token on app start/resume to ensure Firestore
+            // listeners have a valid token. This prevents PERMISSION_DENIED
+            // errors when the app is launched directly to MainActivity (bypassing
+            // SplashActivity) or when returning from background with a stale token.
+            auth.currentUser?.getIdToken(true)
+                ?.addOnSuccessListener { }
+                ?.addOnFailureListener { e ->
+                    Log.w("MainActivity", "Token refresh failed on ensureAuthenticated", e)
+                }
         }
     }
 

@@ -39,6 +39,7 @@ class ServicesInitializer : Initializer<Unit> {
     override fun create(context: Context) {
         try {
             StartupTrace.logStage("services_init_start")
+            Log.d(TAG, "=== ServicesInitializer.create() START ===")
 
             // Initialize cache managers (lightweight operations)
             PrivacySettingsRepository.init(context)
@@ -64,7 +65,9 @@ class ServicesInitializer : Initializer<Unit> {
             StatusCacheCleanupWorker.schedule(context)
 
             // Initialize block list listeners
+            Log.d(TAG, "Calling BlockRepository.startListening()...")
             BlockRepository.startListening()
+            Log.d(TAG, "BlockRepository.startListening() returned")
 
             // Initialize network monitor
             val networkMonitor = NetworkConnectivityMonitor(context)

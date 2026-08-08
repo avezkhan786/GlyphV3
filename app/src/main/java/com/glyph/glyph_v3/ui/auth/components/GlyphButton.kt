@@ -3,6 +3,8 @@ package com.glyph.glyph_v3.ui.auth.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -52,6 +56,9 @@ import com.glyph.glyph_v3.ui.theme.glyphTheme
  * @param icon Optional leading icon.
  * @param fullWidth When true, the button fills available width.
  * @param circular When true, renders a circular button (icon-only) with fixed size.
+ * @param iconSize Size of the icon when [icon] is provided. Defaults to 20.dp.
+ * @param height Button height. Defaults to 56.dp.
+ * @param cornerRadius Corner radius for non-circular buttons. Defaults to 28.dp.
  */
 @Composable
 fun GlyphButton(
@@ -63,6 +70,7 @@ fun GlyphButton(
     icon: ImageVector? = null,
     fullWidth: Boolean = true,
     circular: Boolean = false,
+    iconSize: Dp = 20.dp,
     height: Dp = 56.dp,
     cornerRadius: Dp = 28.dp
 ) {
@@ -84,7 +92,7 @@ fun GlyphButton(
 
     val containerColor by animateColorAsState(
         targetValue = when {
-            !enabled -> theme.actionSecondary.copy(alpha = 0.4f)
+            !enabled -> if (theme.isDark) Color(0xFF353535) else Color(0xFFCCCCCC)
             loading -> theme.actionPrimary.copy(alpha = 0.8f)
             else -> theme.actionPrimary
         },
@@ -94,7 +102,7 @@ fun GlyphButton(
 
     val contentColor by animateColorAsState(
         targetValue = when {
-            !enabled -> theme.textTertiary
+            !enabled -> if (theme.isDark) Color(0xFFCCCCCC) else Color(0xFF666666)
             else -> if (theme.isDark) theme.textInverse else theme.textPrimary
         },
         animationSpec = tween(AuthAnimationUtils.BORDER_TRANSITION_MS),
@@ -103,53 +111,96 @@ fun GlyphButton(
 
     val shape = if (circular) CircleShape else RoundedCornerShape(cornerRadius)
 
-    Button(
-        onClick = onClick,
-        modifier = modifier
-            .then(
-                if (circular) Modifier.size(height)
-                else if (fullWidth) Modifier.fillMaxWidth().height(height)
-                else Modifier.height(height)
-            )
+    // For circular icon-only buttons, use a custom clickable Box to have full control over icon size
+    if (circular && text.isEmpty() && icon != null) {
+        val boxModifier = modifier
+            .size(height)
             .scale(scale)
-            .shadow(elevation.dp, shape),
-        enabled = enabled && !loading,
-        shape = shape,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor,
-            disabledContainerColor = theme.actionSecondary.copy(alpha = 0.3f),
-            disabledContentColor = theme.textTertiary
-        ),
-        interactionSource = interactionSource
-    ) {
-        if (loading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(24.dp),
-                color = contentColor,
-                strokeWidth = 2.5.dp
+            .shadow(elevation.dp, shape)
+            .background(containerColor, shape)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClickLabel = null,
+                role = null,
+                onClick = onClick
             )
-        } else {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                if (icon != null) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    if (text.isNotEmpty()) {
-                        Box(modifier = Modifier.width(8.dp))
+
+        Box(
+            modifier = boxModifier,
+            contentAlignment = Alignment.Center
+        ) {
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = contentColor,
+                    strokeWidth = 2.5.dp
+                )
+            } else {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(iconSize),
+                    tint = contentColor
+                )
+            }
+        }
+    } else {
+        val horizontalPadding = if (circular) 0.dp else 24.dp
+
+        Button(
+            onClick = onClick,
+            modifier = modifier
+                .then(
+                    if (circular) Modifier.size(height)
+                    else if (fullWidth) Modifier.fillMaxWidth().height(height)
+                    else Modifier.height(height)
+                )
+                .scale(scale)
+                .shadow(elevation.dp, shape),
+            enabled = enabled && !loading,
+            shape = shape,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = containerColor,
+                contentColor = contentColor,
+                disabledContainerColor = if (theme.isDark) Color(0xFF353535) else Color(0xFFCCCCCC),
+                disabledContentColor = if (theme.isDark) Color(0xFFCCCCCC) else Color(0xFF666666)
+            ),
+            interactionSource = interactionSource
+        ) {
+            val horizontalPadding = if (circular) 0.dp else 24.dp
+
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = contentColor,
+                    strokeWidth = 2.5.dp
+                )
+            } else {
+                Row(
+                    modifier = Modifier.padding(horizontal = horizontalPadding),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    if (icon != null) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(iconSize),
+                            tint = contentColor
+                        )
+                        if (text.isNotEmpty()) {
+                            Box(modifier = Modifier.width(8.dp))
+                        }
                     }
-                }
-                if (text.isNotEmpty()) {
-                    Text(
-                        text = text,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (text.isNotEmpty()) {
+                        Text(
+                            text = text,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }

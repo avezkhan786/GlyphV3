@@ -464,6 +464,7 @@ object StatusRepository {
      */
     fun startListeningContactStatuses() {
         val uid = currentUserId ?: return
+        Log.d(TAG, "startListeningContactStatuses() called for user: $uid")
         stopListeningContactStatuses()
 
         val listener = firestore.collection(STATUSES_COLLECTION)

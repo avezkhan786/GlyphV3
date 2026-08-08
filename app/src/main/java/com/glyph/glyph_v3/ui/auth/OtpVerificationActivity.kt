@@ -1,6 +1,7 @@
 package com.glyph.glyph_v3.ui.auth
 
 import android.os.Bundle
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.Animatable
@@ -114,15 +115,13 @@ private fun OtpVerificationScreen(
         canResend = true
     }
 
-    // Route immediately after success (matching old LoginActivity behavior).
-    // We don't delay for the animation — routing happens in parallel and
-    // launching MainActivity with CLEAR_TASK naturally finishes this activity.
-    // Success animation → route
+    // Route after success — navigation is now handled by PhoneAuthCoordinator.performSignInAndRoute
+    // in the token refresh callback, which ensures the auth token is fresh before
+    // MainActivity sets up Firestore listeners. This LaunchedEffect only triggers
+    // the success animation; the actual navigation happens in the coordinator.
     LaunchedEffect(showSuccess) {
         if (showSuccess) {
-            PhoneAuthCoordinator.routeAfterSignIn(context as android.app.Activity) { loading ->
-                isLoading = loading
-            }
+            // Success animation plays here; navigation occurs in coordinator after token refresh
         }
     }
 
@@ -262,6 +261,12 @@ private fun OtpVerificationScreen(
                     onClick = {
                         val vid = AuthFlowSession.verificationId
                         if (vid != null && otpCode.length == 6) {
+                            // Hide keyboard
+                            val imm = context.getSystemService(InputMethodManager::class.java)
+                            imm?.hideSoftInputFromWindow(
+                                (context as android.app.Activity).window?.decorView?.windowToken,
+                                0
+                            )
                             isVerifying = true
                             errorMessage = null
                             PhoneAuthCoordinator.verifyCode(

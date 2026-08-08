@@ -9,8 +9,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import android.view.inputmethod.InputMethodManager
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -109,9 +113,9 @@ private fun PhoneNumberScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
-    // Check validity
+    // Check validity - only valid when exactly 10 digits entered
     val nationalDigits = phoneValue.text.filter { it.isDigit() }
-    val isValid = nationalDigits.length in 7..12
+    val isValid = nationalDigits.length == 10
 
     AuthScaffold(
         showBackButton = true,
@@ -180,34 +184,43 @@ private fun PhoneNumberScreen(
 
             Spacer(modifier = Modifier.weight(0.3f))
 
-            // Privacy note
-            Text(
-                text = "Carrier charges may apply.",
-                style = MaterialTheme.typography.bodySmall,
-                color = theme.textTertiary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Floating Next button (bottom right)
-            GlyphButton(
-                text = "",
-                icon = Icons.Default.ArrowForward,
-                onClick = {
-                    if (isValid) {
-                        showConfirmation = true
-                    }
-                },
-                enabled = isValid,
-                fullWidth = false,
-                circular = true,
+            // Privacy note centered inline with Next button
+            Row(
                 modifier = Modifier
-                    .align(Alignment.End)
+                    .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(bottom = 16.dp)
-            )
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Carrier charges may apply.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = theme.textTertiary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .weight(1f, fill = true)
+                        .padding(end = 80.dp) // Reserve space for button + gap
+                )
+                GlyphButton(
+                    text = "",
+                    icon = Icons.Default.ArrowForward,
+                    onClick = {
+                        if (isValid) {
+                            val imm = context.getSystemService(InputMethodManager::class.java)
+                            imm?.hideSoftInputFromWindow(
+                                (context as android.app.Activity).window?.decorView?.windowToken,
+                                0
+                            )
+                            showConfirmation = true
+                        }
+                    },
+                    enabled = isValid,
+                    fullWidth = false,
+                    circular = true,
+                    iconSize = 32.dp
+                )
+            }
         }
     }
 

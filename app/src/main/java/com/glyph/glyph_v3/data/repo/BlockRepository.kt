@@ -100,9 +100,14 @@ object BlockRepository {
      * Must be called after login / on app start.
      */
     fun startListening() {
-        val uid = currentUserId ?: return
+        val uid = currentUserId ?: run {
+            Log.w(TAG, "startListening() called but no current user - skipping")
+            return
+        }
+        Log.d(TAG, "startListening() for user: $uid")
 
         // Listen to users I have blocked
+        Log.d(TAG, "Registering blockedUsers listener...")
         blockedUsersListener?.remove()
         blockedUsersListener = firestore.collection("users").document(uid)
             .collection("blockedUsers")
@@ -113,8 +118,8 @@ object BlockRepository {
                 }
                 val documents = snapshot?.documents ?: emptyList()
                 val ids = documents.map { it.id }.toSet()
-                val map = documents.associate { 
-                    it.id to (it.getTimestamp("blockedAt")?.toDate()?.time ?: 0L) 
+                val map = documents.associate {
+                    it.id to (it.getTimestamp("blockedAt")?.toDate()?.time ?: 0L)
                 }
                 _myBlockedUsersMap.value = map
                 _myBlockedUsers.value = ids
@@ -122,6 +127,7 @@ object BlockRepository {
             }
 
         // Listen to users who blocked me
+        Log.d(TAG, "Registering blockedBy listener...")
         blockedByListener?.remove()
         blockedByListener = firestore.collection("users").document(uid)
             .collection("blockedBy")
@@ -134,6 +140,7 @@ object BlockRepository {
                 _blockedByUsers.value = ids
                 persistBlockedMe()
             }
+        Log.d(TAG, "startListening() completed for user: $uid")
     }
 
     fun stopListening() {

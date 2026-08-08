@@ -3911,14 +3911,15 @@ class RealtimeMessageRepository(
     }
 
     // ==================== RECEIVE MESSAGES (RTDB LISTENER) ====================
-    
+
     fun startIncomingMessageSync(forceRestart: Boolean = false): DatabaseReference? {
         val userId = currentUserId ?: return null
+        Log.d(TAG, "startIncomingMessageSync() called for user: $userId, forceRestart=$forceRestart")
         StartupTrace.logStage("incoming_sync_attach", "uid=$userId")
         repositoryScope.launch {
             warmRealtimeTransport(reason = "incoming_sync_attach", waitForConnection = false)
         }
-        
+
         // If already syncing for this user and no forced reattach was requested, keep the listener.
         if (!forceRestart && incomingMessageRef != null && incomingMessageRef?.key == userId && incomingMessageListener != null) {
             incomingMessageRef?.keepSynced(true)
@@ -3933,12 +3934,12 @@ class RealtimeMessageRepository(
             stage = if (forceRestart) "incoming_sync_force_restart" else "incoming_sync_start",
             details = "uid=$userId hadRef=${incomingMessageRef != null} hadListener=${incomingMessageListener != null}"
         )
-        
+
         // Remove existing listener if any (only if switching users or starting fresh)
         stopIncomingMessageSync()
-        
+
         incomingMessageRef = rtdb.reference.child("pending_messages").child(userId)
-        
+
         incomingMessageListener = object : ChildEventListener {
             override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
                 processIncomingMessage(snapshot)
@@ -4481,6 +4482,7 @@ class RealtimeMessageRepository(
 
     fun startGlobalDeliveryReceiptSync(forceRestart: Boolean = false) {
         val userId = currentUserId ?: return
+        Log.d(TAG, "startGlobalDeliveryReceiptSync() called for user: $userId, forceRestart=$forceRestart")
         if (!forceRestart && allDeliveryReceiptsListener != null) return
         if (forceRestart) {
             stopGlobalDeliveryReceiptSync()
@@ -5782,6 +5784,7 @@ class RealtimeMessageRepository(
 
     fun startGroupMetadataSync(forceRestart: Boolean = false) {
         val userId = currentUserId ?: return
+        Log.d(TAG, "startGroupMetadataSync() called for user: $userId, forceRestart=$forceRestart")
         if (!forceRestart && globalGroupMetadataListener != null && globalGroupMetadataListenerUid == userId) {
             return
         }

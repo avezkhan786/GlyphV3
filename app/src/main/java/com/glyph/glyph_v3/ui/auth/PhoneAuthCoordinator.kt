@@ -155,10 +155,22 @@ object PhoneAuthCoordinator {
                 if (task.isSuccessful) {
                     // Force-refresh the auth token so Firestore gets a fresh token
                     // before any listeners are registered in MainActivity.
-                    auth.currentUser?.getIdToken(true)?.addOnCompleteListener {
-                        routeAfterSignIn(activity) {}
+                    // CRITICAL: Only call onSuccess (which triggers UI animation) AND
+                    // routeAfterSignIn (which navigates) AFTER the token refresh completes.
+                    // This prevents a race where MainActivity sets up Firestore listeners
+                    // with a stale token, causing PERMISSION_DENIED errors.
+                    auth.currentUser?.getIdToken(true)?.addOnCompleteListener { tokenTask ->
+                        signInInProgress = false
+                        if (tokenTask.isSuccessful) {
+                            onSuccess()
+                            routeAfterSignIn(activity) {}
+                        } else {
+                            // Token refresh failed - still try to proceed but log warning
+                            Log.w(TAG, "Token refresh failed after sign-in, proceeding anyway", tokenTask.exception)
+                            onSuccess()
+                            routeAfterSignIn(activity) {}
+                        }
                     }
-                    onSuccess()
                 } else {
                     signInInProgress = false
                     val e = task.exception

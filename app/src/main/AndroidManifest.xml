@@ -54,7 +54,7 @@
         android:theme="@style/Theme.GlyphV3"
         android:hardwareAccelerated="true"
         android:largeHeap="true">
-        
+
         <!-- CRITICAL: Enable baseline profile for improved cold start performance -->
         <profileable android:shell="true" tools:targetApi="q" />
 
@@ -62,6 +62,26 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="${mapsApiKey}" />
+
+        <!-- AndroidX Startup InitializationProvider -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="com.glyph.glyph_v3.startup.FirebaseInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="com.glyph.glyph_v3.startup.ThemeInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="com.glyph.glyph_v3.startup.PresenceInitializer"
+                android:value="androidx.startup" />
+            <meta-data
+                android:name="com.glyph.glyph_v3.startup.ServicesInitializer"
+                android:value="androidx.startup" />
+        </provider>
 
         <activity
             android:name=".SplashActivity"

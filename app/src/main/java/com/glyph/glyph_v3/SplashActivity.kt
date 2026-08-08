@@ -6,6 +6,7 @@ import android.util.Log
 import android.app.Activity
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.glyph.glyph_v3.data.auth.GoogleSignInRepository
 import com.glyph.glyph_v3.data.backup.BackupPreferences
 import com.glyph.glyph_v3.data.backup.DriveRepository
@@ -16,6 +17,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 class SplashActivity : AppCompatActivity() {
 
@@ -39,7 +41,17 @@ class SplashActivity : AppCompatActivity() {
         val currentUser = auth.currentUser
 
         if (currentUser != null) {
-            checkForBackupAndRoute()
+            // CRITICAL: Refresh the auth token BEFORE launching MainActivity
+            // to ensure Firestore listeners in MainActivity have a valid token.
+            // This prevents PERMISSION_DENIED errors on cold start.
+            lifecycleScope.launch {
+                try {
+                    currentUser.getIdToken(true).await()
+                } catch (e: Exception) {
+                    Log.w("SplashActivity", "Token refresh failed, proceeding anyway", e)
+                }
+                checkForBackupAndRoute()
+            }
         } else {
             startActivity(Intent(this, WelcomeActivity::class.java))
             overrideTransition()

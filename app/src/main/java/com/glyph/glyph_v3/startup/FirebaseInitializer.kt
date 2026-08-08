@@ -25,6 +25,7 @@ class FirebaseInitializer : Initializer<Unit> {
     override fun create(context: Context) {
         try {
             StartupTrace.logStage("firebase_init_start")
+            Log.d(TAG, "=== FirebaseInitializer.create() START ===")
 
             // ============================================================
             // COLD-START FIX: Enable RTDB disk persistence BEFORE the very
@@ -35,6 +36,7 @@ class FirebaseInitializer : Initializer<Unit> {
             // ============================================================
             try {
                 FirebaseDatabase.getInstance().setPersistenceEnabled(true)
+                Log.d(TAG, "RTDB persistence enabled")
             } catch (e: Exception) {
                 // Thrown only if called after the first RTDB operation (e.g. on
                 // hot reload in dev builds). Safe to ignore in production.
@@ -50,6 +52,7 @@ class FirebaseInitializer : Initializer<Unit> {
             // ============================================================
             warmFirebaseConnection()
 
+            Log.d(TAG, "=== FirebaseInitializer.create() COMPLETE ===")
             StartupTrace.logStage("firebase_init_complete")
         } catch (e: Exception) {
             Log.e(TAG, "Firebase initialization failed", e)
@@ -74,19 +77,45 @@ class FirebaseInitializer : Initializer<Unit> {
 
             // 1. Force the WebSocket open immediately
             rtdb.goOnline()
+            Log.d(TAG, "RTDB goOnline() called")
 
             // 2. Pre-warm presence path cache so first reads don't wait for server
             rtdb.getReference("presence").keepSynced(true)
             rtdb.getReference("walkieTalkieSessions").keepSynced(true)
+            Log.d(TAG, "RTDB presence paths keepSynced(true)")
 
-            // 3. Refresh auth token proactively (runs async, won't block main thread)
-            FirebaseAuth.getInstance().currentUser?.getIdToken(false)
-                ?.addOnSuccessListener {
-                    Log.d(TAG, "Auth token refreshed successfully")
-                }
-                ?.addOnFailureListener { e ->
-                    Log.w(TAG, "Proactive token refresh failed (will retry on demand)", e)
-                }
+            // 3. CRITICAL: Force-refresh auth token (forceRefresh = true) so that
+            // all subsequent Firestore/RTDB listeners registered during startup
+            // (ServicesInitializer, PresenceInitializer, GlyphApplication.onCreate,
+            // BlockRepository.startListening) have a fresh, valid token. This prevents
+            // PERMISSION_DENIED errors on cold start when listeners register before
+            // SplashActivity runs.
+            //
+            // We use ASYNC callbacks instead of blocking Tasks.await() because the
+            // AppStartup executor may run on the main thread, and Tasks.await()
+            // throws "Must not be called on the main application thread" error.
+            // The dependent initializers (PresenceInitializer, ServicesInitializer)
+            // declare FirebaseInitializer as a dependency, so they will wait for
+            // this initializer to complete. However, since we're using async callbacks,
+            // we log a warning if the token isn't ready yet - the onStart handler
+            // in GlyphApplication will ensure the token is refreshed before registering
+            // any Firestore listeners.
+            val auth = FirebaseAuth.getInstance()
+            val currentUser = auth.currentUser
+            Log.d(TAG, "Current user: ${currentUser?.uid ?: "NULL"}")
+
+            if (currentUser != null) {
+                Log.d(TAG, "Starting ASYNC force token refresh (forceRefresh=true)...")
+                currentUser.getIdToken(true)
+                    .addOnSuccessListener {
+                        Log.d(TAG, "Auth token force-refreshed successfully (async)")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.w(TAG, "Async force token refresh failed (will retry on demand)", e)
+                    }
+            } else {
+                Log.w(TAG, "No current user - skipping token refresh")
+            }
 
             Log.d(TAG, "Firebase RTDB connection warming complete")
         } catch (e: Exception) {

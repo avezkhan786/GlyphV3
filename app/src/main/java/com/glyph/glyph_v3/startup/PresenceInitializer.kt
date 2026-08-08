@@ -24,6 +24,7 @@ class PresenceInitializer : Initializer<Unit> {
     override fun create(context: Context) {
         try {
             StartupTrace.logStage("presence_init_start")
+            Log.d(TAG, "=== PresenceInitializer.create() START ===")
 
             // Initialize Presence manager context
             PresenceManager.initContext(context)
@@ -31,6 +32,7 @@ class PresenceInitializer : Initializer<Unit> {
             // Set up auth state listener for presence tracking
             initializePresence(context)
 
+            Log.d(TAG, "=== PresenceInitializer.create() COMPLETE ===")
             StartupTrace.logStage("presence_init_complete")
         } catch (e: Exception) {
             Log.e(TAG, "Presence initialization failed", e)
@@ -49,8 +51,10 @@ class PresenceInitializer : Initializer<Unit> {
         try {
             // Only initialize if user is logged in
             val auth = FirebaseAuth.getInstance()
-            if (auth.currentUser != null) {
-                persistLastKnownAuthUid(context, auth.currentUser?.uid)
+            val currentUser = auth.currentUser
+            Log.d(TAG, "initializePresence - currentUser: ${currentUser?.uid ?: "NULL"}")
+            if (currentUser != null) {
+                persistLastKnownAuthUid(context, currentUser.uid)
                 PresenceManager.initialize()
             }
 
@@ -71,7 +75,7 @@ class PresenceInitializer : Initializer<Unit> {
                 }
             }
 
-            Log.d(TAG, "Presence initialization complete")
+            Log.d(TAG, "initializePresence() completed")
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing presence", e)
         }

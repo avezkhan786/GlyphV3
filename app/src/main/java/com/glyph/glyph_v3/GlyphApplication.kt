@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.glyph.glyph_v3.data.auth.GoogleSignInRepository
 import com.glyph.glyph_v3.data.cache.AvatarCacheManager
@@ -167,10 +168,36 @@ class GlyphApplication : Application() {
             // ═══════════════════════════════════════════════════════════════════════
 
             StartupTrace.logStage("app_onCreate_start")
+            Log.d(TAG, "=== GlyphApplication.onCreate() START ===")
 
             // Initialize Firebase Firestore cache configuration
             // (This must happen before any Firestore usage)
             configureFirestoreCache()
+
+            // CRITICAL: Force-refresh auth token BEFORE any Firestore listeners
+            // are registered by initializers (ServicesInitializer, PresenceInitializer)
+            // or by ensureSharedRepositoryStartup below. This prevents PERMISSION_DENIED
+            // errors on cold start when listeners register with a stale token.
+            val auth = FirebaseAuth.getInstance()
+            val currentUser = auth.currentUser
+            Log.d(TAG, "Application.onCreate - currentUser: ${currentUser?.uid ?: "NULL"}")
+
+            // If there's a current user, start token refresh ASYNCHRONOUSLY (non-blocking)
+            // This ensures all subsequent Firestore operations have a valid token.
+            // We use addOnSuccessListener instead of blocking await to avoid
+            // "Must not be called on the main application thread" error.
+            if (currentUser != null) {
+                Log.d(TAG, "Application.onCreate - starting async token refresh for user: ${currentUser.uid}")
+                currentUser.getIdToken(true)
+                    .addOnSuccessListener {
+                        Log.d(TAG, "Application.onCreate - async token refresh completed")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.w(TAG, "Application.onCreate - async token refresh failed, will retry in onStart", e)
+                    }
+            } else {
+                Log.d(TAG, "Application.onCreate - no current user, skipping token refresh")
+            }
 
             // Install the optimized Coil ImageLoader singleton (35% memory cache,
             // strong refs, 500MB disk, crossfade off) BEFORE any image load. This
@@ -212,10 +239,19 @@ class GlyphApplication : Application() {
             // inflation, the cache is warm before the chat-list fragment renders. Firebase
             // sync also starts here but writes to Room asynchronously — it never blocks
             // first render.
-            ensureSharedRepositoryStartup(reason = "app_onCreate", warmStartupChats = true)
+            // NOTE: Only run if user is authenticated to avoid PERMISSION_DENIED errors.
+            if (FirebaseAuth.getInstance().currentUser != null) {
+                ensureSharedRepositoryStartup(reason = "app_onCreate", warmStartupChats = true)
+            } else {
+                Log.d(TAG, "Application.onCreate - no authenticated user, skipping ensureSharedRepositoryStartup")
+            }
 
-            // Schedule Firebase foreground warmup
-            scheduleFirebaseForegroundWarmup(reason = "app_onCreate", force = true)
+            // Schedule Firebase foreground warmup - only if user is authenticated
+            if (FirebaseAuth.getInstance().currentUser != null) {
+                scheduleFirebaseForegroundWarmup(reason = "app_onCreate", force = true)
+            } else {
+                Log.d(TAG, "Application.onCreate - no authenticated user, skipping scheduleFirebaseForegroundWarmup")
+            }
 
             // Preload chat wallpaper in background
             appScope.launch {
@@ -638,22 +674,66 @@ class GlyphApplication : Application() {
      * when they become visible, not by process lifecycle.
      */
     private inner class AppLifecycleObserver : DefaultLifecycleObserver {
-        
+
         override fun onStart(owner: LifecycleOwner) {
             // App process started - start message sync but DON'T go online
             // (Activities will handle presence when actually visible)
-            try {
-                if (FirebaseAuth.getInstance().currentUser != null) {
-                    ensureSharedRepositoryStartup(reason = "process_onStart", warmStartupChats = false)
-                    scheduleFirebaseForegroundWarmup(reason = "process_onStart")
-                    // Only start message sync, NOT presence
-                    startIncomingSyncIfLoggedIn(forceRestart = true)
-                    // Phase 18 F4: begin observing portal official messages / status.
-                    com.glyph.glyph_v3.data.repo.OfficialContentRepository.startListening(this@GlyphApplication)
-                    startOfficialContentNotificationCollector()
+            appScope.launch {
+                try {
+                    val auth = FirebaseAuth.getInstance()
+                    val user = auth.currentUser
+
+                    if (user != null) {
+                        // User exists - force-refresh token before registering listeners
+                        Log.d(TAG, "onStart: user exists (${user.uid}), refreshing token...")
+                        try {
+                            user.getIdToken(true).await()
+                            Log.d(TAG, "onStart: token refreshed successfully")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "onStart: token refresh failed, proceeding anyway", e)
+                        }
+                        // User exists with fresh token - start listeners
+                        startListenersAfterAuthReady()
+                    } else {
+                        // No user yet - wait for auth state to be restored
+                        Log.d(TAG, "onStart: no current user, waiting for auth state...")
+                        // Give Firebase Auth a moment to restore the user from persistence
+                        delay(500)
+                        val restoredUser = auth.currentUser
+
+                        if (restoredUser != null) {
+                            // User was restored from persistence - refresh token and start listeners
+                            Log.d(TAG, "onStart: restored user ${restoredUser.uid}, refreshing token...")
+                            try {
+                                restoredUser.getIdToken(true).await()
+                                Log.d(TAG, "onStart: token refreshed successfully for restored user")
+                            } catch (e: Exception) {
+                                Log.w(TAG, "onStart: token refresh failed for restored user, proceeding anyway", e)
+                            }
+                            startListenersAfterAuthReady()
+                        } else {
+                            // No user restored - don't start listeners that require auth
+                            Log.d(TAG, "onStart: no authenticated user, skipping listener registration")
+                        }
+                    }
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in onStart lifecycle coroutine", e)
                 }
+            }
+        }
+
+        private fun startListenersAfterAuthReady() {
+            try {
+                ensureSharedRepositoryStartup(reason = "process_onStart", warmStartupChats = false)
+                scheduleFirebaseForegroundWarmup(reason = "process_onStart")
+                // Only start message sync, NOT presence
+                startIncomingSyncIfLoggedIn(forceRestart = true)
+                // Phase 18 F4: begin observing portal official messages / status.
+                com.glyph.glyph_v3.data.repo.OfficialContentRepository.startListening(this@GlyphApplication)
+                startOfficialContentNotificationCollector()
             } catch (e: Exception) {
-                Log.e(TAG, "Error in onStart", e)
+                Log.e(TAG, "Error starting listeners after auth ready", e)
             }
         }
 

@@ -100,7 +100,7 @@ private fun WelcomeScreen(
                 enter = fadeIn(tween(AuthAnimationUtils.FADE_IN_MS))
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.logo),
+                    painter = painterResource(id = R.drawable.ic_splash),
                     contentDescription = "Glyph logo",
                     modifier = Modifier.size(140.dp)
                 )
