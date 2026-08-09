@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Theme-aware background for SearchView container -->
+<!--
+  Theme-aware background for the Select Contact screen's SearchView.
+  Mirrors the chat list search bar (ChatListScreen.ChatListSearchBar):
+    - containerColor = glyphTheme.surfaceInput
+    - border         = glyphTheme.borderInput (0.5dp)
+    - shape          = RoundedCornerShape(24.dp)
+-->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-    <solid android:color="?attr/glyphSurfaceSecondary" />
-    <corners android:radius="16dp" />
+    <solid android:color="?attr/glyphSearchBarBackground" />
+    <corners android:radius="24dp" />
     <stroke
-        android:width="1dp"
-        android:color="@color/light_border_variant" />
+        android:width="0.5dp"
+        android:color="?attr/glyphBorderInput" />
 </shape>

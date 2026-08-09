@@ -299,6 +299,10 @@
     <!-- Picker tab colors -->
     <color name="picker_tab_active">#1DB954</color>
     <color name="picker_tab_inactive">#808080</color>
-    <color name="search_bar_light">#F5F5F5</color>
-    <color name="search_bar_dark">#2D2D2D</color>
+    <color name="search_bar_light">#F5F5F5</color>      <!-- surfaceInput (Light) -->
+    <color name="search_bar_dark">#23282C</color>       <!-- Chat list hardcoded dark search bar -->
+    <color name="search_bar_pastel">#FBFAF8</color>     <!-- surfaceInput (Pastel-Sky) -->
+    <color name="search_bar_border_light">#F1F3F4</color>  <!-- borderInput (Light) -->
+    <color name="search_bar_border_dark">#0D2422</color>   <!-- borderInput (Dark) -->
+    <color name="search_bar_border_pastel">#E8EDF2</color> <!-- borderInput (Pastel-Sky) -->
 </resources>
