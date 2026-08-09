@@ -20,7 +20,7 @@
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
 
         <!-- Navigation bar (edge-to-edge) -->
-        <item name="android:navigationBarColor">@color/light_surface</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
         <item name="android:windowLightNavigationBar">true</item>
         <item name="android:enforceNavigationBarContrast">false</item>
 
@@ -45,6 +45,7 @@
         <item name="glyphSurfaceVariant">@color/light_surface_variant</item>
         <item name="glyphSurfaceTinted">@color/light_surface_tinted</item>
         <item name="glyphSurfaceWarm">@color/light_surface_warm</item>
+        <item name="glyphStripPill">#0D000000</item>
         <item name="glyphSearchBarBackground">@color/search_bar_light</item>
         
         <!-- Text Colors -->
@@ -75,6 +76,7 @@
         <item name="glyphBorder">@color/light_border</item>
         <item name="glyphBorderVariant">@color/light_border_variant</item>
         <item name="glyphBorderAccent">@color/light_border_accent</item>
+        <item name="glyphBorderInput">@color/search_bar_border_light</item>
         <item name="glyphDivider">@color/light_border_light</item>
         
         <!-- Card/Item Colors -->
@@ -176,7 +178,7 @@
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
 
         <!-- Navigation bar (edge-to-edge) -->
-        <item name="android:navigationBarColor">@color/dark_surface</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:enforceNavigationBarContrast">false</item>
 
@@ -200,6 +202,7 @@
         <item name="glyphSurfaceSecondary">@color/dark_surface_secondary</item>
         <item name="glyphSurfaceVariant">@color/dark_surface_variant</item>
         <item name="glyphSurfaceTinted">#1A2D2D</item>
+        <item name="glyphStripPill">#22FFFFFF</item>
         <item name="glyphSearchBarBackground">@color/search_bar_dark</item>
         
         <!-- Text Colors -->
@@ -229,6 +232,7 @@
         <!-- Border Colors -->
         <item name="glyphBorder">@color/dark_border</item>
         <item name="glyphBorderVariant">@color/dark_border_variant</item>
+        <item name="glyphBorderInput">@color/search_bar_border_dark</item>
         <item name="glyphDivider">@color/dark_border</item>
         
         <!-- Card/Item Colors -->
@@ -326,6 +330,7 @@
         <item name="glyphDivider">@color/ai_dark_surface</item>
         <item name="glyphBorder">@color/ai_dark_surface</item>
         <item name="glyphBorderVariant">@color/ai_dark_surface</item>
+        <item name="glyphStripPill">#22FFFFFF</item>
     </style>
     
     <!-- ========== PASTEL-SKY THEME ========== -->
@@ -347,7 +352,7 @@
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
 
         <!-- Navigation bar (edge-to-edge) -->
-        <item name="android:navigationBarColor">@color/pastel_background</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
         <item name="android:windowLightNavigationBar">true</item>
         <item name="android:enforceNavigationBarContrast">false</item>
 
@@ -371,7 +376,9 @@
         <item name="glyphSurfaceSecondary">@color/pastel_surface</item>
         <item name="glyphSurfaceVariant">#F4F2FA</item>
         <item name="glyphSurfaceTinted">@color/pastel_cloud_gray</item>
+        <item name="glyphStripPill">#155B4B8A</item>
         <item name="glyphSurfaceWarm">@color/pastel_peach_haze</item>
+        <item name="glyphSearchBarBackground">@color/search_bar_pastel</item>
         
         <!-- Text Colors -->
         <item name="glyphTextPrimary">@color/pastel_text_primary</item>
@@ -401,6 +408,7 @@
         <item name="glyphBorder">#E6E2F2</item>
         <item name="glyphBorderVariant">@color/pastel_input_border</item>
         <item name="glyphBorderAccent">@color/pastel_mint_cloud</item>
+        <item name="glyphBorderInput">@color/search_bar_border_pastel</item>
         <item name="glyphDivider">#E6E2F2</item>
         
         <!-- Card/Item Colors -->

@@ -87,11 +87,55 @@
         android:id="@+id/recyclerViewUsers"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:paddingEnd="36dp"
         app:layout_constraintTop_toBottomOf="@+id/newGroupRow"
         app:layout_constraintBottom_toTopOf="@+id/shareBottomBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:listitem="@layout/item_user" />
+
+    <!--
+      Right-edge alphabetical index. Anchored between newGroupRow and shareBottomBar so
+      it stays aligned to the visible list area. ConstraintLayout's wrap_content + top
+      + bottom constraints below stretches the view to fill the available height.
+      Width is intentionally larger than the painted letters so the touch target is
+      comfortable without making the strip look heavy.
+    -->
+    <com.glyph.glyph_v3.ui.users.AlphabetIndexView
+        android:id="@+id/alphabetIndex"
+        android:layout_width="36dp"
+        android:layout_height="0dp"
+        android:layout_marginEnd="2dp"
+        android:background="@drawable/bg_alphabet_strip"
+        android:contentDescription="@string/alphabet_index_a11y"
+        android:importantForAccessibility="no"
+        app:layout_constraintTop_toBottomOf="@+id/newGroupRow"
+        app:layout_constraintBottom_toTopOf="@+id/shareBottomBar"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!--
+      Centre-of-screen floating letter bubble. Shown only while the user is actively
+      dragging the alphabet index. elevation kept low so it sits gently above the list.
+    -->
+    <TextView
+        android:id="@+id/alphabetBubble"
+        android:layout_width="72dp"
+        android:layout_height="72dp"
+        android:background="@drawable/bg_alphabet_bubble"
+        android:elevation="6dp"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:textColor="?attr/glyphTextPrimary"
+        android:textSize="32sp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:text="M"
+        tools:visibility="visible" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/shareBottomBar"

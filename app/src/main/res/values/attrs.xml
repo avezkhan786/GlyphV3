@@ -11,6 +11,7 @@
     <attr name="glyphSurfaceVariant" format="color"/>
     <attr name="glyphSurfaceTinted" format="color"/>
     <attr name="glyphSurfaceWarm" format="color"/>
+    <attr name="glyphStripPill" format="color"/>
     
     <!-- Text Colors -->
     <attr name="glyphTextPrimary" format="color"/>
@@ -40,6 +41,7 @@
     <attr name="glyphBorder" format="color"/>
     <attr name="glyphBorderVariant" format="color"/>
     <attr name="glyphBorderAccent" format="color"/>
+    <attr name="glyphBorderInput" format="color"/>
     <attr name="glyphDivider" format="color"/>
     
     <!-- Card/Item Colors -->

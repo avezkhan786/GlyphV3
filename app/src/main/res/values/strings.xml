@@ -108,6 +108,7 @@
     <string name="calls_selection_delete">Delete</string>
     <string name="calls_selection_favorite">Add to favorites</string>
     <string name="calls_selection_more">More options</string>
+    <string name="alphabet_index_a11y">Alphabetical index. Quickly jump to a contact section by letter</string>
     <string name="calls_delete_title">Delete call records?</string>
     <string name="calls_delete_message">The selected call records will be permanently deleted.</string>
     <string name="calls_delete_confirm">Delete</string>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Alphabetical section header above each letter group in the contact selection
+  list. Built as a typographic label rather than a tinted slab: clear background
+  (so it doesn't look heavy in dark theme), prominent semibold letter, generous
+  top padding so it visually breaks from the contact rows above.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="20dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="10dp">
+
+    <TextView
+        android:id="@+id/tvSectionLetter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-medium"
+        android:includeFontPadding="false"
+        android:letterSpacing="0.04"
+        android:textColor="?attr/glyphTextPrimary"
+        android:textSize="17sp"
+        tools:text="A" />
+
+</LinearLayout>

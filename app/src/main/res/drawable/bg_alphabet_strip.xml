@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pill background for the right-edge alphabet index strip. Theme-aware via
+  `?attr/glyphStripPill`, which is tuned per theme to be a subtle overlay so
+  the strip reads as a soft glassy track rather than a heavy block. 18dp
+  corner radius makes the strip fully round on its 36dp width while still
+  leaving a visible straight segment on the long edges.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="?attr/glyphStripPill" />
+    <corners android:radius="18dp" />
+</shape>

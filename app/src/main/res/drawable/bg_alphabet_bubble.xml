@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Centre-of-screen floating bubble used by the alphabetical index while the
+  user drags across the right edge. Round translucent panel that adapts to
+  light / dark by leaning on theme tokens.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="?attr/glyphChatInputBackground" />
+    <stroke
+        android:width="0.5dp"
+        android:color="?attr/glyphBorderInput" />
+</shape>
