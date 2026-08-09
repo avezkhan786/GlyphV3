@@ -81,6 +81,16 @@ class ChatListComposeFragment : Fragment() {
     private var repositoryInitJob: Job? = null
     private var hasStartedChatListData = false
 
+    // Memoized Chat instances keyed by chat id. Compose's ChatRow caches derived
+    // values via remember(chat.lastMessageTimestamp, …) which is sensitive to
+    // identity of the Date reference: a fresh Date per emission re-runs
+    // formatTimestampWhatsApp and its SimpleDateFormat allocation chains even
+    // though the row is structurally unchanged. Reusing the prior Chat (and its
+    // nested Date) when fields are structurally identical keeps the LazyColumn's
+    // derivedStateOf / remember caches stable, which is the single largest
+    // contributor to smooth scroll after the basic caching passes.
+    private var memoizedChats: Map<String, Chat> = emptyMap()
+
     private val presenceStateFlow = MutableStateFlow<Map<String, PresenceManager.PresenceStatus>>(emptyMap())
     private val typingStateFlow = MutableStateFlow<Map<String, Boolean>>(emptyMap())
     private val groupTypingUsersStateFlow = MutableStateFlow<Map<String, Set<String>>>(emptyMap())
@@ -487,14 +497,16 @@ class ChatListComposeFragment : Fragment() {
                 return@launch
             }
 
-            val initialChats = mapLocalChatsToUi(
+            val (initialChats, initialMemoCache) = mapLocalChatsToUi(
                 localChats = localChats,
                 presenceMap = emptyMap(),
                 typingMap = emptyMap(),
                 groupTypingUsersByChatId = emptyMap(),
                 groupSenderNamesByUserId = emptyMap(),
-                blockedUserIds = emptySet()
+                blockedUserIds = emptySet(),
+                previousChats = memoizedChats
             )
+            memoizedChats = initialMemoCache
 
             withContext(Dispatchers.Main.immediate) {
                 viewModel.updateChats(initialChats)
@@ -637,14 +649,17 @@ class ChatListComposeFragment : Fragment() {
                         scheduleChatListAvatarPreload(localChats)
                         warmLikelyNextChats(localChats)
 
-                        mapLocalChatsToUi(
+                        val (mappedChats, newMemoCache) = mapLocalChatsToUi(
                             localChats = localChats,
                             presenceMap = presenceMap,
                             typingMap = typingMap,
                             groupTypingUsersByChatId = groupTypingUsersByChatId,
                             groupSenderNamesByUserId = groupSenderNamesByUserId,
-                            blockedUserIds = blockedUserIds
+                            blockedUserIds = blockedUserIds,
+                            previousChats = memoizedChats
                         )
+                        memoizedChats = newMemoCache
+                        mappedChats
                     }
                     .combine(ContactDisplayNameResolver.cacheVersion) { chats, _ -> chats }
                     // Suppress duplicate emissions: without this, every combine
@@ -667,18 +682,18 @@ class ChatListComposeFragment : Fragment() {
         typingMap: Map<String, Boolean>,
         groupTypingUsersByChatId: Map<String, Set<String>>,
         groupSenderNamesByUserId: Map<String, String>,
-        blockedUserIds: Set<String>
-    ): List<Chat> {
-        val ctx = context ?: return emptyList()
+        blockedUserIds: Set<String>,
+        previousChats: Map<String, Chat>
+    ): Pair<List<Chat>, Map<String, Chat>> {
+        val ctx = context ?: return emptyList<Chat>() to emptyMap()
         val currentUid = currentUserId().orEmpty()
         val lockedChatIds = ChatSettingsDataStore.getLockedChatIds(ctx)
-        return localChats.map { local ->
+        val newCache = HashMap<String, Chat>(localChats.size)
+
+        val mapped = localChats.map { local ->
             val effectiveIsGroup = isEffectivelyGroupChat(local)
             val isBlocked = !effectiveIsGroup && local.otherUserId in blockedUserIds
             val presence = if (effectiveIsGroup) null else presenceMap[local.otherUserId]
-            if (!effectiveIsGroup && isBlocked) {
-            } else if (!effectiveIsGroup && presence == null) {
-            }
             val isTyping = if (effectiveIsGroup) false else (typingMap["${local.id}_${local.otherUserId}"] ?: false)
             val groupTypingUserIds = if (effectiveIsGroup) {
                 groupTypingUsersByChatId[local.id].orEmpty()
@@ -712,45 +727,92 @@ class ChatListComposeFragment : Fragment() {
                 ""
             }
             val locked = lockedChatIds.contains(local.id)
-            Chat(
-                id = local.id,
-                participants = if (effectiveIsGroup) {
-                    com.glyph.glyph_v3.data.repo.GroupChatRepository.decodeStringList(local.participantsJson)
-                } else {
-                    listOf(currentUserId().orEmpty(), local.otherUserId)
-                },
-                lastMessage = local.lastMessage,
-                lastMessageTimestamp = if (local.lastMessageTimestamp > 0) java.util.Date(local.lastMessageTimestamp) else null,
-                lastMessageSenderId = local.lastMessageSenderId,
-                lastMessageStatus = local.lastMessageStatus,
-                unreadCount = local.unreadCount,
-                otherUsername = if (!effectiveIsGroup && local.otherUserId.isNotBlank()) {
-                    ContactDisplayNameResolver.getDisplayName(
-                        otherUserId = local.otherUserId,
-                        remoteProfileName = local.otherUsername
-                    )
-                } else local.otherUsername,
-                otherUserAvatar = local.otherUserAvatar,
-                isOtherUserOnline = if (isBlocked) false else (presence?.isOnline ?: false),
-                isOtherUserInChat = if (isBlocked) false else (presence?.viewingChatId == local.id),
-                otherUserLastSeen = if (isBlocked) 0L else (presence?.lastSeen ?: 0L),
-                isOtherUserTyping = if (effectiveIsGroup) typingText.isNotBlank() else if (isBlocked) false else isTyping,
-                typingText = typingText,
-                isLocked = locked,
-                draft = "", // Loaded lazily in ChatRow composable via LaunchedEffect
-                isGroup = effectiveIsGroup,
-                groupName = local.groupName,
-                groupIconUrl = local.groupIconUrl,
-                groupDescription = local.groupDescription,
-                createdBy = local.createdBy,
-                createdAt = local.createdAt,
-                groupOnlineCount = groupOnlineUserIds.size,
-                groupOnlineUserNames = groupOnlineNames
-            )
-        }.let { chats ->
-            // In locked mode show ONLY locked chats; in normal mode exclude them
-            if (isLockedMode) chats.filter { it.isLocked } else chats
+            val participants = if (effectiveIsGroup) {
+                com.glyph.glyph_v3.data.repo.GroupChatRepository.decodeStringList(local.participantsJson)
+            } else {
+                listOf(currentUid, local.otherUserId)
+            }
+            val ts = if (local.lastMessageTimestamp > 0) java.util.Date(local.lastMessageTimestamp) else null
+            val otherUsernameResolved = if (!effectiveIsGroup && local.otherUserId.isNotBlank()) {
+                ContactDisplayNameResolver.getDisplayName(
+                    otherUserId = local.otherUserId,
+                    remoteProfileName = local.otherUsername
+                )
+            } else local.otherUsername
+
+            val isOnline = if (isBlocked) false else (presence?.isOnline ?: false)
+            val isInChat = if (isBlocked) false else (presence?.viewingChatId == local.id)
+            val lastSeen = if (isBlocked) 0L else (presence?.lastSeen ?: 0L)
+            val typingFlag = if (effectiveIsGroup) typingText.isNotBlank() else if (isBlocked) false else isTyping
+
+            // Reuse the prior Chat when nothing has changed. Preserving the
+            // reference (and especially its nested Date) keeps Compose
+            // remember(...) caches stable across flow emissions — without this,
+            // every presence/typing/groupSenderNames tick triggers
+            // formatTimestampWhatsApp SimpleDateFormat allocation chains and
+            // builder churn for rows whose visible content did not change.
+            val prev = previousChats[local.id]
+            val resolved = if (prev != null &&
+                prev.participants == participants &&
+                prev.lastMessage == local.lastMessage &&
+                prev.lastMessageTimestamp == ts &&
+                prev.lastMessageSenderId == local.lastMessageSenderId &&
+                prev.lastMessageStatus == local.lastMessageStatus &&
+                prev.unreadCount == local.unreadCount &&
+                prev.otherUsername == otherUsernameResolved &&
+                prev.otherUserAvatar == local.otherUserAvatar &&
+                prev.isOtherUserOnline == isOnline &&
+                prev.isOtherUserInChat == isInChat &&
+                prev.otherUserLastSeen == lastSeen &&
+                prev.isOtherUserTyping == typingFlag &&
+                prev.typingText == typingText &&
+                prev.isLocked == locked &&
+                prev.isGroup == effectiveIsGroup &&
+                prev.groupName == local.groupName &&
+                prev.groupIconUrl == local.groupIconUrl &&
+                prev.groupDescription == local.groupDescription &&
+                prev.createdBy == local.createdBy &&
+                prev.createdAt == local.createdAt &&
+                prev.groupOnlineCount == groupOnlineUserIds.size &&
+                prev.groupOnlineUserNames == groupOnlineNames
+            ) {
+                prev
+            } else {
+                Chat(
+                    id = local.id,
+                    participants = participants,
+                    lastMessage = local.lastMessage,
+                    lastMessageTimestamp = ts,
+                    lastMessageSenderId = local.lastMessageSenderId,
+                    lastMessageStatus = local.lastMessageStatus,
+                    unreadCount = local.unreadCount,
+                    otherUsername = otherUsernameResolved,
+                    otherUserAvatar = local.otherUserAvatar,
+                    isOtherUserOnline = isOnline,
+                    isOtherUserInChat = isInChat,
+                    otherUserLastSeen = lastSeen,
+                    isOtherUserTyping = typingFlag,
+                    typingText = typingText,
+                    isLocked = locked,
+                    draft = prev?.draft.orEmpty(),
+                    isGroup = effectiveIsGroup,
+                    groupName = local.groupName,
+                    groupIconUrl = local.groupIconUrl,
+                    groupDescription = local.groupDescription,
+                    createdBy = local.createdBy,
+                    createdAt = local.createdAt,
+                    groupOnlineCount = groupOnlineUserIds.size,
+                    groupOnlineUserNames = groupOnlineNames
+                )
+            }
+            newCache[local.id] = resolved
+            resolved
         }
+
+        // In locked mode show ONLY locked chats; in normal mode keep them all
+        // (locked rows are surfaced by the upstream compose layer when relevant).
+        val filtered = if (isLockedMode) mapped.filter { it.isLocked } else mapped
+        return filtered to newCache
     }
 
     private fun startPresenceObservation(userIds: List<String>) {

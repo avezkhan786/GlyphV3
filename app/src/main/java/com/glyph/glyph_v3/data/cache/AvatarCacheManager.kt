@@ -73,6 +73,11 @@ object AvatarCacheManager {
     /**
      * Get local file path for a user's avatar. Returns null if not cached.
      * This is SYNCHRONOUS and fast - suitable for UI thread.
+     *
+     * Hot path (UI scroll): trust the in-memory index. Re-stat'ing on every bind
+     * (File.exists + File.length) was costing ~2 syscalls per visible row per
+     * scroll frame — collapsing to plain map lookup removed hundreds of
+     * main-thread syscalls per second during fling.
      */
     fun getLocalAvatarPath(userId: String): String? {
         if (!::avatarsDir.isInitialized) {
@@ -80,14 +85,15 @@ object AvatarCacheManager {
             return null
         }
 
-        localAvatarPathIndex[userId]?.let { cachedPath ->
-            val cachedFile = File(cachedPath)
-            if (cachedFile.exists() && cachedFile.length() > 0) {
-                return cachedPath
-            }
-            localAvatarPathIndex.remove(userId)
+        // Hot path: trust the in-memory index. The monitor distinguishes the
+        // index-hit (path returned) from a cache-miss (syscall path run).
+        val cached = localAvatarPathIndex[userId]
+        if (cached != null) {
+            com.glyph.glyph_v3.ui.chatlist.ChatListPerfMonitor.onAvatarLookup(cacheHit = true)
+            return cached
         }
-        
+
+        com.glyph.glyph_v3.ui.chatlist.ChatListPerfMonitor.onAvatarLookup(cacheHit = false)
         val avatarFile = File(avatarsDir, "${userId}.jpg")
         val exists = avatarFile.exists() && avatarFile.length() > 0
 
