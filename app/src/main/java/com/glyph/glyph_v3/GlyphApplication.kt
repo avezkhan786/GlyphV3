@@ -123,6 +123,13 @@ class GlyphApplication : Application() {
         super.onCreate()
         StartupTrace.logStage("app_onCreate_start")
 
+        // ── Chat list perf monitor (debug only) ──
+        // Enable via: adb shell setprop log.tag.ChatListPerf VERBOSE
+        //        adb logcat -c && adb logcat -s ChatListPerf
+        // Then scroll the chat list and let it come to rest.
+        // The flush is triggered at scroll-idle in ChatListFragment.kt.
+        com.glyph.glyph_v3.ui.chatlist.ChatListPerfMonitor.checkEnabled()
+
         // ── Firebase DefaultRunLoop crash guard ──────────────────────────────────
         // Firebase RTDB uses an internal ScheduledThreadPoolExecutor ("DefaultRunLoop").
         // If that pool is ever shut down (via goOffline/internal reset) while an old

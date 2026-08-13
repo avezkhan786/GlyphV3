@@ -25,7 +25,7 @@ fun getVersionCode(): Int {
 
 android {
     namespace = "com.glyph.glyph_v3"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.glyph.glyph_v3"

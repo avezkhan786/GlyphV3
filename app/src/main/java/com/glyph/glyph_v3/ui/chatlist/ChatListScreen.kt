@@ -43,6 +43,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListItemInfo
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
+import androidx.compose.foundation.lazy.LazyListPrefetchScope
+import androidx.compose.foundation.lazy.LazyListPrefetchStrategy
+import androidx.compose.foundation.lazy.layout.LazyLayoutPrefetchState
+import androidx.compose.foundation.lazy.layout.NestedPrefetchScope
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -64,7 +70,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -94,10 +103,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.layout.ContentScale
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.runtime.DisposableEffect
@@ -120,7 +126,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Velocity
@@ -154,7 +159,185 @@ private const val TAG = "ChatListScroll"
 /** Process-level guard: auto-reveal hidden sections only once per cold start. */
 private var sColdStartRevealDone = false
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Screen-level scroll-active signal consumed deep in the row tree by
+ * [PresenceIndicator] (presence pulse) and [TypingIndicator] (typing dots) to
+ * suspend their infinite animations while the list is flinging.
+ *
+ * Carries a State<Boolean> — not a plain Boolean — so only the leaf composables
+ * that read `.value` recompose on the idle↔scroll flip; ChatRow / Avatar / Text
+ * stay untouched, and the provider itself never recomposes. The source is
+ * [rememberLazyListState] [.isScrollInProgress] wrapped in [derivedStateOf],
+ * which collapses the frequent per-frame scroll-position writes into a single
+ * boolean change so continuous scrolling triggers zero recomposition from this
+ * provider. Reclaims UI-thread frame budget for composing newly-visible rows
+ * during fling — the bottleneck confirmed by gfxinfo (GPU 2-5ms, "Slow UI
+ * thread" frames, tail to 19-34ms).
+ */
+private val LocalListScrolling = compositionLocalOf<State<Boolean>> {
+    error("LocalListScrolling must be provided by ChatListScreen")
+}
+
+/**
+ * Public-API prefetch strategy that widens the sibling beyond-viewport
+ * precomposition window to [aheadCount] rows ahead of the current scroll
+ * direction, instead of Compose's default single ahead row.
+ *
+ * WHY: gfxinfo on this list shows "Slow UI thread" frames during fling while the
+ * GPU sits at 2-5ms — the bottleneck is composing newly-entering rows on the UI
+ * thread. Compose's internal [androidx.compose.foundation.lazy.DefaultLazyListPrefetchStrategy]
+ * precomposes exactly ONE ahead row; widening the window means more rows are
+ * already composed when fling reaches them. This class is the Config C test:
+ * does a wider window actually move composition OFF the fling frame, or does the
+ * extra prefetch land on fling frames and make jank worse? Only keep it if the
+ * A/B/C/D medians (Phase 7) demonstrate the former.
+ *
+ * FIDELITY — mirrors the default's algorithm exactly (decoded from the 1.9.5
+ * bytecode): direction from the scroll-delta sign, the ahead anchor from the
+ * first/last visible item, the "skip rescheduling when the anchor hasn't moved"
+ * guard, and the urgency test that runs the NEAREST ahead row's composition this
+ * frame when this frame's delta will reach it (`markAsUrgent()`). It only
+ * generalises the 1-row window to N rows, keeping a small ordered map of
+ * [LazyLayoutPrefetchState.PrefetchHandle]s so a sliding anchor diff/cancels
+ * just the one handle that left the window (O(1), zero reschedule work while the
+ * anchor is steady mid-row — the common fling case).
+ *
+ * ONLY PUBLIC APIs are touched: [LazyListPrefetchStrategy],
+ * [LazyListPrefetchScope]'s schedulePrefetch, [LazyLayoutPrefetchState.PrefetchHandle]
+ * .cancel / markAsUrgent, [LazyListLayoutInfo], [LazyListItemInfo]. No internal
+ * Compose classes, no `$foundation_release` accessors, no per-frame
+ * LaunchedEffect / snapshotFlow — the Compose prefetch scheduler drives these
+ * callbacks; we never poll scroll state ourselves (Phase 5 satisfied by design).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+private class AheadCacheWindowPrefetchStrategy(
+    private val aheadCount: Int
+) : LazyListPrefetchStrategy {
+
+    // Ordered map of currently-scheduled ahead indices -> their prefetch handles.
+    private val handles = linkedMapOf<Int, LazyLayoutPrefetchState.PrefetchHandle>()
+    private var wasScrollingForward = true
+    // Nearest ahead index we prefetch toward; -1 means nothing scheduled yet
+    // (mirrors the default's indexToPrefetch = -1 sentinel).
+    private var currentAnchor = -1
+
+    // The interface declares these as member-extension functions
+    // (fun LazyListPrefetchScope.onScroll(...)), so the prefetch scope is the
+    // RECEIVER (`this`), not an explicit parameter. Schedule calls below resolve
+    // on that receiver.
+    override fun LazyListPrefetchScope.onScroll(delta: Float, layoutInfo: LazyListLayoutInfo) {
+        val visible = layoutInfo.visibleItemsInfo
+        if (visible.isEmpty()) return
+        val forward = delta < 0f
+        val anchor = if (forward) visible.last().index + 1 else visible.first().index - 1
+        if (anchor < 0 || anchor >= layoutInfo.totalItemsCount) {
+            // At the very top/bottom — nothing valid to prefetch toward.
+            if (handles.isNotEmpty()) cancelAndClear()
+            currentAnchor = -1
+            return
+        }
+        // Reschedule only when the nearest-ahead index or direction changed —
+        // identical guard to the default, so steady mid-row scrolling does ZERO
+        // scheduling work (the common fling case).
+        if (anchor != currentAnchor || forward != wasScrollingForward) {
+            reschedule(anchor, forward, layoutInfo.totalItemsCount)
+        }
+        // Urgency: run the NEAREST ahead row's composition this frame if the
+        // scroll delta will reach it. Same test as the default; further-ahead
+        // rows are never reached this frame and stay non-urgent.
+        val nearest = handles[anchor]
+        if (nearest != null) {
+            val urgent = if (forward) {
+                val lastVisible = visible.last()
+                val distance = lastVisible.offset + lastVisible.size + layoutInfo.mainAxisItemSpacing - layoutInfo.viewportEndOffset
+                distance.toFloat() < -delta
+            } else {
+                val firstVisible = visible.first()
+                val distance = layoutInfo.viewportStartOffset - firstVisible.offset
+                distance.toFloat() < delta
+            }
+            if (urgent) nearest.markAsUrgent()
+        }
+    }
+
+    override fun LazyListPrefetchScope.onVisibleItemsUpdated(layoutInfo: LazyListLayoutInfo) {
+        // Visible items changed without a scroll delta (Room emitted new/updated
+        // chats while idle, or a programmatic scroll). Re-derive the ahead set
+        // from current visible items + last direction so we prefetch toward the
+        // right rows. Mirrors the default, generalised to the window.
+        if (currentAnchor == -1) return
+        val visible = layoutInfo.visibleItemsInfo
+        if (visible.isEmpty()) return
+        val anchor = if (wasScrollingForward) visible.last().index + 1 else visible.first().index - 1
+        if (anchor < 0 || anchor >= layoutInfo.totalItemsCount) {
+            if (handles.isNotEmpty()) cancelAndClear()
+            currentAnchor = -1
+            return
+        }
+        reschedule(anchor, wasScrollingForward, layoutInfo.totalItemsCount)
+        // No urgency here: there is no scroll delta at this moment.
+    }
+
+    override fun NestedPrefetchScope.onNestedPrefetch(firstVisibleItemIndex: Int) {
+        // Only fires when THIS list is nested inside another lazy layout. Ours is
+        // a top-level screen list (never nested), so this callback never runs in
+        // practice — leaving it empty is a true no-op for us. We intentionally do
+        // NOT call the default's [schedulePrefetch] here: that member is
+        // @Deprecated("use schedulePrecomposition(index) instead") in 1.9.5, and
+        // (per the user's steer away from the nested-prefetch knob) nested prefetch
+        // is not what targets our chat-row composition. Sibling-ahead precomposition
+        // — the actual lever — is driven by [LazyListPrefetchScope] in onScroll.
+        return
+    }
+
+    // Member extension on the prefetch scope so it shares the receiver from the
+    // overrides above; schedulePrefetch(...) resolves on that receiver.
+    private fun LazyListPrefetchScope.reschedule(
+        anchor: Int,
+        forward: Boolean,
+        totalItemsCount: Int
+    ) {
+        // Desired window is the contiguous run anchor, anchor+dir, ..., clamped
+        // to bounds. Compute its inclusive min/max for O(1) membership testing
+        // without allocating a set (Phase 5: no per-anchor-change heap churn).
+        val dir = if (forward) 1 else -1
+        val desiredMin: Int
+        val desiredMax: Int
+        if (forward) {
+            desiredMin = anchor
+            desiredMax = minOf(anchor + (aheadCount - 1) * dir, totalItemsCount - 1)
+        } else {
+            desiredMax = anchor
+            desiredMin = maxOf(anchor + (aheadCount - 1) * dir, 0)
+        }
+        // Cancel handles that slid out of the window.
+        val iterator = handles.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.key < desiredMin || entry.key > desiredMax) {
+                entry.value.cancel()
+                iterator.remove()
+            }
+        }
+        // Schedule handles for indices that entered the window.
+        var idx = desiredMin
+        while (idx <= desiredMax) {
+            if (idx !in handles) {
+                schedulePrefetch(idx)?.let { handle -> handles[idx] = handle }
+            }
+            idx++
+        }
+        currentAnchor = anchor
+        wasScrollingForward = forward
+    }
+
+    private fun cancelAndClear() {
+        for (handle in handles.values) handle.cancel()
+        handles.clear()
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatListScreen(
     title: String,
@@ -259,7 +442,22 @@ fun ChatListScreen(
     val showSecretLockedRow = isLockedChatsHidden && secretCodeMatch && searchQuery.isNotEmpty()
     val showLockedSection = showSecretLockedRow || (lockedChatsCount > 0 && !isLockedChatsHidden)
     val showArchivedSection = archivedChatsCount > 0
-    val chatListState = rememberLazyListState()
+    // Prefetch strategy that precomposes 2 rows ahead of the scroll direction
+    // (Compose's default precomposes 1). Widening the window is the Config C test:
+    // does having more rows already-composed reduce on-fling composition, or does
+    // the extra prefetch itself land on fling frames and make jank worse?
+    // remember'd so its identity (and in-flight handle map) is stable across
+    // recompositions; re-created fresh on process death, which is correct.
+    val prefetchStrategy = remember { AheadCacheWindowPrefetchStrategy(aheadCount = 2) }
+    val chatListState = rememberLazyListState(0, 0, prefetchStrategy)
+    // Smallest useful scroll-aware signal: true only while the list is actively
+    // scrolled/dragged/flung. derivedStateOf collapses the per-frame scroll-
+    // position writes into a single idle↔active boolean, so continuous scrolling
+    // triggers zero recomposition. Provided to the row tree via LocalListScrolling
+    // so only the infinite-animation leaves (presence pulse, typing dots) subscribe.
+    val scrollActive = remember(chatListState) {
+        derivedStateOf { chatListState.isScrollInProgress }
+    }
     val showHeaderSections = !isSelectionMode && !isArchivedMode && (showLockedSection || showArchivedSection)
     val hiddenSectionsRowCount = (if (showLockedSection) 1 else 0) + (if (showArchivedSection) 1 else 0)
     val hiddenSectionsHeight = (hiddenSectionsRowCount * 50).dp
@@ -616,6 +814,7 @@ fun ChatListScreen(
 
         floatingActionButtonPosition = FabPosition.End
     ) { contentPadding ->
+        CompositionLocalProvider(LocalListScrolling provides scrollActive) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -688,6 +887,12 @@ fun ChatListScreen(
                             }
                         }
 
+                        // Stable identity key (areItemsTheSame equivalent). The key must
+                        // be stable across content changes — using composite keys like
+                        // id+timestamp+unread forces Compose to treat an updated chat as a
+                        // brand-new item and fully rebuild its composition instead of
+                        // updating it in place. Content-change skipping is handled by the
+                        // @Immutable Chat model + the remember() guards in ChatRow.
                         items(filteredChats, key = { it.id }, contentType = { "chat" }) { chat ->
                             val isSelected = selectedChatIds.contains(chat.id)
                             val otherUserId = remember(chat.participants, currentUserId) {
@@ -783,6 +988,7 @@ fun ChatListScreen(
                     onUndo = onUndoDelete
                 )
             }
+        }
         }
     }
 }
@@ -1288,15 +1494,23 @@ private fun ChatRow(
     val displayName = remember(chat.groupName, chat.otherUsername, chat.isGroup, chat.participants, currentUserId) {
         chatDisplayName(chat, currentUserId)
     }
-    // Load draft lazily when the row becomes visible, rather than in the data pipeline
-    var draft by remember { mutableStateOf(chat.draft) }
-    LaunchedEffect(chat.id) {
-        draft = withContext(Dispatchers.IO) {
-            com.glyph.glyph_v3.data.service.DraftMessageStore.getDraft(chat.id)
-        }
+    // Read the latest draft once per chat-id binding. DraftMessageStore keeps
+    // drafts in an in-memory map (loaded at init), so getDraft is an O(1)
+    // HashMap read — no IO dispatcher hop needed. The previous LaunchedEffect +
+    // withContext(Dispatchers.IO) launched a coroutine for *every* row that
+    // scrolled into view and then recomposed it a second time once the draft
+    // resolved, roughly doubling per-row composition work during fling. Keying
+    // on chat.id gives the same re-read semantics (a recycled slot bound to a
+    // new chat re-reads) with a single synchronous composition per appearance.
+    val draft = remember(chat.id) {
+        com.glyph.glyph_v3.data.service.DraftMessageStore.getDraft(chat.id)
     }
-    var avatarTopLeft by remember { mutableStateOf(Offset.Zero) }
-    var avatarSize by remember { mutableStateOf(IntSize.Zero) }
+    // Avatar tap-target bounds, written by onGloballyPositioned on every layout
+    // pass and only read when the user taps the avatar. Held in plain (non-State)
+    // fields so the writes don't trigger recomposition — critical during scroll,
+    // where each visible row's window position changes every frame. The old code
+    // stored these in mutableStateOf and recomposed every visible row per frame.
+    val avatarBounds = remember { AvatarBounds() }
     val currentOnClick by rememberUpdatedState(onClick)
     val currentOnLongClick by rememberUpdatedState(onLongClick)
 
@@ -1318,20 +1532,20 @@ private fun ChatRow(
                 modifier = Modifier
                     .size(54.dp)
                     .onGloballyPositioned { coordinates ->
-                        val newTopLeft = coordinates.positionInWindow()
-                        val newSize = coordinates.size
-                        if (newTopLeft != avatarTopLeft || newSize != avatarSize) {
-                            avatarTopLeft = newTopLeft
-                            avatarSize = newSize
-                        }
+                        val topLeft = coordinates.positionInWindow()
+                        val size = coordinates.size
+                        avatarBounds.x = topLeft.x
+                        avatarBounds.y = topLeft.y
+                        avatarBounds.width = size.width
+                        avatarBounds.height = size.height
                     }
                     .clickable {
-                        if (avatarSize.width > 0 && avatarSize.height > 0) {
+                        if (avatarBounds.width > 0 && avatarBounds.height > 0) {
                             val avatarBoundsInWindow = Rect(
-                                avatarTopLeft.x.roundToInt(),
-                                avatarTopLeft.y.roundToInt(),
-                                (avatarTopLeft.x + avatarSize.width).roundToInt(),
-                                (avatarTopLeft.y + avatarSize.height).roundToInt()
+                                avatarBounds.x.roundToInt(),
+                                avatarBounds.y.roundToInt(),
+                                (avatarBounds.x + avatarBounds.width).roundToInt(),
+                                (avatarBounds.y + avatarBounds.height).roundToInt()
                             )
                             onAvatarClick(avatarBoundsInWindow)
                         }
@@ -1397,6 +1611,12 @@ private fun ChatRow(
                             TypingIndicator(label = chat.typingText)
                         }
                     } else if (hasDraft) {
+                        // MEMOIZE: buildAnnotatedString allocates a new AnnotatedString object
+                        // on every recomposition. Wrapping in remember(chat.id) prevents
+                        // unnecessary re-creation when the chat identity hasn't changed.
+                        val draftTextMemo = remember(chat.id) {
+                            draft.trim()
+                        }
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(
@@ -1407,7 +1627,7 @@ private fun ChatRow(
                                 ) {
                                     append("Draft: ")
                                 }
-                                append(draftText)
+                                append(draftTextMemo)
                             },
                             modifier = Modifier.weight(1f),
                             fontSize = 14.sp,
@@ -1435,7 +1655,7 @@ private fun ChatRow(
                             } else {
                                 glyphTheme.textSecondary
                             }
-                            
+
                             Icon(
                                 painter = painterResource(id = statusIconRes),
                                 contentDescription = "Message status: ${chat.lastMessageStatus}",
@@ -1446,8 +1666,14 @@ private fun ChatRow(
                             )
                         }
 
+                        // MEMOIZE: buildChatListSubtitle is pure text computation; wrapping
+                        // in remember(chat.id, chat.lastMessage) prevents per-frame re-allocation
+ // of the returned String and the map lookup into groupSenderNamesByUserId.
+                        val subtitle = remember(chat.id, chat.lastMessage) {
+                            buildChatListSubtitle(chat, currentUserId, groupSenderNamesByUserId)
+                        }
                         Text(
-                            text = buildChatListSubtitle(chat, currentUserId, groupSenderNamesByUserId),
+                            text = subtitle,
                             modifier = Modifier.weight(1f),
                             fontSize = 14.sp,
                             color = glyphTheme.textSecondary,
@@ -1674,6 +1900,19 @@ private fun Avatar(
     }
 }
 
+/**
+ * Mutable holder for an avatar's tap-target bounds in window coordinates, updated
+ * by [onGloballyPositioned] on every layout pass and read only on tap. Plain
+ * (non-State) fields so writes during scroll don't trigger recomposition — see
+ * the ChatRow comment for why this matters.
+ */
+private class AvatarBounds {
+    var x: Float = 0f
+    var y: Float = 0f
+    var width: Int = 0
+    var height: Int = 0
+}
+
 private fun resolveOtherUserId(chat: Chat, currentUserId: String?): String {
     if (chat.isGroup) return ""
     return chat.participants.firstOrNull { participantId ->
@@ -1798,19 +2037,35 @@ private fun PresenceIndicator(
         label = "DotScale"
     )
 
-    // Only pay for an infinite transition when the user is actively in-chat
+    // Only pay for an infinite transition when the user is actively in-chat.
+    // Suspend the 1.5s presence pulse while the list is flinging: the pulse
+    // recomposes this Canvas every ~16ms while ticking, so during scroll it
+    // competes for the UI-thread budget needed to compose newly-visible rows
+    // (the fling bottleneck per gfxinfo). The green online dot itself stays
+    // (dotAlpha/dotScale are at rest unless presence changes) — only the subtle
+    // scale pulse freezes, then resumes on idle.
+    //
+    // Reading LocalListScrolling.current.value *inside* the isOnline && isInChat
+    // branch means rows that never pulse never subscribe to the scroll State,
+    // so only online-in-chat rows recompose on the idle↔scroll flip (twice per
+    // gesture) — the rest of the row tree is untouched.
     val pulseScale = if (isOnline && isInChat) {
-        val pulseTransition = rememberInfiniteTransition(label = "DotPulse")
-        val ps by pulseTransition.animateFloat(
-            initialValue = 1f,
-            targetValue = 1.2f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(1500, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "Pulse"
-        )
-        ps
+        val isListScrolling = LocalListScrolling.current.value
+        if (!isListScrolling) {
+            val pulseTransition = rememberInfiniteTransition(label = "DotPulse")
+            val ps by pulseTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.2f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1500, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "Pulse"
+            )
+            ps
+        } else {
+            1f
+        }
     } else {
         1f
     }
@@ -1843,17 +2098,28 @@ private fun PresenceIndicator(
 }
 @Composable
 private fun TypingIndicator(label: String = "") {
-    // Single shared phase drives all three dots — 3× cheaper than 3 InfiniteTransitions
-    val typingTransition = rememberInfiniteTransition(label = "TypingPhase")
-    val typingPhase by typingTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 900, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "Phase"
-    )
+    // Single shared phase drives all three dots — 3× cheaper than 3 InfiniteTransitions.
+    // Suspend the bounce while the list is flinging: the infinite animate ticks this
+    // subtree every frame (~16ms) and re-evaluates the 3-dot offsets, competing for
+    // UI-thread budget needed to compose newly-visible rows during fling (the gfxinfo-
+    // confirmed bottleneck). Reading LocalListScrolling shows the static "typing…"
+    // label while scrolling and freezes the dot bounce, resuming on idle. Only rows
+    // that actually render this indicator subscribe to the scroll State.
+    val isListScrolling = LocalListScrolling.current.value
+    val typingPhase = if (!isListScrolling) {
+        val typingTransition = rememberInfiniteTransition(label = "TypingPhase")
+        typingTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 900, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "Phase"
+        ).value
+    } else {
+        0f
+    }
 
     val displayLabel = label.trim()
         .ifBlank { "typing..." }
