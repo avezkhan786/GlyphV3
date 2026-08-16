@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Archived Chats Banner - Matches Compose ArchivedInfoBanner exactly -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/glyphSurfaceVariant"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="8dp">
+
+    <!-- Archive Icon -->
+    <ImageView
+        android:id="@+id/ivArchiveIcon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="12dp"
+        android:src="@drawable/ic_archive"
+        android:tint="?attr/glyphTextSecondary"
+        app:layout_constraintBottom_toBottomOf="@+id/tvArchivedTitle"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/tvArchivedTitle" />
+
+    <!-- Title -->
+    <TextView
+        android:id="@+id/tvArchivedTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:fontFamily="sans-serif-medium"
+        android:text="@string/archived_chats"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textSize="14sp"
+        app:layout_constraintEnd_toStartOf="@+id/tvArchivedCount"
+        app:layout_constraintStart_toEndOf="@+id/ivArchiveIcon"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:text="Archived chats" />
+
+    <!-- Count Badge -->
+    <TextView
+        android:id="@+id/tvArchivedCount"
+        android:layout_width="wrap_content"
+        android:layout_height="20dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_whatsapp_unread_badge"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        android:minWidth="20dp"
+        android:paddingHorizontal="8dp"
+        android:textColor="@android:color/white"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="@+id/tvArchivedTitle"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/tvArchivedTitle"
+        tools:text="3" />
+
+    <!-- Subtitle -->
+    <TextView
+        android:id="@+id/tvArchivedSubtitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="@string/archived_chats_description"
+        android:textColor="?attr/glyphTextSecondary"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/tvArchivedTitle"
+        app:layout_constraintTop_toBottomOf="@+id/tvArchivedTitle"
+        tools:text="Swipe left to unarchive" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

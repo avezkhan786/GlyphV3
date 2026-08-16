@@ -83,6 +83,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,6 +98,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -103,8 +106,21 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.layout.ContentScale
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.LinearLayout
+import android.widget.TextView
 import kotlinx.coroutines.delay
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.glyph.glyph_v3.data.cache.AvatarCacheManager
+import com.glyph.glyph_v3.data.cache.AvatarStateManager
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flowOf
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
@@ -141,9 +157,6 @@ import com.glyph.glyph_v3.ui.chat.OfficialGlyphAvatar
 import com.glyph.glyph_v3.util.ChatOpenTrace
 import com.glyph.glyph_v3.utils.ThemeManager
 import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -380,7 +393,8 @@ fun ChatListScreen(
     showUndoBar: Boolean = false,
     undoProgress: Float = 0f,
     onUndoDelete: () -> Unit = {},
-    blockedUserIds: Set<String> = emptySet()
+    blockedUserIds: Set<String> = emptySet(),
+    useRecyclerView: Boolean = false
 ) {
     // FontFamily for BBH Bartle. Add the font file(s) under `app/src/main/res/font/`:
     // e.g. res/font/bbh_bartle_regular.ttf and reference as R.font.bbh_bartle_regular
@@ -450,6 +464,25 @@ fun ChatListScreen(
     // recompositions; re-created fresh on process death, which is correct.
     val prefetchStrategy = remember { AheadCacheWindowPrefetchStrategy(aheadCount = 2) }
     val chatListState = rememberLazyListState(0, 0, prefetchStrategy)
+
+    // Shared scroll-position signal consumed by the NestedScrollConnection below.
+    // For the Compose LazyColumn: updated from chatListState via LaunchedEffect.
+    // For the RecyclerView (AndroidView): updated from a RecyclerView.OnScrollListener.
+    // This lets the same reveal/hide gesture work identically for both backends.
+    val listAtTopState = remember { mutableStateOf(true) }
+
+    // Observe LazyListState → listAtTop (Compose path only; no-op when useRecyclerView).
+    if (!useRecyclerView) {
+        LaunchedEffect(chatListState) {
+            snapshotFlow {
+                chatListState.firstVisibleItemIndex == 0 &&
+                    chatListState.firstVisibleItemScrollOffset == 0
+            }.distinctUntilChanged().collect { atTop ->
+                listAtTopState.value = atTop
+            }
+        }
+    }
+
     // Smallest useful scroll-aware signal: true only while the list is actively
     // scrolled/dragged/flung. derivedStateOf collapses the per-frame scroll-
     // position writes into a single idle↔active boolean, so continuous scrolling
@@ -462,6 +495,26 @@ fun ChatListScreen(
     val hiddenSectionsRowCount = (if (showLockedSection) 1 else 0) + (if (showArchivedSection) 1 else 0)
     val hiddenSectionsHeight = (hiddenSectionsRowCount * 50).dp
     val hiddenSectionsHeightPx = with(density) { hiddenSectionsHeight.roundToPx().toFloat() }
+
+    // ── Badge colors for the XML-based hidden sections overlay ────────────────
+    // These mirror the color logic that was previously in the HiddenChatsSections
+    // Composable, computed once per theme change so the AndroidView update callback
+    // doesn't recompute on every recomposition.
+    val unreadBadgeColor = context.resolveColor(R.attr.glyphUnreadBadge)
+    val unreadBadgeTextColor = android.graphics.Color.BLACK  // matches indicatorUnreadText
+    val neutralBadgeColor = when (currentTheme) {
+        ThemeManager.THEME_DARK -> 0xFF374151.toInt()
+        ThemeManager.THEME_LIGHT -> 0xFFE0E0E0.toInt()
+        ThemeManager.THEME_PASTEL_SKY -> 0xB0B0C0CF.toInt()
+        else -> android.graphics.Color.GRAY
+    }
+    val neutralBadgeTextColor = when (currentTheme) {
+        ThemeManager.THEME_DARK -> 0xFF9CA3AF.toInt()
+        ThemeManager.THEME_LIGHT -> 0xFF757575.toInt()
+        else -> android.graphics.Color.WHITE
+    }
+    val lockedClick = rememberUpdatedState(onLockedChatsClick)
+    val archivedClick = rememberUpdatedState(onArchivedFolderClick)
 
     var revealOffsetPx by remember { mutableFloatStateOf(0f) }
     var revealInteractionNonce by remember { mutableIntStateOf(0) }
@@ -485,8 +538,7 @@ fun ChatListScreen(
 
                 val isPushingUp = available.y < 0f
                 val isPullingDown = available.y > 0f
-                val listAtTop = chatListState.firstVisibleItemIndex == 0 &&
-                    chatListState.firstVisibleItemScrollOffset == 0
+                val listAtTop = listAtTopState.value
 
                 val result = when {
                     isPullingDown && listAtTop -> {
@@ -818,7 +870,7 @@ fun ChatListScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(revealConnection)
+                .then(if (useRecyclerView) Modifier else Modifier.nestedScroll(revealConnection))
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
@@ -841,109 +893,373 @@ fun ChatListScreen(
                 top = contentPadding.calculateTopPadding(),
                 bottom = contentPadding.calculateBottomPadding() + if (isArchivedMode) 16.dp else 0.dp
             )
+
+            // ─── RecyclerView (AndroidView) Integration ─────────────────────────
+            // When useRecyclerView is true, the LazyColumn is replaced by a RecyclerView
+            // embedded via AndroidView. The surrounding Compose UI (top bar, search bar,
+            // FAB, hidden sections, undo snackbar) remains Compose. Legacy ChatListFragment
+            // and ChatListAdapter are untouched.
+            val scrollSuspensionCoordinator = remember { ScrollSuspensionCoordinator() }
+
+            // Track isSelectionMode without re-creating the lambda on every recomposition.
+            val isSelectionModeState = rememberUpdatedState(isSelectionMode)
+
+            // AI agent click handler: checks isSelectionMode dynamically at click time.
+            val aiAgentClickCallback = remember(onChatClick, currentUserId) {
+                {
+                    if (!isSelectionModeState.value) {
+                        val aiChat = Chat(
+                            id = AiAgentConstants.AI_AGENT_CHAT_ID,
+                            participants = listOf(currentUserId ?: "", AiAgentConstants.AI_AGENT_USER_ID),
+                            otherUsername = AiAgentConstants.AI_AGENT_USERNAME
+                        )
+                        onChatClick(aiChat)
+                    }
+                }
+            }
+
+            // selectionBackgroundColor as Compose Color has a .toArgb() extension;
+            // the adapter expects a plain Int ARGB.
+            val selectionBgInt = selectionBackgroundColor.toArgb()
+
+            // Wrap callbacks in rememberUpdatedState so the adapter doesn't get
+            // re-created when the parent Composable passes new lambda instances.
+            val onClickState = rememberUpdatedState(onChatClick)
+            val onLongClickState = rememberUpdatedState(onChatLongClick)
+            val onAvatarClickState = rememberUpdatedState(onAvatarClick)
+
+            // Avatar-download version trigger — incremented when any avatar state changes
+            // (download completes, unblock resolves, etc.). Adding it as a key to the
+            // `items` remember below ensures buildChatListItems re-runs with fresh
+            // AvatarStateManager.peek() values, so the update callback's submitListSync
+            // always has the latest avatar state. This eliminates the ping-pong between
+            // the LaunchedEffect (which previously called submitListSync directly with
+            // updated avatar versions) and the AndroidView.update callback (which would
+            // then re-submit the stale items list from remember, reverting the avatar
+            // state — visible as a subtle flash on cold start when avatars download).
+            var avatarStateTrigger by remember { mutableStateOf(0) }
+
+            // Build the list items once per data change (mirrors LazyColumn's items()).
+            // Memoized so the AndroidView.update callback can reference a stable list
+            // and only calls submitList when the actual data changes (reference check).
+            // This must come BEFORE recyclerViewAdapter so the pre-population below
+            // has the initial list available during adapter creation.
+            val items = remember(
+                filteredChats,
+                avatarStateTrigger,
+                selectedChatIds,
+                isSelectionMode,
+                isInitialLoading,
+                isArchivedMode,
+                groupSenderNamesByUserId,
+                statusRingStatesByUserId,
+                blockedUserIds,
+                currentUserId
+            ) {
+                buildChatListItems(
+                    filteredChats = filteredChats,
+                    groupSenderNamesByUserId = groupSenderNamesByUserId,
+                    statusRingStatesByUserId = statusRingStatesByUserId,
+                    selectedChatIds = selectedChatIds,
+                    isSelectionMode = isSelectionMode,
+                    isInitialLoading = isInitialLoading,
+                    isArchivedMode = isArchivedMode,
+                    currentUserId = currentUserId,
+                    blockedUserIds = blockedUserIds
+                )
+            }
+
+            val recyclerViewAdapter = remember(
+                useRecyclerView, currentUserId, groupSenderNamesByUserId, blockedUserIds, selectionBgInt
+            ) {
+                if (useRecyclerView) {
+                    val adapter = ChatListScreenAdapter(
+                        currentUserId = currentUserId,
+                        groupSenderNamesByUserId = groupSenderNamesByUserId,
+                        blockedUserIds = blockedUserIds,
+                        onClick = { chat -> onClickState.value(chat) },
+                        onLongClick = { chat -> onLongClickState.value(chat) },
+                        onAvatarClick = { chat, rect -> onAvatarClickState.value(chat, rect) },
+                        onAiAgentClick = aiAgentClickCallback,
+                        selectionBackgroundColor = selectionBgInt,
+                        scrollSuspensionCoordinator = scrollSuspensionCoordinator
+                    )
+                    // Pre-submit the initial list during creation so the RecyclerView
+                    // is never shown empty on the first layout pass. This is critical
+                    // for eliminating the "Glyph Official" delay: the AsyncListDiffer
+                    // diff for an empty→populated transition completes before the
+                    // first frame is drawn, making the initial list appear instantly.
+                    adapter.submitListSync(items)
+                    adapter
+                } else {
+                    null
+                }
+            }
+
+            // ── Observe avatar state changes (downloads, unblocks) ──────────────
+            // Compose ChatRow uses AvatarStateManager.observe() + collectAsState() to react
+            // to avatar downloads. For the AndroidView approach, we observe avatar state
+            // via combine() and trigger recomposition when any avatar version changes.
+            //
+            // The recomposition causes `items` (remembered above with avatarStateTrigger
+            // as a key) to recompute via buildChatListItems — which reads fresh
+            // AvatarStateManager.peek() values — and the AndroidView.update callback
+            // then calls submitListSync with the updated list.
+            //
+            // The first emission from combine() is SKIPPED because it is redundant with
+            // the update callback's initial submitListSync, which already ran during
+            // adapter creation with the current avatar states. Without this skip, the
+            // first combine() emission would trigger a recomposition and a second
+            // submitListSync — a no-op diff but wasted work. Only genuine avatar-download
+            // state changes (after the initial emission) trigger the trigger increment.
+            val avatarSubscriptionKey = filteredChats.map { it.id } to currentUserId to blockedUserIds
+            LaunchedEffect(avatarSubscriptionKey) {
+                if (recyclerViewAdapter == null) return@LaunchedEffect
+                val avatarFlows = filteredChats.map { chat ->
+                    val otherUserId = resolveOtherUserId(chat, currentUserId)
+                    val avatarUrl = chatDisplayAvatarUrl(chat)
+                    val cacheId = if (chat.isGroup) {
+                        AvatarCacheManager.groupIconCacheIdPublic(chat.id)
+                    } else if (otherUserId.isNotEmpty()) {
+                        otherUserId
+                    } else {
+                        ""
+                    }
+                    val isBlocked = !chat.isGroup && otherUserId.isNotEmpty() &&
+                        otherUserId in blockedUserIds
+                    val canShowAvatar = if (chat.isGroup) true else !isBlocked
+                    if (cacheId.isNotEmpty() && canShowAvatar) {
+                        AvatarStateManager.observe(cacheId, avatarUrl)
+                    } else {
+                        flowOf(
+                            AvatarStateManager.AvatarState(
+                                localPath = null,
+                                remoteUrl = avatarUrl,
+                                isDownloaded = false,
+                                version = 0L
+                            )
+                        )
+                    }
+                }
+                if (avatarFlows.isNotEmpty()) {
+                    var isFirstEmission = true
+                    combine(avatarFlows) { _ ->
+                        if (isFirstEmission) {
+                            isFirstEmission = false
+                        } else {
+                            // Trigger recomposition so the `items` remember recomputes
+                            // via buildChatListItems (which reads fresh
+                            // AvatarStateManager.peek() values). The AndroidView.update
+                            // callback then calls submitListSync with the updated list.
+                            // This consolidates all submitListSync calls into the update
+                            // callback, preventing the dual-call ping-pong that caused
+                            // user-row flashing on cold start.
+                            avatarStateTrigger++
+                        }
+                    }.collect { }
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(if (useRecyclerView) Modifier.padding(listPadding) else Modifier)
                     .graphicsLayer { translationY = revealOffsetPx }
             ) {
-                if (isInitialLoading) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = listPadding
-                    ) {
-                        if (isArchivedMode) {
-                            item(key = "header") { ArchivedInfoBanner() }
-                        }
-                        items(8, key = { "placeholder_$it" }, contentType = { "placeholder" }) {
-                            ChatRowPlaceholder()
-                        }
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        state = chatListState,
-                        contentPadding = listPadding
-                    ) {
-                        if (isArchivedMode) {
-                            item(key = "header") { ArchivedInfoBanner() }
-                        }
-                        // ── Pinned Glyph AI entry ────────────────────
-                        // Always rendered (even in selection mode) to prevent list shifting.
-                        // Click is a no-op during selection mode since Glyph AI cannot be selected.
-                        if (!isArchivedMode) {
-                            item(key = AiAgentConstants.AI_AGENT_CHAT_ID, contentType = "ai_agent") {
-                                AiAgentRow(
-                                    onClick = {
-                                        if (!isSelectionMode) {
-                                            val aiChat = Chat(
-                                                id = AiAgentConstants.AI_AGENT_CHAT_ID,
-                                                participants = listOf(currentUserId ?: "", AiAgentConstants.AI_AGENT_USER_ID),
-                                                otherUsername = AiAgentConstants.AI_AGENT_USERNAME
-                                            )
-                                            onChatClick(aiChat)
+                if (useRecyclerView) {
+                    // ═══════════════════════════════════════════════════════════
+                    // RecyclerView path (AndroidView) — replaces LazyColumn
+                    // ═══════════════════════════════════════════════════════════
+                    val rvAdapter = recyclerViewAdapter
+                    // Track the last submitted list reference to skip redundant
+                    // submitListSync calls on every recomposition. submitListSync
+                    // does a reference check internally, but we also guard here
+                    // so ChatListPerfMonitor only logs genuine updates.
+                    val prevItemsRef = remember { object { var value: List<ChatListScreenItem>? = null } }
+                    AndroidView(
+                        factory = { context ->
+                            RecyclerView(context).apply {
+                                layoutManager = LinearLayoutManager(context)
+                                adapter = rvAdapter
+                                setItemViewCacheSize(20)
+                                setHasFixedSize(true)
+                                // Padding is handled by Modifier.padding(listPadding) on the
+                                // parent Box — NOT by setPadding here. The Scaffold's
+                                // contentPadding may be 0 on the first composition (before
+                                // window-insets are computed) and non-zero on the second;
+                                // using Compose's Modifier.padding ensures recomposition
+                                // handles the transition cleanly, whereas setPadding()
+                                // during the update callback can shift the scroll position
+                                // and hide the first item under the search bar.
+                                clipToPadding = false
+                                // Mirror Compose's LocalListScrolling for infinite animations.
+                                scrollSuspensionCoordinator.attach(this)
+                                // Mirror chatListState.firstVisibleItemIndex/ScrollOffset for
+                                // the NestedScrollConnection's reveal/hide gesture.
+                                val listAtTopListener = object : RecyclerView.OnScrollListener() {
+                                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                                        // computeVerticalScrollOffset() is O(1) — reads the
+                                        // LinearLayoutManager's cached mScrollOffset field directly.
+                                        // Equivalent to !canScrollVertically(-1) but avoids a
+                                        // view-lookup layout traversal on every scroll frame.
+                                        val isAtTop = recyclerView.computeVerticalScrollOffset() == 0
+                                        if (isAtTop != listAtTopState.value) {
+                                            listAtTopState.value = isAtTop
                                         }
                                     }
+
+                                    override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                                        if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                                            val isAtTop = recyclerView.computeVerticalScrollOffset() == 0
+                                            if (isAtTop != listAtTopState.value) {
+                                                listAtTopState.value = isAtTop
+                                            }
+                                        }
+                                    }
+                                }
+                                addOnScrollListener(listAtTopListener)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .nestedScroll(revealConnection),
+                        // The update callback runs synchronously during recomposition
+                        // commit (before layout), which is faster than LaunchedEffect
+                        // (which dispatches to a coroutine after the frame). This
+                        // eliminates the one-or-two-frame delay that caused the
+                        // "Glyph Official" chat to appear late.
+                        //
+                        // submitListSync calculates DiffUtil on the main thread and
+                        // dispatches results synchronously — matching Compose's
+                        // LazyColumn behaviour with zero extra frames. AsyncListDiffer
+                        // would post to the main thread (one frame delay).
+                        // The `items` variable is memoized via remember() above, so
+                        // it only changes reference when actual data changes.
+                        update = { recyclerView ->
+                            val adapter = rvAdapter
+                            if (adapter != null && recyclerView.adapter !== adapter) {
+                                recyclerView.adapter = adapter
+                                prevItemsRef.value = null
+                            }
+                            if (adapter != null && items !== prevItemsRef.value) {
+                                prevItemsRef.value = items
+                                adapter.submitListSync(items)
+                                ChatListPerfMonitor.onSubmitList(submitted = true)
+                            }
+                        },
+                        onRelease = { _ ->
+                            // Clean up scroll listener when the RecyclerView is destroyed.
+                            scrollSuspensionCoordinator.detach()
+                        }
+                    )
+                } else {
+                    // ═══════════════════════════════════════════════════════════
+                    // Compose LazyColumn path — kept for verification
+                    // ═══════════════════════════════════════════════════════════
+                    if (isInitialLoading) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = listPadding
+                        ) {
+                            if (isArchivedMode) {
+                                item(key = "header") { ArchivedInfoBanner() }
+                            }
+                            items(8, key = { "placeholder_$it" }, contentType = { "placeholder" }) {
+                                ChatRowPlaceholder()
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            state = chatListState,
+                            contentPadding = listPadding
+                        ) {
+                            if (isArchivedMode) {
+                                item(key = "header") { ArchivedInfoBanner() }
+                            }
+                            // ── Pinned Glyph AI entry ────────────────────
+                            // Always rendered (even in selection mode) to prevent list shifting.
+                            // Click is a no-op during selection mode since Glyph AI cannot be selected.
+                            if (!isArchivedMode) {
+                                item(key = AiAgentConstants.AI_AGENT_CHAT_ID, contentType = "ai_agent") {
+                                    AiAgentRow(
+                                        onClick = {
+                                            if (!isSelectionMode) {
+                                                val aiChat = Chat(
+                                                    id = AiAgentConstants.AI_AGENT_CHAT_ID,
+                                                    participants = listOf(currentUserId ?: "", AiAgentConstants.AI_AGENT_USER_ID),
+                                                    otherUsername = AiAgentConstants.AI_AGENT_USERNAME
+                                                )
+                                                onChatClick(aiChat)
+                                            }
+                                        }
+                                    )
+                                }
+                            }
+
+                            items(filteredChats, key = { it.id }, contentType = { "chat" }) { chat ->
+                                val isSelected = selectedChatIds.contains(chat.id)
+                                val otherUserId = remember(chat.participants, currentUserId) {
+                                    resolveOtherUserId(chat, currentUserId)
+                                }
+                                ChatRow(
+                                    chat = chat,
+                                    currentUserId = currentUserId,
+                                    groupSenderNamesByUserId = groupSenderNamesByUserId,
+                                    statusRingState = statusRingStatesByUserId[otherUserId] ?: ChatStatusRingState.NONE,
+                                    isSelected = isSelected,
+                                    isInSelectionMode = isSelectionMode,
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onChatLongClick(chat)
+                                        } else {
+                                            ChatOpenTrace.start(
+                                                chatId = chat.id,
+                                                source = "chat_list_screen_tap",
+                                                details = "unread=${chat.unreadCount} archived=$isArchivedMode locked=${chat.isLocked}"
+                                            )
+                                            onChatClick(chat)
+                                        }
+                                    },
+                                    onLongClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onChatLongClick(chat)
+                                    },
+                                    onAvatarClick = { bounds ->
+                                        if (isSelectionMode) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onChatLongClick(chat)
+                                        } else {
+                                            onAvatarClick(chat, bounds)
+                                        }
+                                    },
+                                    selectionBackgroundColor = selectionBackgroundColor,
+                                    blockedUserIds = blockedUserIds
                                 )
                             }
-                        }
 
-                        // Stable identity key (areItemsTheSame equivalent). The key must
-                        // be stable across content changes — using composite keys like
-                        // id+timestamp+unread forces Compose to treat an updated chat as a
-                        // brand-new item and fully rebuild its composition instead of
-                        // updating it in place. Content-change skipping is handled by the
-                        // @Immutable Chat model + the remember() guards in ChatRow.
-                        items(filteredChats, key = { it.id }, contentType = { "chat" }) { chat ->
-                            val isSelected = selectedChatIds.contains(chat.id)
-                            val otherUserId = remember(chat.participants, currentUserId) {
-                                resolveOtherUserId(chat, currentUserId)
+                            if (filteredChats.isEmpty()) {
+                                item(key = "empty_state") { EmptyChatListState() }
                             }
-                            ChatRow(
-                                chat = chat,
-                                currentUserId = currentUserId,
-                                groupSenderNamesByUserId = groupSenderNamesByUserId,
-                                statusRingState = statusRingStatesByUserId[otherUserId] ?: ChatStatusRingState.NONE,
-                                isSelected = isSelected,
-                                isInSelectionMode = isSelectionMode,
-                                onClick = {
-                                    if (isSelectionMode) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onChatLongClick(chat)
-                                    } else {
-                                        ChatOpenTrace.start(
-                                            chatId = chat.id,
-                                            source = "chat_list_screen_tap",
-                                            details = "unread=${chat.unreadCount} archived=$isArchivedMode locked=${chat.isLocked}"
-                                        )
-                                        onChatClick(chat)
-                                    }
-                                },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onChatLongClick(chat)
-                                },
-                                onAvatarClick = { bounds ->
-                                    if (isSelectionMode) {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        onChatLongClick(chat)
-                                    } else {
-                                        onAvatarClick(chat, bounds)
-                                    }
-                                },
-                                selectionBackgroundColor = selectionBackgroundColor,
-                                blockedUserIds = blockedUserIds
-                            )
-                        }
-
-                        if (filteredChats.isEmpty()) {
-                            item(key = "empty_state") { EmptyChatListState() }
                         }
                     }
                 }
             }
 
             if (showHeaderSections && hiddenSectionsHeightPx > 0f) {
-                Box(
+                AndroidView(
+                    factory = { ctx ->
+                        val view = LayoutInflater.from(ctx)
+                            .inflate(R.layout.item_chat_list_hidden_sections, null) as LinearLayout
+                        view.findViewById<LinearLayout>(R.id.lockedChatsRow).setOnClickListener {
+                            lockedClick.value()
+                        }
+                        view.findViewById<LinearLayout>(R.id.archivedRow).setOnClickListener {
+                            archivedClick.value()
+                        }
+                        view
+                    },
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .fillMaxWidth()
@@ -951,25 +1267,46 @@ fun ChatListScreen(
                         .height(hiddenSectionsHeight)
                         .clipToBounds()
                         .zIndex(1f)
-                ) {
-                    HiddenChatsSections(
-                        archivedChatsCount = archivedChatsCount,
-                        onClickArchived = onArchivedFolderClick,
-                        hasUnreadArchivedMessages = hasUnreadArchivedMessages,
-                        lockedChatsCount = lockedChatsCount,
-                        hasUnreadLockedMessages = hasUnreadLockedMessages,
-                        onClickLocked = onLockedChatsClick,
-                        isLockedChatsHidden = isLockedChatsHidden,
-                        secretCodeMatch = secretCodeMatch,
-                        searchQuery = searchQuery,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(hiddenSectionsHeight)
-                            .graphicsLayer {
-                                translationY = revealOffsetPx - hiddenSectionsHeightPx
-                            }
-                    )
-                }
+                        .graphicsLayer {
+                            translationY = revealOffsetPx - hiddenSectionsHeightPx
+                        },
+                    update = { container ->
+                        val lockedRow = container.findViewById<LinearLayout>(R.id.lockedChatsRow)
+                        val archivedRow = container.findViewById<LinearLayout>(R.id.archivedRow)
+                        val lockedBadge = container.findViewById<TextView>(R.id.tvLockedBadge)
+                        val archivedBadge = container.findViewById<TextView>(R.id.tvArchiveBadge)
+
+                        // Locked row: visible when locked chats count > 0 (normal)
+                        // or when the secret-code search reveals the hidden row.
+                        val showLockedRow = showLockedSection
+                        lockedRow.visibility = if (showLockedRow) View.VISIBLE else View.GONE
+                        lockedBadge.visibility = if (lockedChatsCount > 0) View.VISIBLE else View.GONE
+                        if (lockedChatsCount > 0) {
+                            lockedBadge.text = if (lockedChatsCount > 99) "99+" else lockedChatsCount.toString()
+                        }
+
+                        // Archived row: always visible when there are archived chats.
+                        archivedRow.visibility = if (showArchivedSection) View.VISIBLE else View.GONE
+                        if (archivedChatsCount > 0) {
+                            archivedBadge.visibility = View.VISIBLE
+                            archivedBadge.text = if (archivedChatsCount > 99) "99+" else archivedChatsCount.toString()
+                        }
+
+                        // Badge colors — unread uses the theme green badge;
+                        // neutral uses a per-theme gray.
+                        val lockedUnreadBg = if (hasUnreadLockedMessages) unreadBadgeColor else neutralBadgeColor
+                        val lockedUnreadText = if (hasUnreadLockedMessages) unreadBadgeTextColor else neutralBadgeTextColor
+                        lockedBadge.setBackgroundResource(R.drawable.bg_neutral_badge)
+                        lockedBadge.setBackgroundColor(lockedUnreadBg)
+                        lockedBadge.setTextColor(lockedUnreadText)
+
+                        val archivedUnreadBg = if (hasUnreadArchivedMessages) unreadBadgeColor else neutralBadgeColor
+                        val archivedUnreadText = if (hasUnreadArchivedMessages) unreadBadgeTextColor else neutralBadgeTextColor
+                        archivedBadge.setBackgroundResource(R.drawable.bg_neutral_badge)
+                        archivedBadge.setBackgroundColor(archivedUnreadBg)
+                        archivedBadge.setTextColor(archivedUnreadText)
+                    }
+                )
             }
 
             // ── Undo Delete Snackbar overlay ──
@@ -1297,185 +1634,6 @@ private fun ChatListSearchBar(
     }
 }
 
-@Composable
-private fun HiddenChatsSections(
-    archivedChatsCount: Int,
-    onClickArchived: () -> Unit,
-    hasUnreadArchivedMessages: Boolean,
-    lockedChatsCount: Int = 0,
-    hasUnreadLockedMessages: Boolean = false,
-    onClickLocked: () -> Unit = {},
-    isLockedChatsHidden: Boolean = false,
-    secretCodeMatch: Boolean = false,
-    searchQuery: String,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val currentTheme = ThemeManager.getCurrentTheme(context)
-
-    val archiveBadgeColor = if (hasUnreadArchivedMessages) {
-        glyphTheme.indicatorUnreadBackground
-    } else {
-        when (currentTheme) {
-            ThemeManager.THEME_DARK -> Color(0xFF374151) // Dark grey
-            ThemeManager.THEME_LIGHT -> Color(0xFFE0E0E0) // Light grey
-            ThemeManager.THEME_PASTEL_SKY -> Color(0xFFB0C0CF).copy(alpha = 0.5f) // Muted blue-grey
-            else -> Color.Gray
-        }
-    }
-
-    val archiveBadgeTextColor = if (hasUnreadArchivedMessages) {
-         glyphTheme.indicatorUnreadText
-    } else {
-        // Muted text color for the neutral badge
-         when (currentTheme) {
-            ThemeManager.THEME_DARK -> Color(0xFF9CA3AF)
-            ThemeManager.THEME_LIGHT -> Color(0xFF757575)
-            else -> Color.White
-        }
-    }
-
-    val lockedBadgeColor = if (hasUnreadLockedMessages) {
-        glyphTheme.indicatorUnreadBackground
-    } else {
-        when (currentTheme) {
-            ThemeManager.THEME_DARK -> Color(0xFF374151)
-            ThemeManager.THEME_LIGHT -> Color(0xFFE0E0E0)
-            ThemeManager.THEME_PASTEL_SKY -> Color(0xFFB0C0CF).copy(alpha = 0.5f)
-            else -> Color.Gray
-        }
-    }
-    val lockedBadgeTextColor = if (hasUnreadLockedMessages) {
-        glyphTheme.indicatorUnreadText
-    } else {
-        when (currentTheme) {
-            ThemeManager.THEME_DARK -> Color(0xFF9CA3AF)
-            ThemeManager.THEME_LIGHT -> Color(0xFF757575)
-            else -> Color.White
-        }
-    }
-
-    val showSecretLockedRow = isLockedChatsHidden && secretCodeMatch && searchQuery.isNotEmpty()
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-    ) {
-        // Secret-code search reveal: only when "Hide locked chats" is ENABLED and the PIN matches.
-        // When not hidden the normal row already shows, so no injection needed.
-        if (showSecretLockedRow) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onClickLocked)
-                    .height(50.dp)
-                    .padding(start = 16.dp, end = 22.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_chat_lock),
-                    contentDescription = "Locked chats",
-                    tint = glyphTheme.textSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = "Locked chats",
-                    color = glyphTheme.textPrimary,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        // Normal locked-chats row: only show when section is NOT hidden by secret code
-        if (lockedChatsCount > 0 && !isLockedChatsHidden) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onClickLocked)
-                    .height(50.dp)
-                    .padding(start = 16.dp, end = 22.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_chat_lock),
-                    contentDescription = "Locked chats",
-                    tint = glyphTheme.textSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = "Locked chats",
-                    color = glyphTheme.textSecondary,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f)
-                )
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(CircleShape)
-                        .background(lockedBadgeColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = lockedChatsCount.toString(),
-                        color = lockedBadgeTextColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.offset(x = (-0.4).dp, y = (-1.5).dp)
-                    )
-                }
-            }
-        }
-
-        if (archivedChatsCount > 0) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onClickArchived)
-                    .height(50.dp)
-                    .padding(start = 16.dp, end = 22.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_archive),
-                    contentDescription = "Archived",
-                    tint = glyphTheme.textSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = "Archived",
-                    color = glyphTheme.textSecondary,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f)
-                )
-                
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(CircleShape)
-                        .background(archiveBadgeColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = archivedChatsCount.toString(),
-                        color = archiveBadgeTextColor,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.offset(x = (-0.4).dp, y = (-1.5).dp)
-                    )
-                }
-            }
-        }
-
-    }
-}
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatRow(
@@ -1729,12 +1887,11 @@ private fun Avatar(
                 com.glyph.glyph_v3.data.cache.AvatarStateManager.observe(otherUserId, avatarUrl)
             isGroupChat ->
                 com.glyph.glyph_v3.data.cache.AvatarStateManager.observeGroup(chat.id, avatarUrl)
-            else ->
-                kotlinx.coroutines.flow.MutableStateFlow(
-                    com.glyph.glyph_v3.data.cache.AvatarStateManager.AvatarState(
-                        localPath = null, remoteUrl = "", isDownloaded = false, version = 0L
-                    )
+            else -> MutableStateFlow(
+                com.glyph.glyph_v3.data.cache.AvatarStateManager.AvatarState(
+                    localPath = null, remoteUrl = "", isDownloaded = false, version = 0L
                 )
+            )
         }
     }.collectAsState()
 
@@ -1770,8 +1927,8 @@ private fun Avatar(
             Color(0xFF3A2B1C)
         } else {
             val hashCode = displayName.hashCode()
-            val idx = (hashCode and 0x7FFFFFFF) % letterAvatarColors.size
-            letterAvatarColors[idx]
+            val idx = (hashCode and 0x7FFFFFFF) % letterAvatarColorSwatch.size
+            letterAvatarColorSwatch[idx]
         }
     }
     val showStatusRing = !isGroupChat && statusRingState == ChatStatusRingState.UNSEEN
@@ -2174,7 +2331,7 @@ private fun UnreadBadge(count: Int) {
     }
 }
 
-private val letterAvatarColors: List<Color> = listOf(
+private val letterAvatarColorSwatch: List<Color> = listOf(
     Color(0xFF25D366),
     Color(0xFF128C7E),
     Color(0xFF075E54),
@@ -2187,64 +2344,10 @@ private val letterAvatarColors: List<Color> = listOf(
     Color(0xFFE67E22)
 )
 
-// Hoisted formatters: SimpleDateFormat is not thread-safe but ChatRow only ever
-// runs on the main thread at composition/layout. Thread-locally reusing the
-// same compiled formatters across the visible row population removes ~2 fresh
-// SimpleDateFormat allocations per row per recomposition — measurable during
-// scroll when 6+ rows recompose per frame.
-private val todayFormatter = SimpleDateFormat("h:mm a", Locale.getDefault())
-private val dowFormatter = SimpleDateFormat("EEEE", Locale.getDefault())
-private val shortDateFormatter = SimpleDateFormat("M/d/yy", Locale.getDefault())
-
-// Bounded memo for formatted timestamp strings keyed by date.time. Visible rows
-// across the chat list typically share only a handful of distinct instant
-// values, so a small cache hit-rate stays >95% during steady scroll and the
-// allocator-cost of re-formatting falls to zero per scroll frame.
-private const val TIMESTAMP_CACHE_CAPACITY = 256
-private val timestampStringCache = HashMap<Long, String>(256)
-
-private fun formatTimestampWhatsApp(date: Date): String {
-    // Cache lookup is O(1) main-thread map read; format work only on miss.
-    val cached = timestampStringCache[date.time]
-    if (cached != null) return cached
-
-    val now = Calendar.getInstance()
-    val messageTime = Calendar.getInstance().apply { time = date }
-
-    val isToday = now.get(Calendar.DATE) == messageTime.get(Calendar.DATE) &&
-        now.get(Calendar.MONTH) == messageTime.get(Calendar.MONTH) &&
-        now.get(Calendar.YEAR) == messageTime.get(Calendar.YEAR)
-
-    val isYesterday = run {
-        val yesterday = Calendar.getInstance().apply { add(Calendar.DATE, -1) }
-        yesterday.get(Calendar.DATE) == messageTime.get(Calendar.DATE) &&
-            yesterday.get(Calendar.MONTH) == messageTime.get(Calendar.MONTH) &&
-            yesterday.get(Calendar.YEAR) == messageTime.get(Calendar.YEAR)
-    }
-
-    val isThisWeek = run {
-        val weekAgo = Calendar.getInstance().apply { add(Calendar.DATE, -7) }
-        messageTime.after(weekAgo) && !isToday && !isYesterday
-    }
-
-    val formatted = when {
-        isToday -> todayFormatter.format(date)
-        isYesterday -> "Yesterday"
-        isThisWeek -> dowFormatter.format(date)
-        else -> shortDateFormatter.format(date)
-    }
-
-    // Bounded insertion: drop oldest entry when we exceed capacity. With chat
-    // list content typically using <256 distinct timestamps this never fires
-    // in steady state, but prevents pathological growth over a long session
-    // where dense distinct days could accumulate.
-    if (timestampStringCache.size >= TIMESTAMP_CACHE_CAPACITY) {
-        val earliest = timestampStringCache.keys.iterator().next()
-        timestampStringCache.remove(earliest)
-    }
-    timestampStringCache[date.time] = formatted
-    return formatted
-}
+// formatTimestampWhatsApp, todayFormatter, dowFormatter, shortDateFormatter,
+// timestampStringCache, TIMESTAMP_CACHE_CAPACITY, and letterAvatarColors
+// are all defined in ChatListScreenAdapter.kt (internal) and shared between
+// the Compose LazyColumn and the RecyclerView adapter paths.
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -2370,5 +2473,108 @@ private fun EncryptionFooter() {
                 fontSize = 12.sp
             )
         )
+    }
+}
+
+// ─── RecyclerView list-item builder ───────────────────────────────────────────
+// Transforms the same List<Chat> used by the LazyColumn into List<ChatListScreenItem>
+// for the RecyclerView adapter. Must produce the same ordering and visibility as
+// the Compose LazyColumn: archived banner → AI agent → chats → empty state.
+
+internal fun buildChatListItems(
+    filteredChats: List<Chat>,
+    groupSenderNamesByUserId: Map<String, String>,
+    statusRingStatesByUserId: Map<String, ChatStatusRingState>,
+    selectedChatIds: Set<String>,
+    isSelectionMode: Boolean,
+    isInitialLoading: Boolean,
+    isArchivedMode: Boolean,
+    currentUserId: String?,
+    blockedUserIds: Set<String>
+): List<ChatListScreenItem> {
+    val items = mutableListOf<ChatListScreenItem>()
+
+    if (isArchivedMode) {
+        items.add(ChatListScreenItem.ArchivedBanner())
+    }
+
+    if (isInitialLoading) {
+        repeat(8) { index ->
+            items.add(ChatListScreenItem.Placeholder("placeholder_$index"))
+        }
+    } else {
+        // ── Pinned "Glyph AI" entry ───────────────────────────────
+        if (!isArchivedMode) {
+            items.add(ChatListScreenItem.AiAgent())
+        }
+
+        // ── Chat rows ────────────────────────────────────────────
+        for (chat in filteredChats) {
+            val otherUserId = resolveOtherUserId(chat, currentUserId)
+            val displayName = chatDisplayName(chat, currentUserId)
+            val avatarUrl = chatDisplayAvatarUrl(chat)
+            val statusRingState = statusRingStatesByUserId[otherUserId] ?: ChatStatusRingState.NONE
+            val isSelected = selectedChatIds.contains(chat.id)
+            val avatarCacheKey = if (chat.isGroup) {
+                AvatarCacheManager.groupIconCacheIdPublic(chat.id)
+            } else if (otherUserId.isNotEmpty()) {
+                otherUserId
+            } else {
+                ""
+            }
+            // Synchronous avatar state read for initial display.
+            val avatarLocalPath = AvatarStateManager.peek(avatarCacheKey)?.localPath
+            val avatarStateVersion = AvatarStateManager.peek(avatarCacheKey)?.version ?: 0L
+            val isBlocked = !chat.isGroup && otherUserId.isNotEmpty() && otherUserId in blockedUserIds
+            val canShowAvatar = if (chat.isGroup) true else !isBlocked
+
+            items.add(ChatListScreenItem.Chat(
+                chat = chat,
+                displayName = displayName,
+                otherUserId = otherUserId,
+                statusRingState = statusRingState,
+                isSelected = isSelected,
+                isInSelectionMode = isSelectionMode,
+                avatarUrl = if (canShowAvatar) avatarUrl else "",
+                isGroupChat = chat.isGroup,
+                avatarLocalPath = if (canShowAvatar && (chat.isGroup || avatarLocalPath != null)) avatarLocalPath else null,
+                initialLetter = initialLetter(displayName),
+                avatarBgColor = avatarBackgroundColor(displayName, chat.isGroup),
+                isOfficial = chat.isOfficial,
+                avatarCacheKey = if (canShowAvatar) avatarCacheKey else "",
+                avatarStateVersion = avatarStateVersion
+            ))
+        }
+
+        // ── Empty state ─────────────────────────────────────────
+        if (filteredChats.isEmpty()) {
+            items.add(ChatListScreenItem.Empty())
+        }
+    }
+
+    return items
+}
+
+/**
+ * Returns the uppercase initial letter of the display name, or "G" as fallback.
+ * Mirrors the Compose ChatRow's `initial` computation.
+ */
+internal fun initialLetter(displayName: String): String {
+    return displayName.firstOrNull()?.uppercaseChar()?.toString() ?: "G"
+}
+
+/**
+ * Returns the ARGB Int avatar background color for the letter avatar.
+ * Mirrors the Compose ChatRow's `bgColor` computation using letterAvatarColors.
+ * Uses the adapter's `letterAvatarColors: List<Int>` (same package) to avoid a
+ * naming conflict with the Compose `letterAvatarColorSwatch: List<Color>`.
+ */
+internal fun avatarBackgroundColor(displayName: String, isGroupChat: Boolean): Int {
+    return if (isGroupChat) {
+        0xFF3A2B1C.toInt()
+    } else {
+        val hashCode = displayName.hashCode()
+        val idx = (hashCode and 0x7FFFFFFF) % letterAvatarColors.size
+        letterAvatarColors[idx]
     }
 }

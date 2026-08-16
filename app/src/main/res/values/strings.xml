@@ -134,6 +134,15 @@
     <string name="ai_agent_copied">Copied to clipboard</string>
     <string name="ai_agent_history_cleared">Conversation cleared</string>
 
+    <!-- Chat List Empty State -->
+    <string name="no_chats_yet">No chats yet</string>
+    <string name="start_new_conversation">Start a new chat to see it here</string>
+    <string name="empty_chats">No chats</string>
+
+    <!-- Chat List Archived Banner -->
+    <string name="archived_chats">Archived</string>
+    <string name="archived_chats_description">These chats stay archived when new messages are received. Tap to change</string>
+
     <!-- Share sheet / ShareTargetActivity -->
     <string name="share_send_to_title">Send to…</string>
     <string name="share_registered_only_hint">This contact hasn\'t joined Glyph yet.</string>

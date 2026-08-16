@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder Row Item (Shimmer/Loading) - Matches Compose ChatRowPlaceholder exactly -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="9dp">
+
+    <!-- Avatar Placeholder - 54dp -->
+    <View
+        android:id="@+id/vAvatarPlaceholder"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_avatar_circle"
+        android:alpha="0.12"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Username Placeholder -->
+    <View
+        android:id="@+id/vUsernamePlaceholder"
+        android:layout_width="120dp"
+        android:layout_height="18dp"
+        android:layout_marginStart="14dp"
+        android:alpha="0.12"
+        android:background="?android:attr/textColorPrimary"
+        app:layout_constraintBottom_toTopOf="@+id/vMessagePlaceholder"
+        app:layout_constraintStart_toEndOf="@+id/vAvatarPlaceholder"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed"
+        app:layout_constraintVertical_bias="0" />
+
+    <!-- Timestamp Placeholder -->
+    <View
+        android:id="@+id/vTimestampPlaceholder"
+        android:layout_width="50dp"
+        android:layout_height="14dp"
+        android:alpha="0.12"
+        android:background="?attr/glyphTextTertiary"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/vUsernamePlaceholder" />
+
+    <!-- Message Placeholder -->
+    <View
+        android:id="@+id/vMessagePlaceholder"
+        android:layout_width="0dp"
+        android:layout_height="16dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="8dp"
+        android:alpha="0.12"
+        android:background="?attr/glyphTextSecondary"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/vUsernamePlaceholder"
+        app:layout_constraintTop_toBottomOf="@+id/vUsernamePlaceholder" />
+
+    <!-- Divider at bottom -->
+    <View
+        android:id="@+id/divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="10dp"
+        android:alpha="0.08"
+        android:background="?attr/glyphDivider"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/vAvatarPlaceholder"
+        app:layout_constraintHorizontal_bias="0"
+        android:layout_marginStart="16dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

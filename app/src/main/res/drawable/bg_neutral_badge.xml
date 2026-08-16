@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Neutral (non-unread) badge background for hidden sections.
+     Default color is a mid-gray; the update callback overrides it
+     per-theme to match the Compose HiddenChatsSections design. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#E0E0E0" />
+</shape>

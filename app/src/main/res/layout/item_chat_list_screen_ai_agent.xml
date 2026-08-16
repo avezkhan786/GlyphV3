@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AI Agent Row Item - Matches Compose AiAgentRow exactly -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="9dp">
+
+    <!-- AI Agent Avatar Container - 54dp -->
+    <FrameLayout
+        android:id="@+id/avatarContainer"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <!-- AI Sparkle Icon - 46dp -->
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivAvatar"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_avatar_circle"
+            android:contentDescription="@string/ai_agent_title"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_sparkles"
+            app:shapeAppearanceOverlay="@style/CircularImageView"
+            app:tint="?attr/colorPrimary" />
+
+        <!-- Selection Check Overlay -->
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivSelectionCheck"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="bottom|end"
+            android:background="@drawable/bg_selection_check"
+            android:contentDescription="Selected"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_check_circle_filled"
+            android:visibility="gone"
+            app:shapeAppearanceOverlay="@style/CircularImageView"
+            tools:visibility="visible" />
+
+    </FrameLayout>
+
+    <!-- AI Agent Name - Medium weight, 16.5sp -->
+    <TextView
+        android:id="@+id/tvAgentName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_marginEnd="8dp"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textSize="16.5sp"
+        app:layout_constraintBottom_toTopOf="@+id/tvAgentDescription"
+        app:layout_constraintEnd_toStartOf="@+id/tvTimestamp"
+        app:layout_constraintHorizontal_bias="0"
+        app:layout_constraintStart_toEndOf="@+id/avatarContainer"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed"
+        app:layout_constraintVertical_bias="0"
+        tools:text="Glyph Assistant" />
+
+    <!-- Timestamp - 12sp -->
+    <TextView
+        android:id="@+id/tvTimestamp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="?attr/glyphTextTertiary"
+        android:textSize="12sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/tvAgentName"
+        tools:text="10:45 AM" />
+
+    <!-- Agent Description - 14sp, secondary text -->
+    <TextView
+        android:id="@+id/tvAgentDescription"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="8dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="?attr/glyphTextSecondary"
+        android:textSize="14sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/ivArrow"
+        app:layout_constraintStart_toStartOf="@+id/tvAgentName"
+        app:layout_constraintTop_toBottomOf="@+id/tvAgentName"
+        tools:text="Your AI assistant for Glyph" />
+
+    <!-- Chevron Arrow -->
+    <ImageView
+        android:id="@+id/ivArrow"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="8dp"
+        android:src="@drawable/ic_chevron_right"
+        android:tint="?attr/glyphTextTertiary"
+        app:layout_constraintBottom_toBottomOf="@+id/tvAgentDescription"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/tvAgentDescription" />
+
+    <!-- Divider at bottom -->
+    <View
+        android:id="@+id/divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="10dp"
+        android:alpha="0.08"
+        android:background="?attr/glyphDivider"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/avatarContainer"
+        app:layout_constraintHorizontal_bias="0"
+        android:layout_marginStart="16dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status ring for UNSEEN chats - animated pulse ring around avatar -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <stroke
+        android:width="2dp"
+        android:color="?attr/colorPrimary" />
+    <size
+        android:width="54dp"
+        android:height="54dp" />
+</shape>

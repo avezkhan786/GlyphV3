@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hidden Chats Sections — Locked Chats row + Archived row.
+     Matches the Compose HiddenChatsSections visual design exactly.
+     Badge colors are set programmatically in the AndroidView update callback
+     because they depend on theme (ThemeManager) and unread state. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/hiddenSectionsContainer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <!-- ── Locked Chats Row ── -->
+    <LinearLayout
+        android:id="@+id/lockedChatsRow"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:foreground="?attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingEnd="22dp"
+        android:paddingStart="16dp"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/ivLockedIcon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_chat_lock"
+            android:tint="?attr/glyphTextSecondary" />
+
+        <TextView
+            android:id="@+id/tvLockedLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:text="Locked chats"
+            android:textColor="?attr/glyphTextPrimary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvLockedBadge"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:background="@drawable/bg_neutral_badge"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:textColor="@android:color/white"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+    <!-- ── Archived Row ── -->
+    <LinearLayout
+        android:id="@+id/archivedRow"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:foreground="?attr/selectableItemBackground"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingEnd="22dp"
+        android:paddingStart="16dp">
+
+        <ImageView
+            android:id="@+id/ivArchiveIcon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_archive"
+            android:tint="?attr/glyphTextSecondary" />
+
+        <TextView
+            android:id="@+id/tvArchiveLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_weight="1"
+            android:fontFamily="sans-serif-medium"
+            android:text="Archived"
+            android:textColor="?attr/glyphTextPrimary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvArchiveBadge"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:background="@drawable/bg_neutral_badge"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:textColor="@android:color/white"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+    </LinearLayout>
+
+</LinearLayout>

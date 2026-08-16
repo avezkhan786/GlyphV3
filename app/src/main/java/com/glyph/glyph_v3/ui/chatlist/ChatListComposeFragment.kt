@@ -144,6 +144,16 @@ class ChatListComposeFragment : Fragment() {
         // this is a no-op once the app-level prewarm is in flight or done.
         val app = requireContext().applicationContext as GlyphApplication
         app.ensureSharedRepositoryStartup(reason = "chat_list_compose_open", warmStartupChats = true)
+
+        // Seed official-message cache BEFORE the first Compose composition so that
+        // OfficialContentRepository.officialMessages is populated from SharedPreferences
+        // on the very first collectAsState() read. Without this, _officialMessages
+        // stays empty until AppLifecycleObserver.onStart() → startListening() fires
+        // (after the first frame), prepending "Glyph Official" to the list mid-flight
+        // and causing a visible pop-in delay in both LazyColumn and RecyclerView paths.
+        // startListening is idempotent: the later onStart call re-seeds (same value →
+        // no extra emission) and re-registers Firestore listeners (old removed first).
+        OfficialContentRepository.startListening(requireContext())
     }
 
     override fun onCreateView(
@@ -310,7 +320,8 @@ class ChatListComposeFragment : Fragment() {
                         showUndoBar = uiState.showUndoBar,
                         undoProgress = uiState.undoProgress,
                         onUndoDelete = { viewModel.undoPendingDelete() },
-                        blockedUserIds = blockedUserIds
+                        blockedUserIds = blockedUserIds,
+                        useRecyclerView = true
                     )
                 }
             }
