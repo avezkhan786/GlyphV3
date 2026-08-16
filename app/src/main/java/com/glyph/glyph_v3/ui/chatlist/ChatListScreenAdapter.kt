@@ -58,6 +58,8 @@ internal sealed class ChatListPayload {
     object Draft : ChatListPayload()
     object Selection : ChatListPayload()
     object Avatar : ChatListPayload()
+    object DisplayName : ChatListPayload()
+    object StatusRing : ChatListPayload()
 }
 
 // ─── List Item Model ─────────────────────────────────────────────────────────
@@ -150,6 +152,16 @@ internal object ChatListDiffCallback : DiffUtil.ItemCallback<ChatListScreenItem>
         if (oldItem.isSelected != newItem.isSelected) {
             payloads.add(ChatListPayload.Selection)
         }
+        // displayName, initialLetter, and avatarBgColor are all derived from
+        // the contact resolution result — they change together. A dedicated
+        // payload avoids a full bind() (which calls resetViewProperties() →
+        // hides all views → visible flicker) when only the display name changes.
+        if (oldItem.displayName != newItem.displayName) {
+            payloads.add(ChatListPayload.DisplayName)
+        }
+        if (oldItem.statusRingState != newItem.statusRingState) {
+            payloads.add(ChatListPayload.StatusRing)
+        }
         if (oldChat.unreadCount != newChat.unreadCount) {
             payloads.add(ChatListPayload.UnreadCount)
         }
@@ -177,7 +189,14 @@ internal object ChatListDiffCallback : DiffUtil.ItemCallback<ChatListScreenItem>
         if (newChat.draft != oldChat.draft) {
             payloads.add(ChatListPayload.Draft)
         }
-        if (oldItem.avatarStateVersion != newItem.avatarStateVersion) {
+        // Detect avatar changes by BOTH version AND localPath. The version alone
+        // is insufficient: when peek() transitions from a null fallback (version=0,
+        // localPath=null) to the in-memory state after observe() (version=0,
+        // localPath="/path"), the version is unchanged but localPath changed.
+        // Without checking localPath, getChangePayload would return null → full bind()
+        // → resetViewProperties() → visible full-row flicker.
+        if (oldItem.avatarStateVersion != newItem.avatarStateVersion ||
+            oldItem.avatarLocalPath != newItem.avatarLocalPath) {
             payloads.add(ChatListPayload.Avatar)
         }
 
@@ -812,6 +831,8 @@ internal class ChatRowViewHolder(
                 is ChatListPayload.GroupOnlineCount -> bindGroupOnlineCount(item.chat.groupOnlineCount)
                 is ChatListPayload.Draft -> bindDraftOnly(item)
                 is ChatListPayload.Avatar -> bindAvatar(item)
+                is ChatListPayload.DisplayName -> bindDisplayName(item)
+                is ChatListPayload.StatusRing -> bindStatusRing(item)
             }
         }
     }
@@ -931,6 +952,24 @@ internal class ChatRowViewHolder(
         val draftText = com.glyph.glyph_v3.data.service.DraftMessageStore.getDraft(chat.id).trim()
         if (draftText.isNotEmpty()) {
             bindDraft(draftText)
+        }
+    }
+
+    // ─── Partial-bind helpers for fields that don't have their own payload yet ──
+
+    private fun bindDisplayName(item: ChatListScreenItem.Chat) {
+        tvUsername.text = item.displayName
+        tvUsername.setTextColor(textPrimaryColor)
+        tvAvatarInitial.setBackgroundColor(item.avatarBgColor)
+        tvAvatarInitial.text = item.initialLetter
+    }
+
+    private fun bindStatusRing(item: ChatListScreenItem.Chat) {
+        if (!item.isGroupChat && item.statusRingState == ChatStatusRingState.UNSEEN) {
+            vStatusRing.visibility = View.VISIBLE
+            ringAnimator.start()
+        } else {
+            vStatusRing.visibility = View.GONE
         }
     }
 

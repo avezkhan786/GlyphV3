@@ -76,7 +76,12 @@ object AvatarStateManager {
                 localPath = localPath,
                 remoteUrl = remoteUrl,
                 isDownloaded = localPath != null,
-                version = 0L
+                // Use version=1L for cached avatars so peek()'s disk fallback
+                // (which returns version=1L) is consistent with the in-memory
+                // state after observe() is called. This prevents an unnecessary
+                // version change (1→0) that would trigger spurious [Avatar]
+                // payloads on the first recomposition after observe().
+                version = if (localPath != null) 1L else 0L
             ))
             states[userId] = flow
             // If not on disk and we have a URL, download now.
@@ -108,9 +113,32 @@ object AvatarStateManager {
     /**
      * Synchronously get the current state without creating a subscription.
      * Use for one-shot reads (e.g. share intent, notification).
+     *
+     * CRITICAL for cold-start: if [observe] hasn't been called yet for [userId] but
+     * the avatar is already cached on disk, this returns a state with the local path
+     * populated (version=1L). Without this disk fallback, the first buildChatListItems
+     * call — which runs BEFORE the LaunchedEffect that calls observe() — sees peek()==null
+     * for all users, so all rows render initial-letter placeholders. When the first
+     * uncached avatar downloads, avatarStateTrigger++ causes a recomposition that re-runs
+     * buildChatListItems; now peek() returns cached states for ALL users, so every row
+     * simultaneously transitions from initial-letter to avatar-image — perceived as
+     * full-row flickering. The disk fallback makes cached avatars appear on frame 1,
+     * so only genuinely uncached avatars transition when their downloads complete.
      */
     fun peek(userId: String): AvatarState? = synchronized(lock) {
-        states[userId]?.value
+        states[userId]?.value ?: run {
+            val localPath = AvatarCacheManager.getLocalAvatarPath(userId)
+            if (localPath != null) {
+                AvatarState(
+                    localPath = localPath,
+                    remoteUrl = "",
+                    isDownloaded = true,
+                    version = 1L
+                )
+            } else {
+                null
+            }
+        }
     }
 
     /**

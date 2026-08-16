@@ -2523,8 +2523,12 @@ internal fun buildChatListItems(
                 ""
             }
             // Synchronous avatar state read for initial display.
-            val avatarLocalPath = AvatarStateManager.peek(avatarCacheKey)?.localPath
-            val avatarStateVersion = AvatarStateManager.peek(avatarCacheKey)?.version ?: 0L
+            // Single peek() call to avoid inconsistency between localPath and version
+            // reads (the synchronized block in peek guarantees atomicity, but two
+            // separate calls could still race with a concurrent refresh()).
+            val avatarStateOpt = AvatarStateManager.peek(avatarCacheKey)
+            val avatarLocalPath = avatarStateOpt?.localPath
+            val avatarStateVersion = avatarStateOpt?.version ?: 0L
             val isBlocked = !chat.isGroup && otherUserId.isNotEmpty() && otherUserId in blockedUserIds
             val canShowAvatar = if (chat.isGroup) true else !isBlocked
 
