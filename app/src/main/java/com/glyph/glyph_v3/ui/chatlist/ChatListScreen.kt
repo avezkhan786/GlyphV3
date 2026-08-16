@@ -1083,6 +1083,16 @@ fun ChatListScreen(
                                 adapter = rvAdapter
                                 setItemViewCacheSize(20)
                                 setHasFixedSize(true)
+                                // Disable item animations. The DefaultItemAnimator runs fade-in
+                                // (on insert) and fade-out+fine-in (on change) animations that
+                                // overlay the row content during the ~300ms animation. On cold
+                                // start, presence/status updates cause notifyItemChanged on all
+                                // visible rows, and the simultaneous fade animations make every
+                                // row "dim and instantly become normal" — perceived as a full
+                                // reload. Since we use submitListSync (synchronous DiffUtil on
+                                // the main thread), there is zero one-frame delay to justify
+                                // animations; rows should update in place without any transition.
+                                itemAnimator = null
                                 // Padding is handled by Modifier.padding(listPadding) on the
                                 // parent Box — NOT by setPadding here. The Scaffold's
                                 // contentPadding may be 0 on the first composition (before
