@@ -3,6 +3,7 @@ package com.glyph.glyph_v3.ui.chatlist
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Rect
+import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
@@ -499,6 +500,15 @@ internal class ChatRowViewHolder(
     private val badgeUnread: TextView = itemView.findViewById(R.id.badgeUnread)
     private val divider: View = itemView.findViewById(R.id.divider)
 
+    // Reusable circular background for the initial-letter placeholder (tvAvatarInitial).
+    // A plain ColorDrawable from setBackgroundColor() is rectangular; this OVAL drawable
+    // mirrors Compose's .clip(CircleShape) + .background(bgColor) on the avatar Box.
+    // The same drawable instance is mutated (setColor) across binds on this ViewHolder —
+    // no per-bind allocation.
+    private val avatarInitialBg: GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+    }
+
     // ── Animation state (kept as fields, updated lazily) ──
     private val ringAnimator: ValueAnimator by lazy {
         ValueAnimator.ofFloat(0.92f, 1f).apply {
@@ -668,7 +678,8 @@ internal class ChatRowViewHolder(
         }
 
         val avatarBgColor = item.avatarBgColor
-        tvAvatarInitial.setBackgroundColor(avatarBgColor)
+        avatarInitialBg.setColor(avatarBgColor)
+        tvAvatarInitial.background = avatarInitialBg
         tvAvatarInitial.text = item.initialLetter
         tvAvatarInitial.setTextColor(0xFFFFFFFF.toInt())
 
@@ -686,7 +697,11 @@ internal class ChatRowViewHolder(
                 Glide.with(itemView)
                     .load(File(localPath))
                     .circleCrop()
-                    .override(46, 46)
+                    // No override(): Glide auto-sizes to the ImageView's actual pixel
+                    // dimensions (46dp × density ≈ 161px on 560dpi). The old
+                    // .override(46, 46) loaded at only 46×46 **pixels**, which the
+                    // ImageView then upscaled to 161×161 — pixelation. Compose/Coil
+                    // does the same: no explicit size override.
                     .signature(ObjectKey(localPath))
                     .into(ivAvatar)
             }
@@ -701,7 +716,7 @@ internal class ChatRowViewHolder(
                 Glide.with(itemView)
                     .load(visibleUrl)
                     .circleCrop()
-                    .override(46, 46)
+                    // See local-path branch: no override() → load at display resolution.
                     .error(R.drawable.ic_default_avatar)
                     .into(ivAvatar)
             }
@@ -960,7 +975,8 @@ internal class ChatRowViewHolder(
     private fun bindDisplayName(item: ChatListScreenItem.Chat) {
         tvUsername.text = item.displayName
         tvUsername.setTextColor(textPrimaryColor)
-        tvAvatarInitial.setBackgroundColor(item.avatarBgColor)
+        avatarInitialBg.setColor(item.avatarBgColor)
+        tvAvatarInitial.background = avatarInitialBg
         tvAvatarInitial.text = item.initialLetter
     }
 
