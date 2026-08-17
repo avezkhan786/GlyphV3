@@ -905,18 +905,19 @@ fun ChatListScreen(
             // the very edge of the content. This buffer mirrors LazyColumn's
             // contentPadding — an empty zone at the bottom of the scroll content
             // that absorbs the overscroll stretch so all visible rows stay stable.
-            //
-            // The 24dp buffer is implemented as RecyclerView.setPadding (with
-            // clipToPadding=true) rather than as extra parent-Box padding. To keep
-            // the total bottom space identical to the LazyColumn path, the parent
-            // Box's bottom padding is reduced by 24dp via recyclerViewListPadding.
             val recyclerViewBottomBufferPx = with(density) { 24.dp.roundToPx() }
-            // Parent-Box padding for the RecyclerView path — same as listPadding
-            // but with the 24dp buffer subtracted (it lives in RecyclerView padding instead).
-            val recyclerViewListPadding = PaddingValues(
-                top = listPadding.calculateTopPadding(),
-                bottom = (listPadding.calculateBottomPadding() - 24.dp).coerceAtLeast(0.dp)
-            )
+            // Total bottom padding for the RecyclerView: the Scaffolding's contentPadding
+            // (bottom nav bar clearance) PLUS the overscroll buffer. This is applied via
+            // setPadding on the RecyclerView itself (with clipToPadding=false) rather than
+            // on the parent Box — otherwise the nav-bar clearance and the 24dp overscroll
+            // buffer stack, producing excessive bottom padding. clipToPadding=false lets
+            // the EdgeEffect stretch render without being clipped at the padding boundary.
+            val recyclerViewTotalBottomPaddingPx = with(density) {
+                listPadding.calculateBottomPadding().roundToPx() + recyclerViewBottomBufferPx
+            }
+            // Top-only padding for the RecyclerView's parent Box: the bottom clearance is
+            // handled by setPadding inside the RecyclerView to avoid double-padding.
+            val recyclerViewBoxPadding = PaddingValues(top = contentPadding.calculateTopPadding())
 
             // ─── RecyclerView (AndroidView) Integration ─────────────────────────
             // When useRecyclerView is true, the LazyColumn is replaced by a RecyclerView
@@ -1087,7 +1088,7 @@ fun ChatListScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (useRecyclerView) Modifier.padding(recyclerViewListPadding) else Modifier)
+                    .then(if (useRecyclerView) Modifier.padding(recyclerViewBoxPadding) else Modifier.padding(listPadding))
                     .graphicsLayer { translationY = revealOffsetPx }
             ) {
                 if (useRecyclerView) {
@@ -1117,15 +1118,28 @@ fun ChatListScreen(
                                 // the main thread), there is zero one-frame delay to justify
                                 // animations; rows should update in place without any transition.
                                 itemAnimator = null
-                                // Parent Box uses recyclerViewListPadding (listPadding minus 24dp
-                                // bottom) to position the RecyclerView. The 24dp difference is
-                                // re-absorbed here as content padding via setPadding below — this
-                                // keeps the total bottom space identical to the LazyColumn path
-                                // while creating an empty buffer zone that absorbs the EdgeEffect
-                                // overscroll stretch so the last row never gets clipped or
-                                // disappears. Mirrors LazyColumn's contentPadding.
-                                setPadding(0, 0, 0, recyclerViewBottomBufferPx)
-                                clipToPadding = true
+                                // Top padding is handled by Modifier.padding(recyclerViewBoxPadding)
+                                // on the parent Box — the Scaffold's contentPadding may be 0 on the
+                                // first composition (before window-insets are computed) and non-zero
+                                // on the second; using Compose's Modifier.padding ensures recomposition
+                                // handles the transition cleanly.
+                                // Bottom: the total bottom padding (nav-bar clearance + 24dp overscroll
+                                // buffer) is applied here via setPadding. The 24dp buffer creates an
+                                // empty zone at the bottom of the scroll content that gives the native
+                                // EdgeEffect stretch room to expand during overscroll, so the last row
+                                // (positioned above this buffer) stays fully visible and never gets
+                                // clipped or appears to "disappear." This mirrors LazyColumn's
+                                // contentPadding. Applying it here (not on the parent Box) avoids
+                                // double-padding with the nav-bar clearance.
+                                //
+                                // clipToPadding must stay false: with true, the EdgeEffect's stretch
+                                // transformation gets clipped at the padding boundary, which slices
+                                // off the bottom rows during the overscroll animation — producing
+                                // the "disappear and reappear quickly" flicker. False lets the
+                                // stretched content draw beyond the padding so the last row stays
+                                // visible throughout the entire stretch cycle.
+                                setPadding(0, 0, 0, recyclerViewTotalBottomPaddingPx)
+                                clipToPadding = false
                                 // Mirror Compose's LocalListScrolling for infinite animations.
                                 scrollSuspensionCoordinator.attach(this)
                                 // Mirror chatListState.firstVisibleItemIndex/ScrollOffset for

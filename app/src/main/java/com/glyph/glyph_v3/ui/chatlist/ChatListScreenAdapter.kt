@@ -253,7 +253,7 @@ internal class ChatListScreenAdapter(
     fun submitListSync(newList: List<ChatListScreenItem>?) {
         val list = newList ?: emptyList()
         val oldList = if (useSyncMode) mSyncList else currentList
-        if (list == oldList) return // same reference — nothing to do
+        if (list == oldList) return // structurally equal — nothing to do
 
         val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
             override fun getOldListSize(): Int = oldList?.size ?: 0
@@ -350,7 +350,20 @@ internal class ChatListScreenAdapter(
         if (payloads.isEmpty()) {
             holder.bind(item)
         } else {
-            holder.bindPayloads(item, payloads.filterIsInstance<ChatListPayload>())
+            // DiffUtil wraps the payload returned by getChangePayload() in a singleton
+            // list when dispatching via notifyItemRangeChanged(). Since getChangePayload
+            // returns a List<ChatListPayload>, payloads here is a nested List:
+            // [[TypingState], [Presence], ...] — filterIsInstance<ChatListPayload>()
+            // would filter out the outer ArrayList entirely, losing all payloads.
+            // Flatten to handle both nested and direct payload forms.
+            val flatPayloads = payloads.flatMap { p ->
+                when (p) {
+                    is ChatListPayload -> listOf(p)
+                    is List<*> -> p.filterIsInstance<ChatListPayload>()
+                    else -> emptyList()
+                }
+            }
+            holder.bindPayloads(item, flatPayloads)
         }
     }
 
@@ -498,7 +511,6 @@ internal class ChatRowViewHolder(
     private val tvTypingLabel: TextView = itemView.findViewById(R.id.tvTypingLabel)
     private val llTypingDots: LinearLayout = itemView.findViewById(R.id.llTypingDots)
     private val badgeUnread: TextView = itemView.findViewById(R.id.badgeUnread)
-    private val divider: View = itemView.findViewById(R.id.divider)
 
     // Reusable circular background for the initial-letter placeholder (tvAvatarInitial).
     // A plain ColorDrawable from setBackgroundColor() is rectangular; this OVAL drawable
