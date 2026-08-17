@@ -17,6 +17,12 @@
         <item name="cornerSize">8dp</item>
     </style>
 
+    <!-- Subtle rounded corners for avatar in ProfilePreviewDialog (16dp) -->
+    <style name="SubtleRoundedAvatar" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
+
     <style name="RoundedCornerImageView" parent="">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">4dp</item>
