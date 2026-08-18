@@ -196,7 +196,15 @@ class RestoreOfferActivity : AppCompatActivity() {
     }
 
     private fun goToMain() {
-        startActivity(Intent(this, MainActivity::class.java))
+        val intent = Intent(this, MainActivity::class.java).apply {
+            // CLEAR_TOP: if MainActivity is already in the task stack (started
+            // from MainActivity.checkForBackupRestore), bring it forward and
+            // clear this activity instead of creating a duplicate.
+            // SINGLE_TOP: deliver to the existing instance via onNewIntent if it
+            // is already at the top.
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        }
+        startActivity(intent)
         finish()
     }
 

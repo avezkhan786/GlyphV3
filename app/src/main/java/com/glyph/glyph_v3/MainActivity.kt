@@ -34,9 +34,13 @@ import com.glyph.glyph_v3.ui.calls.CallsFragment
 import com.glyph.glyph_v3.ui.chat.ChatActivity
 import com.glyph.glyph_v3.ui.chatlist.ChatListComposeFragment
 import com.glyph.glyph_v3.ui.main.MainPagerAdapter
+import com.glyph.glyph_v3.ui.onboarding.RestoreOfferActivity
 import com.glyph.glyph_v3.ui.settings.SettingsFragment
 import com.glyph.glyph_v3.ui.status.StatusFragment
 import com.glyph.glyph_v3.data.repo.StatusRepository
+import com.glyph.glyph_v3.data.auth.GoogleSignInRepository
+import com.glyph.glyph_v3.data.backup.BackupPreferences
+import com.glyph.glyph_v3.data.backup.DriveRepository
 import com.glyph.glyph_v3.utils.ThemeManager
 import com.google.firebase.messaging.FirebaseMessaging
 import com.glyph.glyph_v3.data.repo.AccountStatusManager
@@ -44,10 +48,12 @@ import com.glyph.glyph_v3.data.repo.FirebaseRepository
 import com.glyph.glyph_v3.data.repo.PresenceManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 
@@ -55,6 +61,7 @@ class MainActivity : AppCompatActivity() {
 
     private var connectionRetryJob: Job? = null
     private var hasPreloadedSecondaryTabs = false
+    private var backupCheckStarted = false
 
     private lateinit var binding: ActivityMainBinding
 
@@ -114,6 +121,10 @@ class MainActivity : AppCompatActivity() {
                                 firstFrameGateReleased = true
                                 binding.root.viewTreeObserver.removeOnPreDrawListener(this)
                                 firstFrameHandler.removeCallbacks(firstFrameTimeout)
+                                // First frame is about to be drawn — start the
+                                // non-blocking backup/restore offer check now
+                                // that the chat list is visible.
+                                checkForBackupRestore()
                             }
                             return true
                         }
@@ -125,6 +136,10 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             )
+        } else {
+            // Rotation / process-restore: the first-frame gate is not installed,
+            // so start the backup check after the first layout pass instead.
+            binding.root.post { checkForBackupRestore() }
         }
         
         // Setup ViewPager2 (WhatsApp-style swipe)
@@ -251,6 +266,46 @@ class MainActivity : AppCompatActivity() {
     fun onChatListFirstFrameReady() {
         if (chatListFirstFrameReady) return
         chatListFirstFrameReady = true
+    }
+
+    /**
+     * Non-blocking Google Drive backup/restore offer check.
+     *
+     * This used to run inside SplashActivity (checkForBackupAndRoute), which kept
+     * the activity's branded logo window background visible for the duration of
+     * the DataStore read + Google Sign-In + Drive API round-trip. Moving it here
+     * — after the chat list's first frame is already on screen — eliminates that
+     * "extra logo screen" between the system splash and the chat list.
+     *
+     * If a restore-worthy backup is found, RestoreOfferActivity is shown on top
+     * of the already-visible chat list. If the user skips or restores, that
+     * activity reuses this MainActivity instance via FLAG_ACTIVITY_CLEAR_TOP.
+     */
+    private fun checkForBackupRestore() {
+        if (backupCheckStarted) return
+        if (FirebaseAuth.getInstance().currentUser == null) return
+        backupCheckStarted = true
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                if (!BackupPreferences.shouldShowRestoreOffer(this@MainActivity)) return@launch
+                val googleRepo = GoogleSignInRepository.getInstance(this@MainActivity)
+                val account = googleRepo.silentSignIn()
+                if (account != null) {
+                    val credential = googleRepo.getDriveCredential(account)
+                    val driveRepo = DriveRepository.getInstance(this@MainActivity)
+                    driveRepo.init(account, credential)
+                    val backups = driveRepo.listBackups()
+                    if (backups.isNotEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            if (isFinishing || isDestroyed) return@withContext
+                            val intent = Intent(this@MainActivity, RestoreOfferActivity::class.java)
+                            startActivity(intent)
+                        }
+                    }
+                }
+            } catch (_: Exception) { }
+        }
     }
 
     override fun onDestroy() {

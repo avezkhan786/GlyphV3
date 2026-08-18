@@ -6,16 +6,9 @@ import android.util.Log
 import android.app.Activity
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
-import com.glyph.glyph_v3.data.auth.GoogleSignInRepository
-import com.glyph.glyph_v3.data.backup.BackupPreferences
-import com.glyph.glyph_v3.data.backup.DriveRepository
 import com.glyph.glyph_v3.ui.auth.WelcomeActivity
-import com.glyph.glyph_v3.ui.onboarding.RestoreOfferActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class SplashActivity : AppCompatActivity() {
 
@@ -39,44 +32,20 @@ class SplashActivity : AppCompatActivity() {
         val currentUser = auth.currentUser
 
         if (currentUser != null) {
-            // Firestore token refresh runs non-blocking in GlyphApplication.onCreate()
-            // and MainActivity.ensureAuthenticated(); both refresh in the background
-            // without holding the first frame of the chat list. Awaiting it here would
-            // keep SplashActivity's branded window background (centered app icon) on
-            // screen for the entire network round-trip — creating an extra visible
-            // "logo screen" between the system splash and the chat list. So we just
-            // route.
-            checkForBackupAndRoute()
+            // Route immediately to MainActivity. Token refresh for Firestore
+            // (PERMISSION_DENIED protection) runs non-blocking in
+            // GlyphApplication.onCreate() and MainActivity.ensureAuthenticated().
+            //
+            // The Google Drive backup/restore offer check is handled by
+            // MainActivity.checkForBackupRestore() AFTER its first frame renders,
+            // so SplashActivity's branded window background (centered app icon)
+            // is never visible as an extra intermediate frame between the system
+            // splash and the chat list. See docs/splash-activity-logo-hold.md.
+            goToMain()
         } else {
             startActivity(Intent(this, WelcomeActivity::class.java))
             overrideTransition()
             finish()
-        }
-    }
-
-    private fun checkForBackupAndRoute() {
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                if (!BackupPreferences.shouldShowRestoreOffer(this@SplashActivity)) {
-                    goToMain(); return@launch
-                }
-                val googleRepo = GoogleSignInRepository.getInstance(this@SplashActivity)
-                val account = googleRepo.silentSignIn()
-                if (account != null) {
-                    val credential = googleRepo.getDriveCredential(account)
-                    val driveRepo = DriveRepository.getInstance(this@SplashActivity)
-                    driveRepo.init(account, credential)
-                    val backups = driveRepo.listBackups()
-                    if (backups.isNotEmpty()) {
-                        val restoreIntent = Intent(this@SplashActivity, RestoreOfferActivity::class.java)
-                        startActivity(restoreIntent)
-                        overrideTransition()
-                        finish()
-                        return@launch
-                    }
-                }
-            } catch (_: Exception) { }
-            goToMain()
         }
     }
 
