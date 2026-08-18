@@ -539,12 +539,12 @@ internal class ChatRowViewHolder(
         }
     }
     private val typingAnimator: ValueAnimator by lazy {
-        ValueAnimator.ofInt(0, 2).apply {
+        ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 900
             repeatCount = ValueAnimator.INFINITE
             repeatMode = ValueAnimator.RESTART
             interpolator = LinearInterpolator()
-            addUpdateListener { updateTypingDots(it.animatedValue as Int) }
+            addUpdateListener { updateTypingDots(it.animatedValue as Float) }
         }
     }
 
@@ -1037,7 +1037,7 @@ internal class ChatRowViewHolder(
         val isScrolling = scrollSuspensionCoordinator.isScrolling.get()
         if (isScrolling) {
             // Show static dots while scrolling — no animation
-            setTypingDotOffsets(0)
+            setTypingDotOffsets(0f)
             return
         }
         if (!typingAnimator.isRunning) {
@@ -1045,7 +1045,7 @@ internal class ChatRowViewHolder(
         }
     }
 
-    private fun setTypingDotOffsets(phase: Int) {
+    private fun setTypingDotOffsets(phase: Float) {
         for (i in 0 until llTypingDots.childCount) {
             val dot = llTypingDots.getChildAt(i) as TextView
             val dotPhase = (phase + i / 3f) % 1f
@@ -1054,7 +1054,7 @@ internal class ChatRowViewHolder(
         }
     }
 
-    private fun updateTypingDots(phase: Int) {
+    private fun updateTypingDots(phase: Float) {
         setTypingDotOffsets(phase)
     }
 

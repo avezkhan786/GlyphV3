@@ -188,16 +188,19 @@
     </LinearLayout>
 
     <!-- Typing Dots Container - animated typing indicator (3 dots) -->
+    <!-- Constrained to tvUsername bottom + 2dp margin (mirroring Compose's Spacer(height=2.dp))
+         rather than to messageStatusContainer, which collapses to 0 height when tvLastMessage
+         is GONE — avoiding position ambiguity during the typing transition. -->
     <LinearLayout
         android:id="@+id/llTypingIndicator"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/messageStatusContainer"
         app:layout_constraintStart_toStartOf="@+id/messageStatusContainer"
-        app:layout_constraintTop_toTopOf="@+id/messageStatusContainer">
+        app:layout_constraintTop_toBottomOf="@+id/tvUsername">
 
         <TextView
             android:id="@+id/tvTypingLabel"
