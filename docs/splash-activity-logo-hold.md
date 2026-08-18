@@ -156,7 +156,67 @@ private fun goToMain() {
 - **Started from SplashActivity** (fallback): `MainActivity` is not in the stack, so a new
   instance is created — same as before.
 
-## Verification
+## Android 12+ Splase Screen API (added after cache-clear regression)
+
+After the first fix was applied, a residual issue was reported: clearing the
+app's cache from Android Settings and relaunching produced an extra logo screen
+that appeared "before and after splash."
+
+### Root Cause
+
+`SplashActivity` did **not** call `installSplashScreen()` (the Android 12+ /
+API 31+ SplashScreen API). Without it:
+
+1. The system shows a splash screen based on the activity theme's
+   `windowBackground` (which is `splash_background.xml` — a centered `ic_splash`
+   logo).
+2. The system does **not** manage that surface's lifecycle — it is just the
+   activity's plain window background.
+3. The splash "exits" only when the app's first real frame is drawn (i.e.
+   MainActivity's first draw, gated by the 500 ms first-frame hold).
+
+After a cache clear:
+
+- The process is killed; ART clears the dex-cache → cold start is slower
+  (class loading, Firebase RTDB/Firesstore re-init, etc.).
+- Coil's disk cache (`cacheDir/image_cache`) is wiped → avatar images must be
+  re-fetched/decoded on the first frame, slowing the chat list render.
+- The 500 ms first-frame gate in MainActivity holds the first draw longer.
+
+Net result: the splash window (the logo) stays visible for several seconds,
+perceived as an extra "logo screen" between the system splash and the chat list.
+
+A fresh install does not exhibit this because the first launch typically goes
+through `WelcomeActivity` (unauthenticated path), and the process-level overhead
+is amortized differently. The regression only appears on the authenticated
+cold-start path (SplashActivity → MainActivity) when cache is cleared.
+
+### Fix
+
+In `SplashActivity.onCreate()`, register with the Android 12+ (API 31+) system
+splash screen via `getSplashScreen()`, then immediately replace the window
+background with a plain solid color:
+
+```kotlin
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    getSplashScreen()
+}
+window.setBackgroundDrawableResource(com.glyph.glyph_v3.R.color.splash_background)
+```
+
+- `getSplashScreen()` (framework method, API 31+) registers the activity with
+  the system-managed splash surface, allowing the system to track its lifecycle
+  and animate it out properly.
+- `setBackgroundDrawableResource(...)` replaces the branded `splash_background.xml`
+  drawable (centered logo) with the plain `#000000` color. The system splash
+  (logo) is still visible during the initial system-managed animation, but once
+  our window takes over it shows a plain background instead of the logo.
+
+This decouples the splash lifespan from the cold-start rendering delay: the
+logo only appears during the brief system-managed animation, never lingering
+on SplashActivity's window while MainActivity starts up.
+
+### Verification
 
 ```
 ./gradlew :app:compileDebugKotlin   # BUILD SUCCESSFUL

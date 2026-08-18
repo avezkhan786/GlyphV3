@@ -16,6 +16,27 @@ class SplashActivity : AppCompatActivity() {
         GlyphApplication.splashShown = true
         super.onCreate(savedInstanceState)
 
+        // CRITICAL: On Android 12+ (API 31+) the system shows a splash screen
+        // based on this activity's theme (windowBackground = splash_background.xml,
+        // which paints the centered app logo). The system splash is removed when
+        // the app draws its first frame. Since SplashActivity finishes immediately
+        // (via continueToApp → goToMain) without calling setContentView(), its
+        // window never draws a frame. If MainActivity is slow to start (e.g.,
+        // after cache clear → cold process, dex recompilation, empty Coil disk
+        // cache), SplashActivity's window — still showing the branded logo
+        // windowBackground — lingers as a visible "extra logo screen" between
+        // the system splash and the chat list.
+        //
+        // Fix: on Android 12+, register the SplashScreen so the framework
+        // manages its lifecycle, then immediately replace the windowBackground
+        // with a plain solid color. The system splash (logo) is still visible
+        // during the initial system-managed animation, but once our window
+        // takes over it shows a plain background instead of the logo.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            getSplashScreen()
+        }
+        window.setBackgroundDrawableResource(com.glyph.glyph_v3.R.color.splash_background)
+
         // Fire-and-forget health check
         FirebaseFirestore.getInstance().collection("_health_check_").document("doc").get()
             .addOnSuccessListener { }
