@@ -512,6 +512,9 @@ internal class ChatRowViewHolder(
     private val llTypingDots: LinearLayout = itemView.findViewById(R.id.llTypingDots)
     private val badgeUnread: TextView = itemView.findViewById(R.id.badgeUnread)
 
+    // ── Cached display density for dp→px conversion (matches Compose's .dp extension) ──
+    private val density: Float = itemView.resources.displayMetrics.density
+
     // Reusable circular background for the initial-letter placeholder (tvAvatarInitial).
     // A plain ColorDrawable from setBackgroundColor() is rectangular; this OVAL drawable
     // mirrors Compose's .clip(CircleShape) + .background(bgColor) on the avatar Box.
@@ -538,13 +541,20 @@ internal class ChatRowViewHolder(
             addUpdateListener { v -> vOnlineIndicator.scaleX = v.animatedValue as Float; vOnlineIndicator.scaleY = v.animatedValue as Float }
         }
     }
-    private val typingAnimator: ValueAnimator by lazy {
-        ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 900
-            repeatCount = ValueAnimator.INFINITE
-            repeatMode = ValueAnimator.RESTART
-            interpolator = LinearInterpolator()
-            addUpdateListener { updateTypingDots(it.animatedValue as Float) }
+    // ── ValueAnimator-based typing dot animation (mirrors Compose's infiniteTransition) ──
+    // A single ValueAnimator drives all three dots via a shared phase, exactly like the
+    // Compose single-shared InfiniteTransition. The animator maps [0, 1] to a 900ms linear
+    // cycle and RepeatMode.RESTART wraps it. We update dot positions in the animator's
+    // update listener — this is cheaper than 3 separate InfiniteTransitions and matches the
+    // Compose optimization comment ("Single shared phase drives all three dots — 3× cheaper").
+    private val typingAnimator: ValueAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+        duration = 900
+        repeatCount = ValueAnimator.INFINITE
+        repeatMode = ValueAnimator.RESTART
+        interpolator = android.view.animation.LinearInterpolator()
+        addUpdateListener { animation ->
+            val phase = animation.animatedValue as Float
+            updateTypingDots(phase)
         }
     }
 
@@ -588,6 +598,8 @@ internal class ChatRowViewHolder(
         ivMessageStatus.visibility = View.GONE
         tvDraftLabel.visibility = View.GONE
         llTypingIndicator.visibility = View.GONE
+        typingAnimator.cancel()
+        setTypingDotOffsets(0f)
         badgeUnread.visibility = View.GONE
     }
 
@@ -750,6 +762,8 @@ internal class ChatRowViewHolder(
         val displayLabel = typingText.trim().ifBlank { "typing..." }.removeSuffix("...").trimEnd()
         tvTypingLabel.text = displayLabel
         tvTypingLabel.setTextColor(actionPrimaryColor)
+        // Cancel any prior animator so we start from a clean state
+        typingAnimator.cancel()
         startTypingAnimation()
     }
 
@@ -949,6 +963,8 @@ internal class ChatRowViewHolder(
             bindTypingIndicator(chat.typingText)
         } else {
             llTypingIndicator.visibility = View.GONE
+            typingAnimator.cancel()
+            setTypingDotOffsets(0f)
             bindLastMessageOrDraft(item)
         }
     }
@@ -1034,15 +1050,14 @@ internal class ChatRowViewHolder(
     }
 
     private fun startTypingAnimation() {
-        val isScrolling = scrollSuspensionCoordinator.isScrolling.get()
-        if (isScrolling) {
-            // Show static dots while scrolling — no animation
-            setTypingDotOffsets(0f)
-            return
+        // Reset phase for a fresh start — mirrors Compose's rememberInfiniteTransition
+        // which starts at 0f each time the TypingIndicator composable enters the tree
+        setTypingDotOffsets(0f)
+        // Start the ValueAnimator — end() rewinding to 0f then start() begins animating
+        if (typingAnimator.isRunning) {
+            typingAnimator.end()
         }
-        if (!typingAnimator.isRunning) {
-            typingAnimator.start()
-        }
+        typingAnimator.start()
     }
 
     private fun setTypingDotOffsets(phase: Float) {
@@ -1050,7 +1065,8 @@ internal class ChatRowViewHolder(
             val dot = llTypingDots.getChildAt(i) as TextView
             val dotPhase = (phase + i / 3f) % 1f
             val offsetY = if (dotPhase < 0.5f) -4f * (dotPhase / 0.5f) else -4f * ((1f - dotPhase) / 0.5f)
-            dot.translationY = offsetY
+            // Convert dp to px — matches Compose's Modifier.offset(y = offsetY.dp)
+            dot.translationY = offsetY * density
         }
     }
 
@@ -1071,9 +1087,10 @@ internal class ChatRowViewHolder(
     private val scrollSuspensionListener = object : ScrollSuspensionCoordinator.ScrollStateListener {
         override fun onScrollStateChanged(scrolling: Boolean) {
             if (scrolling) {
-                // Pause all infinite animations on this row
+                // Pause all infinite animations on this row and freeze dots at resting position
                 presenceAnimator.pause()
                 typingAnimator.pause()
+                setTypingDotOffsets(0f)
             } else {
                 // Resume if the row should be active
                 val item = currentItem ?: return
@@ -1082,7 +1099,8 @@ internal class ChatRowViewHolder(
                     presenceAnimator.resume()
                 }
                 if (chat.isOtherUserTyping) {
-                    typingAnimator.resume()
+                    // Restart the typing dot animation from the beginning
+                    startTypingAnimation()
                 }
             }
         }
@@ -1115,14 +1133,6 @@ internal class ScrollSuspensionCoordinator {
                     newState == RecyclerView.SCROLL_STATE_SETTLING
             isScrolling.set(scrolling)
             listeners.forEach { it.onScrollStateChanged(scrolling) }
-        }
-
-        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-            // While actively scrolling, ensure the flag stays true
-            if (!isScrolling.get()) {
-                isScrolling.set(true)
-                listeners.forEach { it.onScrollStateChanged(true) }
-            }
         }
     }
 

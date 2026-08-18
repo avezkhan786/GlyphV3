@@ -138,7 +138,7 @@
         android:id="@+id/messageStatusContainer"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="4dp"
         android:layout_marginEnd="8dp"
         android:baselineAligned="true"
         android:baselineAlignedChildIndex="2"
@@ -166,6 +166,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="4dp"
+            android:includeFontPadding="false"
             android:text="Draft: "
             android:textColor="?attr/colorError"
             android:textSize="14sp"
@@ -177,25 +178,38 @@
         <!-- tvLastMessage and llTypingIndicator are siblings inside messageStatusContainer,
              both with layout_weight=1 — when one is VISIBLE and the other GONE, the visible
              one occupies the exact same position. Mirrors Compose's Box(weight=1f) containing
-             either the last-message Text or the TypingIndicator Row. -->
+             either the last-message Text or the TypingIndicator Row.
+
+             includeFontPadding="false" removes the extra font ascent/descent padding that
+             Android TextView adds by default. Compose's Text measures text directly without
+             this padding, so disabling it ensures the text bounds — and therefore the text
+             vertical position — matches between the XML and Compose paths. -->
         <TextView
             android:id="@+id/tvLastMessage"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:ellipsize="end"
+            android:includeFontPadding="false"
             android:maxLines="1"
             android:textColor="?attr/glyphTextSecondary"
             android:textSize="14sp"
             tools:text="Hey, are we still meeting today?" />
 
-        <!-- Typing Indicator - replaces tvLastMessage when user is typing -->
+        <!-- Typing Indicator - replaces tvLastMessage when user is typing.
+
+             gravity="top" (not center_vertical) so the 14sp label is positioned at
+             the top of this LinearLayout, matching tvLastMessage's top position.
+             Both start at messageStatusContainer's top; with includeFontPadding="false"
+             on both, their text baselines align exactly. The 18sp dots are taller and
+             start at the same top, extending below — this is a negligible visual offset
+             since the dots bounce via translationY animation. -->
         <LinearLayout
             android:id="@+id/llTypingIndicator"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:gravity="center_vertical"
+            android:gravity="top"
             android:orientation="horizontal"
             android:visibility="gone">
 
@@ -203,9 +217,11 @@
                 android:id="@+id/tvTypingLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:includeFontPadding="false"
                 android:text="typing..."
                 android:textColor="?attr/colorPrimary"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                android:textStyle="italic" />
 
             <LinearLayout
                 android:id="@+id/llTypingDots"
@@ -219,6 +235,7 @@
                     android:id="@+id/tvTypingDot1"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:includeFontPadding="false"
                     android:text="."
                     android:textColor="?attr/colorPrimary"
                     android:textSize="18sp"
@@ -229,6 +246,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
+                    android:includeFontPadding="false"
                     android:text="."
                     android:textColor="?attr/colorPrimary"
                     android:textSize="18sp"
@@ -239,6 +257,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
+                    android:includeFontPadding="false"
                     android:text="."
                     android:textColor="?attr/colorPrimary"
                     android:textSize="18sp"

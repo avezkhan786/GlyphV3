@@ -2349,7 +2349,7 @@ private fun TypingIndicator(label: String = "") {
 
                 Text(
                     text = ".",
-                    fontSize = 18.sp,
+                    fontSize = 38.sp,
                     color = glyphTheme.actionPrimary,
                     fontWeight = FontWeight.Black,
                     modifier = Modifier.offset(y = offsetY.dp)
