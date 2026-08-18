@@ -192,12 +192,11 @@
         android:id="@+id/llTypingIndicator"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="14dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="@+id/messageStatusContainer"
-        app:layout_constraintStart_toStartOf="@+id/tvUsername"
+        app:layout_constraintStart_toStartOf="@+id/messageStatusContainer"
         app:layout_constraintTop_toTopOf="@+id/messageStatusContainer">
 
         <TextView
