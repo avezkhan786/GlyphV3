@@ -188,19 +188,22 @@
     </LinearLayout>
 
     <!-- Typing Dots Container - animated typing indicator (3 dots) -->
-    <!-- Constrained to tvUsername bottom + 2dp margin (mirroring Compose's Spacer(height=2.dp))
-         rather than to messageStatusContainer, which collapses to 0 height when tvLastMessage
-         is GONE — avoiding position ambiguity during the typing transition. -->
+    <!-- Constrained to messageStatusContainer (same bounds as tvLastMessage) so the
+         typing indicator appears at the exact same position as the last message text.
+         Start anchored to messageStatusContainer (tvUsername start = avatar end + 14dp)
+         — no extra 14dp margin, matching Compose's message Row content start. -->
     <LinearLayout
         android:id="@+id/llTypingIndicator"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:visibility="gone"
+        android:layout_marginEnd="8dp"
+        app:layout_constraintBottom_toBottomOf="@+id/messageStatusContainer"
+        app:layout_constraintEnd_toStartOf="@+id/badgeUnread"
         app:layout_constraintStart_toStartOf="@+id/messageStatusContainer"
-        app:layout_constraintTop_toBottomOf="@+id/tvUsername">
+        app:layout_constraintTop_toTopOf="@+id/messageStatusContainer">
 
         <TextView
             android:id="@+id/tvTypingLabel"
@@ -251,6 +254,10 @@
     </LinearLayout>
 
     <!-- Unread Badge - Circular, WhatsApp green, 20dp -->
+    <!-- Top anchored to messageStatusContainer (which stays at tvUsername.bottom + 2dp even
+         when collapsed). Bottom constraint removed — the 20dp badge takes its fixed height
+         from the top anchor alone, so it doesn't jump when messageStatusContainer (its
+         previous bottom anchor) collapses to 0 height during the typing transition. -->
     <TextView
         android:id="@+id/badgeUnread"
         android:layout_width="20dp"
@@ -262,7 +269,6 @@
         android:textColor="@android:color/white"
         android:textSize="11sp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@+id/messageStatusContainer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/messageStatusContainer"
         tools:text="3"
