@@ -486,6 +486,11 @@ class CollageImageView @JvmOverloads constructor(
     private fun loadFullResolutionIntoViews(items: List<MediaItem>) {
         pendingFullResUpgrade = false
         if (items.isEmpty()) return
+        // Clear blur immediately for all tiles so that media renders clear as
+        // soon as scrolling stops, regardless of full-res load progress.
+        // Previously blur was only removed in completeOne() when ALL tiles
+        // finished loading — a single slow/failed tile left every tile blurred.
+        setPreviewBlurEnabled(false)
         val loadStartMs = SystemClock.elapsedRealtime()
         trace("fullResStart count=${items.size}")
 

@@ -144,7 +144,7 @@ class ChatAdapter(
     private var isPastelTheme: Boolean = false
 
     private val normalMessageTextSizeSp = 15f
-    private val emojiOnlyTextSizeSp = 24f
+    private val emojiOnlyTextSizeSp = 36f
 
     private fun preloadedMediaPlaceholder(
         model: Any?,
@@ -2697,7 +2697,16 @@ class ChatAdapter(
 
             when {
                 !allowThumbnailLoad && hasMatchingDrawable -> {
+                    // Fast bind with an already-loaded drawable: keep VISIBLE, skip Glide reload.
                     thumbnailView.visibility = View.VISIBLE
+                }
+                !allowThumbnailLoad && thumbnailModel == null && !message.thumbnailUrl.isNullOrBlank() -> {
+                    // Fast bind, thumbnail not cached yet, but the message carries a remote thumbnail
+                    // URL.  The full-bind path (resolveLinkPreviewModel) would return that URL and mark
+                    // the slot VISIBLE, so we must do the same here to keep layout stable.
+                    // Reserve the 168dp height slot now; Glide load is deferred to full bind / scroll-stop.
+                    thumbnailView.visibility = View.VISIBLE
+                    thumbnailView.setTag(R.id.tag_link_preview_thumbnail_url, previewUrl)
                 }
                 thumbnailModel != null -> {
                     thumbnailView.visibility = View.VISIBLE
@@ -3023,12 +3032,21 @@ class ChatAdapter(
                 }
             })
 
+        // Blur is always cleared at entry: any lingering blur from the scrolling
+        // path must be removed immediately so that visible media renders clear
+        // as soon as scrolling stops, regardless of whether the full-res image
+        // has loaded yet. The 96px thumbnail below appears clear (slightly
+        // pixelated) until the full-res Glide callback fires — that is the
+        // intended behaviour, replacing the previous bug where blur was
+        // re-applied here and only removed on memory-cache hit (centered items
+        // cleared fast; edge items stayed blurred).
+        applyBlur(imageView, false)
+
         // When skipBlurredPreview is true (first layout / chat open), skip the low-res
-        // blurred thumbnail and go straight to the full image. The blurred 96px preview
+        // thumbnail and go straight to the full image. The blurred 96px preview
         // is useful during scroll (motion hides the blur) but looks broken on a static
         // first frame where the user expects clear images immediately.
         val requestWithPreview = if (previewSource != null && !skipBlurredPreview) {
-            applyBlur(imageView, true)
             mainRequest.thumbnail(
                 Glide.with(context)
                     .load(previewSource)
@@ -3039,7 +3057,6 @@ class ChatAdapter(
                     .dontAnimate()
             )
         } else {
-            applyBlur(imageView, false)
             mainRequest
         }
 
@@ -3431,11 +3448,46 @@ class ChatAdapter(
         val tvContact = replyContainer.findViewById<android.widget.TextView>(R.id.tvReplyContact)
         val tvContent = replyContainer.findViewById<android.widget.TextView>(R.id.tvReplyContent)
         val bar = replyContainer.findViewById<View>(R.id.replyBar)
+        val ivReplyImage = replyContainer.findViewById<ShapeableImageView>(R.id.ivReplyImage)
+        val collageContainer = replyContainer.findViewById<View>(R.id.replyCollageContainer)
 
         if (message.type == MessageType.STATUS_REPLY) {
             replyContainer.visibility = View.VISIBLE
             replyContainer.setOnClickListener(null)
-            hideReplyPreviewMediaViewsLightweight(replyContainer)
+
+            // Match full bind layout for STATUS_REPLY: 56×80 MATCH_CONSTRAINT, right-rounded corners.
+            val density = replyContainer.resources.displayMetrics.density
+            val thumbTargetW = (56 * density).toInt()
+            val cornerPx = 8f * density
+            ivReplyImage?.let { iv ->
+                val lp = iv.layoutParams as? androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                if (lp != null && (lp.height != 0 || lp.width != thumbTargetW || lp.marginEnd != 0)) {
+                    lp.height    = 0
+                    lp.width     = thumbTargetW
+                    lp.marginEnd = 0
+                    iv.layoutParams = lp
+                    iv.shapeAppearanceModel = com.google.android.material.shape.ShapeAppearanceModel.builder()
+                        .setTopRightCornerSize(cornerPx)
+                        .setBottomRightCornerSize(cornerPx)
+                        .setTopLeftCornerSize(0f)
+                        .setBottomLeftCornerSize(0f)
+                        .build()
+                }
+            }
+            collageContainer?.visibility = View.GONE
+
+            // Determine thumbnail visibility — must match the full bind path exactly.
+            val hideThumb = when (message.statusType) {
+                "IMAGE", "VIDEO" -> {
+                    val localFile = if (message.statusId != null) {
+                        StatusThumbnailCache.getLocalFileSync(message.statusId)
+                    } else null
+                    localFile == null && message.statusThumbnailUrl.isNullOrBlank()
+                }
+                "TEXT", "VOICE" -> false   // always shown (swatch / placeholder)
+                else -> true               // unknown type — hide
+            }
+            ivReplyImage?.visibility = if (hideThumb) View.GONE else View.VISIBLE
 
             tvContact.text = if (message.isIncoming) {
                 "You • Status"
@@ -3464,7 +3516,57 @@ class ChatAdapter(
 
         replyContainer.visibility = View.VISIBLE
         replyContainer.setOnClickListener(null)
-        hideReplyPreviewMediaViewsLightweight(replyContainer)
+
+        // Show media views with the SAME visibility as the full bind path.
+        // This is the key fix: previously lightweight always hid media views (GONE),
+        // but full bind shows them when data is available — causing a 36dp/80dp
+        // height jump on the fast-bind → full-bind transition.
+        val repliedMessage = findMessageById(message.replyToMessageId)
+        val isCollage = repliedMessage?.type == MessageType.MEDIA_GROUP &&
+            repliedMessage.mediaItemsList.size > 1
+
+        if (isCollage) {
+            // Match full bind: show collage container (36dp height), hide single thumbnail.
+            ivReplyImage?.visibility = View.GONE
+            // Clear stale single-thumbnail drawable when transitioning to collage view.
+            Glide.with(replyContainer.context).clear(ivReplyImage)
+            collageContainer?.visibility = View.VISIBLE
+        } else {
+            // Match full bind: hide collage container, show single thumbnail only if
+            // resolveReplyPreviewModel returns a non-null model (same check as full bind).
+            ivReplyImage?.let { iv ->
+                // Reset to 36×36 if a previous STATUS_REPLY bind set MATCH_CONSTRAINT (height=0).
+                val lp = iv.layoutParams as? androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                if (lp != null && lp.height == 0) {
+                    val d = replyContainer.resources.displayMetrics.density
+                    lp.height    = (36 * d).toInt()
+                    lp.width     = (36 * d).toInt()
+                    lp.marginEnd = (4 * d).toInt()
+                    iv.layoutParams = lp
+                    iv.shapeAppearanceModel = com.google.android.material.shape.ShapeAppearanceModel.builder()
+                        .setAllCornerSizes(4f * d)
+                        .build()
+                    // Clear the stale 56×80 status thumbnail drawable — full bind will load the right one.
+                    Glide.with(replyContainer.context).clear(iv)
+                    iv.setImageDrawable(null)
+                    iv.background = null
+                }
+            }
+            // Clear stale collage drawables when not showing a collage.
+            val collageViews = listOfNotNull(
+                replyContainer.findViewById<ShapeableImageView>(R.id.ivCollage1),
+                replyContainer.findViewById<ShapeableImageView>(R.id.ivCollage2),
+                replyContainer.findViewById<ShapeableImageView>(R.id.ivCollage3),
+                replyContainer.findViewById<ShapeableImageView>(R.id.ivCollage4)
+            )
+            collageContainer?.visibility = View.GONE
+            collageViews.forEach { Glide.with(replyContainer.context).clear(it); it.visibility = View.GONE }
+
+            val replyThumbnailModel = repliedMessage?.let(::resolveReplyPreviewModel)
+            val shouldShowThumb = replyThumbnailModel != null &&
+                (replyThumbnailModel !is String || replyThumbnailModel.isNotBlank())
+            ivReplyImage?.visibility = if (shouldShowThumb) View.VISIBLE else View.GONE
+        }
 
         tvContact.text = if (message.replyToSenderId == currentUserId) {
             "You"
@@ -6991,7 +7093,7 @@ class ChatAdapter(
                 }
 
                 if (isFastBind || isFirstLayout) {
-                    binding.tvTranslationLabel.visibility = View.GONE
+                    bindTranslationState(item, binding.tvMessage, binding.tvTranslationLabel)
                     val linkPreviewVisible = bindLinkPreview(
                         binding.root,
                         msg,
@@ -7117,7 +7219,7 @@ class ChatAdapter(
                 }
 
                 if (isFastBind || isFirstLayout) {
-                    binding.tvTranslationLabel.visibility = View.GONE
+                    bindTranslationState(item, binding.tvMessage, binding.tvTranslationLabel)
                     val linkPreviewVisible = bindLinkPreview(
                         binding.root,
                         msg,
