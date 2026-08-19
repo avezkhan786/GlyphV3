@@ -3515,7 +3515,7 @@ class ChatAdapter(
         }
 
         replyContainer.visibility = View.VISIBLE
-        replyContainer.setOnClickListener(null)
+        replyContainer.setOnClickListener { onReplyClick?.invoke(message.replyToMessageId) }
 
         // Show media views with the SAME visibility as the full bind path.
         // This is the key fix: previously lightweight always hid media views (GONE),
@@ -3573,7 +3573,8 @@ class ChatAdapter(
         } else {
             otherUsername ?: "Sender"
         }
-        tvContent.text = message.replyToText?.takeIf { it.isNotBlank() } ?: "Message"
+        tvContent.text = repliedMessage?.let(::buildReplyPreviewSummary)
+            ?: (message.replyToText ?: "Message")
 
         if (isPastelTheme) {
             tvContact.setTextColor(android.graphics.Color.parseColor("#4A3D6D"))

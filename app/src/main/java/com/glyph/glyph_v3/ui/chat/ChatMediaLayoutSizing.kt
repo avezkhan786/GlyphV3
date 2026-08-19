@@ -4,7 +4,7 @@ import com.glyph.glyph_v3.data.models.MessageType
 import kotlin.math.roundToInt
 
 internal object ChatMediaLayoutSizing {
-    private const val MEDIA_SIZE_SCALE = 0.85f
+    private const val MEDIA_SIZE_SCALE = 0.75f
     private const val STICKER_WIDTH_DP = 180f * MEDIA_SIZE_SCALE
     private const val PORTRAIT_WIDTH_DP = 260f * MEDIA_SIZE_SCALE
     private const val LANDSCAPE_WIDTH_DP = 320f * MEDIA_SIZE_SCALE
