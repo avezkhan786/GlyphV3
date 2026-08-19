@@ -3502,9 +3502,9 @@ class ChatAdapter(
                 (otherUsername ?: "Someone") + " • Status"
             }
             tvContent.text = when (message.statusType) {
-                "IMAGE" -> "Photo"
-                "VIDEO" -> "Video"
-                "VOICE" -> "Voice"
+                "IMAGE" -> "📷 Photo"
+                "VIDEO" -> "🎥 Video"
+                "VOICE" -> "🎙 Voice"
                 else -> message.statusText?.take(80) ?: "Status"
             }
             tvContact.setTextColor(android.graphics.Color.parseColor("#128C7E"))
