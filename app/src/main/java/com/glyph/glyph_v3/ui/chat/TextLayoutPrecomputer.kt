@@ -134,12 +134,18 @@ object TextLayoutPrecomputer {
                 val msg = item.message
                 if (msg.type != MessageType.TEXT && msg.type != MessageType.STATUS_REPLY) {
                     item
-                } else if (msg.text.isBlank() || item.premeasuredTextHeightPx > 0 || item.isEmojiContent) {
-                    // Already pre-measured, empty, or emoji-only (24sp vs 15sp) — skip
+                } else if ((msg.text.isBlank() && item.translatedText.isNullOrBlank()) || item.premeasuredTextHeightPx > 0 || item.isEmojiContent) {
+                    // Already pre-measured, has no text (original or translated), or emoji-only (24sp vs 15sp) — skip
                     item
                 } else {
                     try {
-                        val displayText = msg.text.ifBlank { "Message" }
+                        val displayText = if (msg.isDeletedForAll) {
+                            " This message was deleted "
+                        } else if (item.isShowingTranslation && !item.translatedText.isNullOrBlank()) {
+                            item.translatedText
+                        } else {
+                            msg.text.ifBlank { "Message" }
+                        }
                         // Clone paint for thread safety (TextPaint is mutable)
                         val paint = TextPaint(basePaint)
                         val heightPx = measureTextHeight(displayText, paint, width)
@@ -170,8 +176,18 @@ object TextLayoutPrecomputer {
     ): Boolean {
         // Emoji-only messages use a larger font (24sp vs 15sp). The premeasured height
         // was computed with the standard 15sp TextPaint — applying it would clip emojis.
-        if (item.isEmojiContent) return false
-        if (item.premeasuredTextHeightPx <= 0) return false
+        if (item.isEmojiContent) {
+            textView.minHeight = 0
+            textView.maxHeight = Int.MAX_VALUE
+            return false
+        }
+        // No pre-measured height — clear any stale minHeight from a previous bind
+        // (e.g. ViewHolder recycling after a translation toggle via item.copy()).
+        if (item.premeasuredTextHeightPx <= 0) {
+            textView.minHeight = 0
+            textView.maxHeight = Int.MAX_VALUE
+            return false
+        }
         try {
             // Set minHeight only — NOT maxHeight. The precomputed height is measured at
             // a fixed width (maxBubbleWidthPx) which may differ from the actual display
@@ -207,7 +223,13 @@ object TextLayoutPrecomputer {
         val basePaint = cachedPaint ?: return
         val width = maxBubbleWidthPx
         if (width <= 0) return
-        val text = item.message.text.ifBlank { "Message" }
+        val text = if (item.message.isDeletedForAll) {
+            " This message was deleted "
+        } else if (item.isShowingTranslation && !item.translatedText.isNullOrBlank()) {
+            item.translatedText
+        } else {
+            item.message.text.ifBlank { "Message" }
+        }
         try {
             val paint = TextPaint(basePaint)
             item.premeasuredTextHeightPx = measureTextHeight(text, paint, width)
