@@ -1205,7 +1205,10 @@ class ChatAdapter(
                 } else if (payloads.contains("TEXT_HEIGHT_UPDATE")) {
                     // Background precomputation finished — apply fixed heights to
                     // visible text bubbles so subsequent scroll binds skip measurement.
-                    holder.applyTextHeight(getItem(position))
+                    val item = getItem(position)
+                    val msgId = (item as? ChatListItem.MessageItem)?.message?.id ?: "N/A"
+                    Log.d("ChatAdapterDEBUG", "TEXT_HEIGHT_UPDATE payload pos=$position msgId=$msgId holderType=${holder::class.java.simpleName}")
+                    holder.applyTextHeight(item)
                 } else {
                     super.onBindViewHolder(holder, position, payloads)
                     applyGroupSenderName(holder.itemView, getItem(position))
@@ -7049,7 +7052,11 @@ class ChatAdapter(
         override fun applyTextHeight(item: ChatListItem) {
             if (item is ChatListItem.MessageItem && !item.isEmojiContent
                 && !item.message.isDeletedForAll) {
+                Log.d("ChatAdapterDEBUG", "Incoming.applyTextHeight msg=${item.message.id} premeasured=${item.premeasuredTextHeightPx} isEmoji=${item.isEmojiContent} deleted=${item.message.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout")
                 TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
+            } else {
+                val mi = item as? ChatListItem.MessageItem
+                Log.d("ChatAdapterDEBUG", "Incoming.applyTextHeight SKIP msg=${mi?.message?.id ?: "N/A"} isEmoji=${mi?.isEmojiContent} deleted=${mi?.message?.isDeletedForAll} premeasured=${mi?.premeasuredTextHeightPx}")
             }
         }
 
@@ -7089,9 +7096,13 @@ class ChatAdapter(
                 // bubble to resize when TEXT_HEIGHT_UPDATE payload arrives. Reset to
                 // natural measurement instead.
                 if (item.isEmojiContent || msg.isDeletedForAll) {
+                    val wasMinH = binding.tvMessage.minHeight
+                    val wasMaxH = binding.tvMessage.maxHeight
                     binding.tvMessage.minHeight = 0
                     binding.tvMessage.maxHeight = Int.MAX_VALUE
+                    Log.d("ChatAdapterDEBUG", "Incoming.bind RESET_HEIGHT msg=${msg.id} text='${msg.text.take(30)}' emoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} minH $wasMinH→0 maxH=$wasMaxH→MAX premeasured=${item.premeasuredTextHeightPx} fastBind=$isFastBind firstLayout=$isFirstLayout")
                 } else {
+                    Log.d("ChatAdapterDEBUG", "Incoming.bind APPLY_HEIGHT msg=${msg.id} text='${msg.text.take(30)}' premeasured=${item.premeasuredTextHeightPx} minH=${binding.tvMessage.minHeight} fastBind=$isFastBind firstLayout=$isFirstLayout")
                     TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
                 }
 
@@ -7184,7 +7195,11 @@ class ChatAdapter(
         override fun applyTextHeight(item: ChatListItem) {
             if (item is ChatListItem.MessageItem && !item.isEmojiContent
                 && !item.message.isDeletedForAll) {
+                Log.d("ChatAdapterDEBUG", "Outgoing.applyTextHeight msg=${item.message.id} premeasured=${item.premeasuredTextHeightPx} isEmoji=${item.isEmojiContent} deleted=${item.message.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout")
                 TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
+            } else {
+                val mi = item as? ChatListItem.MessageItem
+                Log.d("ChatAdapterDEBUG", "Outgoing.applyTextHeight SKIP msg=${mi?.message?.id ?: "N/A"} isEmoji=${mi?.isEmojiContent} deleted=${mi?.message?.isDeletedForAll} premeasured=${mi?.premeasuredTextHeightPx}")
             }
         }
 
@@ -7219,9 +7234,13 @@ class ChatAdapter(
                 // For deleted messages: reset to natural measurement — the pre-measured height
                 // is for the original msg.text, not the "deleted" placeholder text.
                 if (item.isEmojiContent || msg.isDeletedForAll) {
+                    val wasMinH = binding.tvMessage.minHeight
+                    val wasMaxH = binding.tvMessage.maxHeight
                     binding.tvMessage.minHeight = 0
                     binding.tvMessage.maxHeight = Int.MAX_VALUE
+                    Log.d("ChatAdapterDEBUG", "Outgoing.bind RESET_HEIGHT msg=${msg.id} text='${msg.text.take(30)}' emoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} minH $wasMinH→0 maxH=$wasMaxH→MAX premeasured=${item.premeasuredTextHeightPx} fastBind=$isFastBind firstLayout=$isFirstLayout")
                 } else {
+                    Log.d("ChatAdapterDEBUG", "Outgoing.bind APPLY_HEIGHT msg=${msg.id} text='${msg.text.take(30)}' premeasured=${item.premeasuredTextHeightPx} minH=${binding.tvMessage.minHeight} fastBind=$isFastBind firstLayout=$isFirstLayout")
                     TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
                 }
 

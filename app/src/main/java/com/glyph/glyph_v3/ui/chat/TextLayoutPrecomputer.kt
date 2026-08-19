@@ -4,6 +4,7 @@ import android.os.Build
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
+import android.util.Log
 import android.widget.TextView
 import com.glyph.glyph_v3.data.models.Message
 import com.glyph.glyph_v3.data.models.MessageType
@@ -136,6 +137,7 @@ object TextLayoutPrecomputer {
                     item
                 } else if ((msg.text.isBlank() && item.translatedText.isNullOrBlank()) || item.premeasuredTextHeightPx > 0 || item.isEmojiContent) {
                     // Already pre-measured, has no text (original or translated), or emoji-only (24sp vs 15sp) — skip
+                    Log.d(TAG, "precomputeForItems: SKIP msg=${msg.id} text='${msg.text.take(30)}' blank=${msg.text.isBlank()} hasTransText=${!item.translatedText.isNullOrBlank()} premeasured=${item.premeasuredTextHeightPx} emoji=${item.isEmojiContent} type=${msg.type}")
                     item
                 } else {
                     try {
@@ -149,6 +151,7 @@ object TextLayoutPrecomputer {
                         // Clone paint for thread safety (TextPaint is mutable)
                         val paint = TextPaint(basePaint)
                         val heightPx = measureTextHeight(displayText, paint, width)
+                        Log.d(TAG, "precomputeForItems: msg=${msg.id} text='${msg.text.take(30)}' display='${displayText.take(30)}' deleted=${msg.isDeletedForAll} showingTrans=${item.isShowingTranslation} transText=${item.translatedText?.take(20)} height=$heightPx")
                         // Set in-place (mutable property) so copy() isn't needed and
                         // data-class equals/hashCode is unaffected
                         item.premeasuredTextHeightPx = heightPx
@@ -170,15 +173,21 @@ object TextLayoutPrecomputer {
      * the measurement pass. After setting text, the TextView's onMeasure will see
      * the fixed height and skip the internal layout recomputation.
      */
+    private const val TAG = "TextLayoutPrecomputer"
+
     fun applyToTextView(
         textView: TextView,
         item: ChatListItem.MessageItem
     ): Boolean {
+        val msg = item.message
+        val beforeMinH = textView.minHeight
+        val beforeMaxH = textView.maxHeight
         // Emoji-only messages use a larger font (24sp vs 15sp). The premeasured height
         // was computed with the standard 15sp TextPaint — applying it would clip emojis.
         if (item.isEmojiContent) {
             textView.minHeight = 0
             textView.maxHeight = Int.MAX_VALUE
+            Log.d(TAG, "applyToTextView: EMOJI msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} premeasured=${item.premeasuredTextHeightPx} → skipped, reset minHeight $beforeMinH→0")
             return false
         }
         // No pre-measured height — clear any stale minHeight from a previous bind
@@ -186,9 +195,14 @@ object TextLayoutPrecomputer {
         if (item.premeasuredTextHeightPx <= 0) {
             textView.minHeight = 0
             textView.maxHeight = Int.MAX_VALUE
+            Log.d(TAG, "applyToTextView: NO_PREMEASURED msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} → reset minHeight $beforeMinH→0")
             return false
         }
         try {
+            val paddingV = textView.paddingTop + textView.paddingBottom
+            val newMinH = item.premeasuredTextHeightPx + paddingV
+            val willChange = beforeMinH != newMinH
+            Log.d(TAG, "applyToTextView: APPLY msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} premeasured=${item.premeasuredTextHeightPx} paddingV=$paddingV minHeight $beforeMinH→$newMinH maxHeight=$beforeMaxH→Int.MAX_VALUE change=$willChange")
             // Set minHeight only — NOT maxHeight. The precomputed height is measured at
             // a fixed width (maxBubbleWidthPx) which may differ from the actual display
             // width due to varying screen sizes, bubble padding, or layout constraints.
@@ -199,9 +213,7 @@ object TextLayoutPrecomputer {
             // approximately the right size instead of growing from 0, avoiding the
             // expensive remeasure cascade. The final measure pass adjusts to the exact
             // height but is cheap because the starting size is close.
-            //
             // Add paddingTop + paddingBottom because minHeight includes view padding.
-            val paddingV = textView.paddingTop + textView.paddingBottom
             textView.minHeight = item.premeasuredTextHeightPx + paddingV
             // Clear any stale maxHeight from a previous bind (ViewHolder recycling)
             textView.maxHeight = Int.MAX_VALUE
