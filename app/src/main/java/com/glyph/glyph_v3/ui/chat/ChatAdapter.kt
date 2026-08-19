@@ -1519,6 +1519,13 @@ class ChatAdapter(
                 return
             }
 
+            // GIF and Sticker messages don't get a forward button
+            if (message.type == MessageType.GIF || message.type == MessageType.STICKER) {
+                setVisibility(button, View.GONE)
+                button.setOnClickListener(null)
+                return
+            }
+
             setVisibility(button, View.VISIBLE)
             button.setOnClickListener {
                 val context = itemView.context
