@@ -7047,7 +7047,8 @@ class ChatAdapter(
 
     inner class IncomingTextViewHolder(private val binding: ItemMessageIncomingTextBinding) : BaseViewHolder(binding) {
         override fun applyTextHeight(item: ChatListItem) {
-            if (item is ChatListItem.MessageItem && !item.isEmojiContent) {
+            if (item is ChatListItem.MessageItem && !item.isEmojiContent
+                && !item.message.isDeletedForAll) {
                 TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
             }
         }
@@ -7082,7 +7083,12 @@ class ChatAdapter(
                 // For emoji-only messages: reset any fixed height from a previous bind
                 // (ViewHolder recycling). Emojis use 24sp font but premeasured height is
                 // computed at 15sp — applying it would clip the bottom of emoji glyphs.
-                if (item.isEmojiContent) {
+                // For deleted messages: the displayed text (" This message was deleted ")
+                // is shorter than the original msg.text — the pre-measured height computed
+                // for the original text would force an incorrect minHeight, causing the
+                // bubble to resize when TEXT_HEIGHT_UPDATE payload arrives. Reset to
+                // natural measurement instead.
+                if (item.isEmojiContent || msg.isDeletedForAll) {
                     binding.tvMessage.minHeight = 0
                     binding.tvMessage.maxHeight = Int.MAX_VALUE
                 } else {
@@ -7176,7 +7182,8 @@ class ChatAdapter(
         private var lastStatus: MessageStatus? = null
 
         override fun applyTextHeight(item: ChatListItem) {
-            if (item is ChatListItem.MessageItem && !item.isEmojiContent) {
+            if (item is ChatListItem.MessageItem && !item.isEmojiContent
+                && !item.message.isDeletedForAll) {
                 TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
             }
         }
@@ -7209,7 +7216,9 @@ class ChatAdapter(
                 // Apply pre-measured height BEFORE setting text so onMeasure skips
                 // the internal StaticLayout creation pass.
                 // For emoji-only: reset fixed height from recycled ViewHolder (see IncomingTextViewHolder).
-                if (item.isEmojiContent) {
+                // For deleted messages: reset to natural measurement — the pre-measured height
+                // is for the original msg.text, not the "deleted" placeholder text.
+                if (item.isEmojiContent || msg.isDeletedForAll) {
                     binding.tvMessage.minHeight = 0
                     binding.tvMessage.maxHeight = Int.MAX_VALUE
                 } else {
