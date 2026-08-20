@@ -2689,7 +2689,9 @@ class ChatActivity : AppCompatActivity(),
                 messageItem
             } else {
                 changed = true
-                messageItem.copy(isEmojiContent = recalculatedEmojiOnly)
+                val copied = messageItem.copy(isEmojiContent = recalculatedEmojiOnly)
+                copied.premeasuredTextHeightPx = messageItem.premeasuredTextHeightPx
+                copied
             }
         }
         return if (changed) normalized else listItems
@@ -6481,6 +6483,7 @@ class ChatActivity : AppCompatActivity(),
             isShowingTranslation = txState?.isShowingTranslation ?: false,
             isTranslating = txState?.isTranslating ?: false
         )
+        updatedItem.premeasuredTextHeightPx = item.premeasuredTextHeightPx
 
         // Create a new list with the updated item and submit it
         val newList = currentList.toMutableList()
@@ -7397,6 +7400,15 @@ class ChatActivity : AppCompatActivity(),
                                 // ViewHolder.bind applies fixed min/max height before
                                 // setText(), skipping the onMeasure layout pass.
                                 TextLayoutPrecomputer.precomputeForItems(rawList)
+                            }
+                            // Fast-append and fast-prepend paths skip precompute — ensure
+                            // any items without premeasured heights get computed here.
+                            // precomputeForItems skips items that already have a height (> 0),
+                            // so the fallback path's double-call is a cheap no-op.
+                            if (TextLayoutPrecomputer.isReady()) {
+                                withContext(Dispatchers.Default) {
+                                    TextLayoutPrecomputer.precomputeForItems(listItems)
+                                }
                             }
                             if (deferLargeFlowEmissionIfNeeded(
                                     chatIdSnapshot = id,
@@ -8417,7 +8429,9 @@ class ChatActivity : AppCompatActivity(),
                 }
                 
                 if (groupPos != BubbleGroupPosition.SINGLE) {
-                    tempResult[i] = item.copy(groupPosition = groupPos)
+                    val copied = item.copy(groupPosition = groupPos)
+                    copied.premeasuredTextHeightPx = item.premeasuredTextHeightPx
+                    tempResult[i] = copied
                 }
             }
         }
@@ -8483,7 +8497,9 @@ class ChatActivity : AppCompatActivity(),
                     BubbleGroupPosition.TOP
                 }
                 if (lastMessageItem.groupPosition != updatedLastPosition) {
-                    baseList[lastMessageIndex] = lastMessageItem.copy(groupPosition = updatedLastPosition)
+                    val copied = lastMessageItem.copy(groupPosition = updatedLastPosition)
+                    copied.premeasuredTextHeightPx = lastMessageItem.premeasuredTextHeightPx
+                    baseList[lastMessageIndex] = copied
                 }
                 appendedGroupPosition = BubbleGroupPosition.BOTTOM
             }
@@ -8634,7 +8650,9 @@ class ChatActivity : AppCompatActivity(),
                         !hasPrevSame && hasNextSame -> BubbleGroupPosition.TOP
                         else -> BubbleGroupPosition.SINGLE
                     }
-                    newItems[i] = item.copy(groupPosition = groupPos)
+                    val copied = item.copy(groupPosition = groupPos)
+                    copied.premeasuredTextHeightPx = item.premeasuredTextHeightPx
+                    newItems[i] = copied
                 }
             }
         }
@@ -8675,12 +8693,16 @@ class ChatActivity : AppCompatActivity(),
 
                 val newLastGroup = if (hasPrevSameInNew) BubbleGroupPosition.MIDDLE
                                    else BubbleGroupPosition.TOP
-                newItems[lastNewMsgIdx] = lastNew.copy(groupPosition = newLastGroup)
+                val copiedNew = lastNew.copy(groupPosition = newLastGroup)
+                copiedNew.premeasuredTextHeightPx = lastNew.premeasuredTextHeightPx
+                newItems[lastNewMsgIdx] = copiedNew
 
                 val baseFirstGroup = if (hasNextSameInBase) BubbleGroupPosition.MIDDLE
                                      else BubbleGroupPosition.BOTTOM
                 if (firstBase.groupPosition != baseFirstGroup) {
-                    baseList[firstBaseMsgIdx] = firstBase.copy(groupPosition = baseFirstGroup)
+                    val copiedBase = firstBase.copy(groupPosition = baseFirstGroup)
+                    copiedBase.premeasuredTextHeightPx = firstBase.premeasuredTextHeightPx
+                    baseList[firstBaseMsgIdx] = copiedBase
                 }
             }
         }

@@ -617,7 +617,11 @@ class ChatAdapter(
         return if (strongestStatus == item.message.status) {
             item
         } else {
-            item.copy(message = item.message.copy(status = strongestStatus))
+            val copied = item.copy(message = item.message.copy(status = strongestStatus))
+            if (item is ChatListItem.MessageItem) {
+                copied.premeasuredTextHeightPx = item.premeasuredTextHeightPx
+            }
+            copied
         }
     }
 
@@ -1399,16 +1403,31 @@ class ChatAdapter(
         open fun applyTextHeight(item: ChatListItem) {}
 
         /**
-         * Attach a ViewTreeObserver.OnGlobalLayoutListener to [textView] that logs
-         * every time the actual measured height changes. This is the definitive
-         * trace of when a bubble visually resizes during or after layout.
-         * Each ViewHolder stores its own listener tag so it is only attached once.
+         * Remove a previously-attached OnGlobalLayoutListener from [textView].
+         * Must be called at the START of bind, BEFORE any view modifications
+         * (setTextSize, applyToTextView, setText), so the old listener does not
+         * fire during those changes and log spurious HeightChange events.
          */
-        fun trackHeightChanges(tag: String, textView: TextView, msg: Message) {
+        fun detachHeightTracker(textView: TextView) {
             val existing = textView.getTag(R.id.tag_height_tracker) as? ViewTreeObserver.OnGlobalLayoutListener
             if (existing != null) {
                 textView.viewTreeObserver.removeOnGlobalLayoutListener(existing)
             }
+        }
+
+        /**
+         * Attach a ViewTreeObserver.OnGlobalLayoutListener to [textView] that logs
+         * every time the actual measured height changes. This is the definitive
+         * trace of when a bubble visually resizes during or after layout.
+         * Each ViewHolder stores its own listener tag so it is only attached once.
+         *
+         * Must be called AFTER all view modifications are complete (setTextSize,
+         * applyToTextView, setText, applyEmojiOnlyStyle) so the listener's initial
+         * onGlobalLayout captures the final state. Only post-bind layout changes
+         * (e.g. Glide async image loads) will trigger a HeightChange log.
+         */
+        fun trackHeightChanges(tag: String, textView: TextView, msg: Message) {
+            val trackedMsgId = msg.id
             val listener = object : ViewTreeObserver.OnGlobalLayoutListener {
                 var lastHeight = -1
                 var lastMinH = -1
@@ -1416,6 +1435,13 @@ class ChatAdapter(
                 var lastTextSize = -1f
                 var lastLineCount = -1
                 override fun onGlobalLayout() {
+                    // Stale-listener guard: if the ViewHolder was recycled and a new
+                    // listener was attached, the tag no longer points to this instance.
+                    // This prevents a recycled ViewHolder's old listener from firing
+                    // during a deferred onGlobalLayout and logging spurious HeightChange
+                    // events for the wrong message.
+                    if (textView.getTag(R.id.tag_height_tracker) !== this) return
+
                     val h = textView.height
                     val minH = textView.minHeight
                     val maxH = textView.maxHeight
@@ -1425,7 +1451,7 @@ class ChatAdapter(
                         ts != lastTextSize || lc != lastLineCount
                     if (changed && lastHeight != -1) {
                         Log.d("ChatAdapterDEBUG",
-                            "HeightChange tag=$tag msg=${msg.id.take(8)} " +
+                            "HeightChange tag=$tag msg=${trackedMsgId.take(8)} " +
                             "h=$lastHeight→$h minH=$lastMinH→$minH maxH=$lastMaxH→$maxH " +
                             "textSize=$lastTextSize→$ts lineCount=$lastLineCount→$lc " +
                             "fastBind=$isFastBind firstLayout=$isFirstLayout")
@@ -3938,6 +3964,24 @@ class ChatAdapter(
                 ).forEach { Glide.with(context).clear(it); it.visibility = View.GONE }
             }
         }
+
+    }
+
+    /**
+     * Pre-compute whether a reply or link preview will be shown for [msg],
+     * based solely on message data (no view binding required). This lets
+     * the text-size decision in bind() match the final emojiOnly check in
+     * applyEmojiOnlyStyle(), eliminating the post-setText textSize change
+     * that caused visible bubble resize.
+     */
+    private fun wouldShowReplyOrLinkPreview(msg: Message): Boolean {
+        val hasReply = msg.type == MessageType.STATUS_REPLY || msg.replyToMessageId != null
+        val hasLinkPreview = !msg.isDeletedForAll && msg.type == MessageType.TEXT &&
+            (!msg.linkPreviewTitle.isNullOrBlank() ||
+             !msg.linkPreviewDomain.isNullOrBlank() ||
+             !msg.thumbnailUrl.isNullOrBlank()) &&
+            !LinkPreviewResolver.extractFirstUrl(msg.text).isNullOrBlank()
+        return hasReply || hasLinkPreview
     }
 
     inner class IncomingMediaViewHolder(private val binding: ItemMessageIncomingMediaBinding) : BaseViewHolder(binding) {
@@ -7091,8 +7135,10 @@ class ChatAdapter(
 
     inner class IncomingTextViewHolder(private val binding: ItemMessageIncomingTextBinding) : BaseViewHolder(binding) {
         override fun applyTextHeight(item: ChatListItem) {
-            if (item is ChatListItem.MessageItem && !item.isEmojiContent
-                && !item.message.isDeletedForAll) {
+            // Deleted messages DO get a premeasured height (computed for
+            // " This message was deleted ") — apply it so the bubble starts
+            // at the correct size and doesn't resize when it binds.
+            if (item is ChatListItem.MessageItem && !item.isEmojiContent) {
                 Log.d("ChatAdapterDEBUG", "Incoming.applyTextHeight msg=${item.message.id} premeasured=${item.premeasuredTextHeightPx} isEmoji=${item.isEmojiContent} deleted=${item.message.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout")
                 TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
             } else {
@@ -7118,25 +7164,40 @@ class ChatAdapter(
                 }
                 binding.tvMessage.setTextColor(colorOtherText)
 
+                // Detach the old height-change listener BEFORE any view modifications
+                // so it doesn't fire during the upcoming setTextSize/applyToTextView/setText
+                // calls and log spurious HeightChange events.
+                detachHeightTracker(binding.tvMessage)
+
                 // Capture text layout params once for background-thread precomputation.
-                // Set correct text size first: XML default is 17sp but normal messages
-                // use 15sp. Without this the precomputed height is 13% too tall.
                 if (!TextLayoutPrecomputer.isReady()) {
                     binding.tvMessage.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, normalMessageTextSizeSp)
                     TextLayoutPrecomputer.captureParams(binding.tvMessage)
                 }
 
+                // Set correct text size BEFORE setText. XML default is 17sp but normal
+                // messages must render at 15sp (matching the precomputed paint) and
+                // emoji-only at 36sp. Setting 15sp first ensures the initial layout
+                // measurement matches the premeasured height, preventing a second
+                // layout pass when applyEmojiOnlyStyle runs later.
+                // Use the FULL emojiOnly check (including reply/link visibility) so
+                // applyEmojiOnlyStyle won't need to change textSize after setText.
+                val emojiOnly = !msg.isForwarded && !msg.isDeletedForAll &&
+                    !wouldShowReplyOrLinkPreview(msg) && item.isEmojiContent
+                binding.tvMessage.setTextSize(
+                    android.util.TypedValue.COMPLEX_UNIT_SP,
+                    if (emojiOnly) emojiOnlyTextSizeSp else normalMessageTextSizeSp
+                )
+
                 // Apply pre-measured height BEFORE setting text so onMeasure skips
                 // the internal StaticLayout creation pass.
                 // For emoji-only messages: reset any fixed height from a previous bind
-                // (ViewHolder recycling). Emojis use 24sp font but premeasured height is
+                // (ViewHolder recycling). Emojis use 36sp font but premeasured height is
                 // computed at 15sp — applying it would clip the bottom of emoji glyphs.
-                // For deleted messages: the displayed text (" This message was deleted ")
-                // is shorter than the original msg.text — the pre-measured height computed
-                // for the original text would force an incorrect minHeight, causing the
-                // bubble to resize when TEXT_HEIGHT_UPDATE payload arrives. Reset to
-                // natural measurement instead.
-                if (item.isEmojiContent || msg.isDeletedForAll) {
+                // For deleted messages: the premeasureForItems function already computes
+                // the height of " This message was deleted " (with the deleted text),
+                // so the premeasured height IS correct and should be applied.
+                if (item.isEmojiContent) {
                     val wasMinH = binding.tvMessage.minHeight
                     val wasMaxH = binding.tvMessage.maxHeight
                     binding.tvMessage.minHeight = 0
@@ -7158,8 +7219,6 @@ class ChatAdapter(
                     binding.tvMessage.alpha = 1.0f
                 }
 
-                trackHeightChanges("IN", binding.tvMessage, msg)
-
                 if (isFastBind || isFirstLayout) {
                     bindTranslationState(item, binding.tvMessage, binding.tvTranslationLabel)
                     val linkPreviewVisible = bindLinkPreview(
@@ -7170,13 +7229,13 @@ class ChatAdapter(
                     )
                     bindReplyPreview(binding.root.context, binding.root, msg)
                     binding.tvTimestamp.text = formatTimestampWithEdited(msg, msg.formattedTime)
-                    val replyVisible = binding.includeReplyPreview.root.visibility == View.VISIBLE
-                    val emojiOnly = !msg.isForwarded && !msg.isDeletedForAll && !replyVisible && !linkPreviewVisible && item.isEmojiContent
-                    Log.d("ChatAdapterDEBUG", "Incoming.bind EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=$replyVisible textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
+                    Log.d("ChatAdapterDEBUG", "Incoming.bind EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=${wouldShowReplyOrLinkPreview(msg)} textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
                     applyEmojiOnlyStyle(binding.cardMessage, binding.tvMessage, emojiOnly, isIncoming = true)
                     setupEmojiTapToReveal(binding.tvMessage, emojiOnly, binding.tvTimestamp, null)
                     updateGrouping(position)
                     bindSelection(item, animate = false)
+                    // Attach height-change listener AFTER all view modifications are done
+                    trackHeightChanges("IN", binding.tvMessage, msg)
                     return
                 }
 
@@ -7188,15 +7247,15 @@ class ChatAdapter(
 
                 bindReplyPreview(binding.root.context, binding.root, msg)
 
-                val replyVisible = binding.root.findViewById<View>(R.id.includeReplyPreview)?.visibility == View.VISIBLE
-                val emojiOnly = !msg.isForwarded && !msg.isDeletedForAll && !replyVisible && !linkPreviewVisible && item.isEmojiContent
-                Log.d("ChatAdapterDEBUG", "Incoming.bind FULL EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=$replyVisible textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
+                Log.d("ChatAdapterDEBUG", "Incoming.bind FULL EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=${wouldShowReplyOrLinkPreview(msg)} textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
                 applyEmojiOnlyStyle(binding.cardMessage, binding.tvMessage, emojiOnly, isIncoming = true)
                 setupEmojiTapToReveal(binding.tvMessage, emojiOnly, binding.tvTimestamp, null)
 
                 updateGrouping(position)
                 maybeBounceIncoming(item, binding.cardMessage)
                 bindSelection(item, animate = false)
+                // Attach height-change listener AFTER all view modifications are done
+                trackHeightChanges("IN", binding.tvMessage, msg)
             }
         }
 
@@ -7238,8 +7297,10 @@ class ChatAdapter(
         private var lastStatus: MessageStatus? = null
 
         override fun applyTextHeight(item: ChatListItem) {
-            if (item is ChatListItem.MessageItem && !item.isEmojiContent
-                && !item.message.isDeletedForAll) {
+            // Deleted messages DO get a premeasured height (computed for
+            // " This message was deleted ") — apply it so the bubble starts
+            // at the correct size and doesn't resize when it binds.
+            if (item is ChatListItem.MessageItem && !item.isEmojiContent) {
                 Log.d("ChatAdapterDEBUG", "Outgoing.applyTextHeight msg=${item.message.id} premeasured=${item.premeasuredTextHeightPx} isEmoji=${item.isEmojiContent} deleted=${item.message.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout")
                 TextLayoutPrecomputer.applyToTextView(binding.tvMessage, item)
             } else {
@@ -7253,7 +7314,7 @@ class ChatAdapter(
                 val msg = item.message
                 initializeColors(binding.root.context)
                 bindForwardedLabel(msg, isIncoming = false)
-                
+
                 if (isPastelTheme) {
                     binding.cardMessage.setBackgroundResource(R.drawable.bg_pastel_bubble_outgoing)
                     binding.cardMessage.backgroundTintList = null
@@ -7263,22 +7324,38 @@ class ChatAdapter(
                     }
                     binding.cardMessage.backgroundTintList = tintOwnBubble
                 }
-                
+
                 binding.tvMessage.setTextColor(colorOwnText)
 
+                // Detach the old height-change listener BEFORE any view modifications
+                // so it doesn't fire during the upcoming setTextSize/applyToTextView/setText
+                // calls and log spurious HeightChange events.
+                detachHeightTracker(binding.tvMessage)
+
                 // Capture text layout params once for background-thread precomputation.
-                // Set correct text size first (see IncomingTextViewHolder comment).
                 if (!TextLayoutPrecomputer.isReady()) {
                     binding.tvMessage.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, normalMessageTextSizeSp)
                     TextLayoutPrecomputer.captureParams(binding.tvMessage)
                 }
 
+                // Set correct text size BEFORE setText (see IncomingTextViewHolder comment).
+                // Use the FULL emojiOnly check (including reply/link visibility) so
+                // applyEmojiOnlyStyle won't need to change textSize after setText.
+                val emojiOnly = !msg.isForwarded && !msg.isDeletedForAll &&
+                    !wouldShowReplyOrLinkPreview(msg) && item.isEmojiContent
+                binding.tvMessage.setTextSize(
+                    android.util.TypedValue.COMPLEX_UNIT_SP,
+                    if (emojiOnly) emojiOnlyTextSizeSp else normalMessageTextSizeSp
+                )
+
                 // Apply pre-measured height BEFORE setting text so onMeasure skips
                 // the internal StaticLayout creation pass.
-                // For emoji-only: reset fixed height from recycled ViewHolder (see IncomingTextViewHolder).
-                // For deleted messages: reset to natural measurement — the pre-measured height
-                // is for the original msg.text, not the "deleted" placeholder text.
-                if (item.isEmojiContent || msg.isDeletedForAll) {
+                // For emoji-only messages: reset any fixed height from a previous bind
+                // (ViewHolder recycling). Emojis use 36sp font but premeasured height is
+                // computed at 15sp — applying it would clip the bottom of emoji glyphs.
+                // For deleted messages: precomputeForItems computes the height of
+                // " This message was deleted ", so the premeasured height IS correct.
+                if (item.isEmojiContent) {
                     val wasMinH = binding.tvMessage.minHeight
                     val wasMaxH = binding.tvMessage.maxHeight
                     binding.tvMessage.minHeight = 0
@@ -7299,8 +7376,6 @@ class ChatAdapter(
                     binding.tvMessage.alpha = 1.0f
                 }
 
-                trackHeightChanges("OUT", binding.tvMessage, msg)
-
                 if (isFastBind || isFirstLayout) {
                     bindTranslationState(item, binding.tvMessage, binding.tvTranslationLabel)
                     val linkPreviewVisible = bindLinkPreview(
@@ -7311,9 +7386,7 @@ class ChatAdapter(
                     )
                     bindReplyPreview(binding.root.context, binding.root, msg)
                     binding.tvTimestamp.text = formatTimestampWithEdited(msg, msg.formattedTime)
-                    val replyVisible = binding.includeReplyPreview.root.visibility == View.VISIBLE
-                    val emojiOnly = !msg.isForwarded && !msg.isDeletedForAll && !replyVisible && !linkPreviewVisible && item.isEmojiContent
-                    Log.d("ChatAdapterDEBUG", "Outgoing.bind EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=$replyVisible textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
+                    Log.d("ChatAdapterDEBUG", "Outgoing.bind EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=${wouldShowReplyOrLinkPreview(msg)} textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
                     applyEmojiOnlyStyle(binding.cardMessage, binding.tvMessage, emojiOnly, isIncoming = false)
                     if (!msg.isDeletedForAll) {
                         binding.ivStatus.visibility = View.VISIBLE
@@ -7324,6 +7397,8 @@ class ChatAdapter(
                     setupEmojiTapToReveal(binding.tvMessage, emojiOnly, binding.tvTimestamp, binding.ivStatus)
                     updateGrouping(position)
                     bindSelection(item, animate = false)
+                    // Attach height-change listener AFTER all view modifications are done
+                    trackHeightChanges("OUT", binding.tvMessage, msg)
                     return
                 }
 
@@ -7335,9 +7410,7 @@ class ChatAdapter(
 
                 bindReplyPreview(binding.root.context, binding.root, msg)
 
-                val replyVisible = binding.root.findViewById<View>(R.id.includeReplyPreview)?.visibility == View.VISIBLE
-                val emojiOnly = !msg.isForwarded && !msg.isDeletedForAll && !replyVisible && !linkPreviewVisible && item.isEmojiContent
-                Log.d("ChatAdapterDEBUG", "Outgoing.bind FULL EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=$replyVisible textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
+                Log.d("ChatAdapterDEBUG", "Outgoing.bind FULL EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=${wouldShowReplyOrLinkPreview(msg)} textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
                 applyEmojiOnlyStyle(binding.cardMessage, binding.tvMessage, emojiOnly, isIncoming = false)
 
                 if (!msg.isDeletedForAll) {
@@ -7352,6 +7425,8 @@ class ChatAdapter(
                 updateGrouping(position)
                 maybeBounceIncoming(item, binding.cardMessage)
                 bindSelection(item, animate = false)
+                // Attach height-change listener AFTER all view modifications are done
+                trackHeightChanges("OUT", binding.tvMessage, msg)
             }
         }
 

@@ -133,10 +133,10 @@ object TextLayoutPrecomputer {
                 item
             } else {
                 val msg = item.message
-                if (msg.type != MessageType.TEXT && msg.type != MessageType.STATUS_REPLY) {
+                if (msg.type != MessageType.TEXT && msg.type != MessageType.STATUS_REPLY && !msg.isDeletedForAll) {
                     item
-                } else if ((msg.text.isBlank() && item.translatedText.isNullOrBlank()) || item.premeasuredTextHeightPx > 0 || item.isEmojiContent) {
-                    // Already pre-measured, has no text (original or translated), or emoji-only (24sp vs 15sp) — skip
+                } else if ((msg.text.isBlank() && item.translatedText.isNullOrBlank() && !msg.isDeletedForAll) || item.premeasuredTextHeightPx > 0 || item.isEmojiContent) {
+                    // Already pre-measured, has no text (original or translated) and not deleted, or emoji-only (24sp vs 15sp) — skip
                     Log.d(TAG, "precomputeForItems: SKIP msg=${msg.id} text='${msg.text.take(30)}' blank=${msg.text.isBlank()} hasTransText=${!item.translatedText.isNullOrBlank()} premeasured=${item.premeasuredTextHeightPx} emoji=${item.isEmojiContent} type=${msg.type}")
                     item
                 } else {
@@ -193,10 +193,22 @@ object TextLayoutPrecomputer {
         // No pre-measured height — clear any stale minHeight from a previous bind
         // (e.g. ViewHolder recycling after a translation toggle via item.copy()).
         if (item.premeasuredTextHeightPx <= 0) {
-            textView.minHeight = 0
-            textView.maxHeight = Int.MAX_VALUE
-            Log.d(TAG, "applyToTextView: NO_PREMEASURED msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} → reset minHeight $beforeMinH→0")
-            return false
+            // For deleted text messages, synchronously compute the height as a fallback.
+            // This handles the edge case where the message entered the adapter via a path
+            // that didn't run precomputeForItems (e.g. loadOlderMessages direct path with
+            // a pre-warmed TextLayoutPrecomputer that wasn't ready when the items were first created).
+            // The measurement is a cheap StaticLayout call for a single short string.
+            if (msg.isDeletedForAll) {
+                measureAndSetHeight(item)
+            }
+            if (item.premeasuredTextHeightPx <= 0) {
+                textView.minHeight = 0
+                textView.maxHeight = Int.MAX_VALUE
+                Log.d(TAG, "applyToTextView: NO_PREMEASURED msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} → reset minHeight $beforeMinH→0")
+                return false
+            }
+            // measureAndSetHeight succeeded — fall through to APPLY path below
+            Log.d(TAG, "applyToTextView: SYNC_MEASURE msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} → height=${item.premeasuredTextHeightPx}")
         }
         try {
             val paddingV = textView.paddingTop + textView.paddingBottom
