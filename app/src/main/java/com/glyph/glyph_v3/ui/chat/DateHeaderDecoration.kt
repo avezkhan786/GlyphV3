@@ -5,6 +5,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.util.TypedValue
+import android.util.Log
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
@@ -86,8 +87,10 @@ class DateHeaderDecoration(
             val position = parent.getChildAdapterPosition(child)
             if (position == RecyclerView.NO_POSITION) continue
 
-            val dateText = getDateTextForPosition(position)
-            if (dateText != null && shouldShowDateHeader(position)) {
+            val dateText = getDateTextForPosition(position, parent)
+            val showHeader = shouldShowDateHeader(position, parent)
+            Log.d("DateHeaderDecor", "pos=$position adapterItemCount=${(parent.adapter as? ChatAdapter)?.currentList?.size} showHeader=$showHeader dateText=$dateText prevItemType=${getPrevItemType(position, parent)}")
+            if (dateText != null && showHeader) {
                 drawDateChip(canvas, parent, dateText, child)
             }
         }
@@ -126,38 +129,45 @@ class DateHeaderDecoration(
     /**
      * Check if position should show a date header
      */
-    private fun shouldShowDateHeader(position: Int): Boolean {
+    private fun getPrevItemType(position: Int, parent: RecyclerView): String? {
+        val adapter = parent.adapter as? ChatAdapter ?: return "null"
+        val prevItem = adapter.currentList.getOrNull(position - 1)
+        return prevItem?.javaClass?.simpleName
+    }
+
+    private fun shouldShowDateHeader(position: Int, parent: RecyclerView): Boolean {
         if (position == 0) return true
 
-        // Get previous position's timestamp
-        val currentTimestamp = getTimestampForPosition(position) ?: return false
-        val previousTimestamp = getTimestampForPosition(position - 1) ?: return true
+        val adapter = parent.adapter as? ChatAdapter ?: return false
+        val currentItem = adapter.currentList.getOrNull(position) as? ChatListItem.MessageItem ?: return false
+        val prevItem = adapter.currentList.getOrNull(position - 1)
 
-        // Check if dates are different
-        val cal1 = Calendar.getInstance().apply { timeInMillis = currentTimestamp }
-        val cal2 = Calendar.getInstance().apply { timeInMillis = previousTimestamp }
-
-        return cal1.get(Calendar.YEAR) != cal2.get(Calendar.YEAR) ||
-                cal1.get(Calendar.DAY_OF_YEAR) != cal2.get(Calendar.DAY_OF_YEAR)
+        // The floating chip should always display above the FIRST adapter message
+        // from each date group. In our adapter, each date group starts with a
+        // DateHeader followed by its MessageItems. So the chip should show
+        // when this adapter message immediately follows a DateHeader item.
+        val result = prevItem is ChatListItem.DateHeader
+        Log.d("DateHeaderDecor", "shouldShowDateHeader pos=$position currentType=${currentItem?.javaClass?.simpleName} prevType=${prevItem?.javaClass?.simpleName} result=$result")
+        return result
     }
 
     /**
      * Get date text for a position
      */
-    private fun getDateTextForPosition(position: Int): String? {
-        if (!shouldShowDateHeader(position)) return null
+    private fun getDateTextForPosition(position: Int, parent: RecyclerView): String? {
+        if (!shouldShowDateHeader(position, parent)) return null
 
-        val timestamp = getTimestampForPosition(position) ?: return null
+        val timestamp = getTimestampForPosition(position, parent) ?: return null
         return formatDate(timestamp)
     }
 
     /**
      * Get timestamp for a position (placeholder - adapt to your adapter)
      */
-    private fun getTimestampForPosition(position: Int): Long? {
-        // TODO: Adapt this to your actual adapter
-        // For now, return current time as placeholder
-        return System.currentTimeMillis()
+    private fun getTimestampForPosition(position: Int, parent: RecyclerView): Long? {
+        val adapter = parent.adapter as? ChatAdapter ?: return null
+        val item = adapter.currentList.getOrNull(position) as? ChatListItem.MessageItem ?: return null
+        return item.message.timestamp
     }
 
     /**

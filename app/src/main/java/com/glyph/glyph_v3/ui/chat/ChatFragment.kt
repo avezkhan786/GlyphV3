@@ -210,6 +210,7 @@ class ChatFragment : Fragment() {
                 stackFromEnd = true
             }
             adapter = chatAdapter
+            addItemDecoration(DateHeaderDecoration.createDefault(isDark = false))
         }
     }
 

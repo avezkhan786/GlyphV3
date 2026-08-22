@@ -605,26 +605,26 @@ class ChatActivity : AppCompatActivity(),
         // (each growth adds a full page of older rows) while letting each Room query + DiffUtil run
         // to completion. The very first growth of a session is always allowed (see loadOlderMessages).
         // Reduced from 80ms to 60ms for faster response during rapid scrolls.
-        private const val PAGINATION_COOLDOWN_MS = 60L
+        private const val PAGINATION_COOLDOWN_MS = 30L
         // Trigger distance: prefetch older history when the first visible item is within
         // this many rows of the very start (newest messages). Raised from 20 to 40 so
         // pagination fires well before the user reaches the boundary — prevents the
         // scroll-stopping "top wall" effect where the user scrolls through all loaded
         // items before the expanded Room query returns.
-        private const val LOAD_OLDER_THRESHOLD = 40
+        private const val LOAD_OLDER_THRESHOLD = 25
         // Maximum trigger distance for fast-fling scenarios: when the last visible item
         // is within this many rows of the oldest loaded message. Raised from 80 to 120
         // so fast flings trigger pagination much earlier, keeping the buffer full.
-        private const val LOAD_OLDER_THRESHOLD_MAX = 120
+        private const val LOAD_OLDER_THRESHOLD_MAX = 100
         // Load more pages per pagination trigger. Raised from 2 to 3 so each trigger
         // brings in 150 older messages (3 × 50) instead of 100, reducing the number
         // of flatMapLatest cancellations and keeping the buffer deeper.
-        private const val MAX_OLDER_PAGES_PER_LOAD = 3
+        private const val MAX_OLDER_PAGES_PER_LOAD = 5
         // After each page load, keep at least this many rows ahead of the user's scroll
         // position. Raised from 50 to 80 so continuous prefetch maintains a deeper buffer
         // — a fast fling at 1000px/s (typical) would exhaust 50 rows in ~2s but 80 rows
         // buys ~3.2s, comfortably covering the Room query + DiffUtil window.
-        private const val OLDER_PREFETCH_KEEP_AHEAD_ROWS = 80
+        private const val OLDER_PREFETCH_KEEP_AHEAD_ROWS = 120
 
         fun newIntent(
             context: Context,
@@ -2123,38 +2123,50 @@ class ChatActivity : AppCompatActivity(),
                 val onlyNew = newMessages.filter { it.id !in previousIds }
                 if (onlyNew.isEmpty()) return@launch
 
-                // Process new messages on background threads
-                val newItems = withContext(Dispatchers.Default) {
+                // Process new (older) messages for tracking and warm-up
+                withContext(Dispatchers.Default) {
                     onlyNew.forEach { it.warmUpForUi() }
-                    val raw = processMessagesWithHeaders(onlyNew)
-                    if (TextLayoutPrecomputer.isReady()) {
-                        TextLayoutPrecomputer.precomputeForItems(raw)
-                    } else raw
                 }
 
-                // Prepend to the adapter's current list on main thread
-                val currentList = chatAdapter.currentList.toMutableList()
-                // Remove typing indicator if present (it stays at the tail)
-                val typingIdx = currentList.indexOfLast { it is ChatListItem.TypingIndicator }
-                if (typingIdx >= 0) currentList.removeAt(typingIdx)
-
-                // Prepend new (older) items at the beginning
-                currentList.addAll(0, newItems)
-
-                // Restore typing indicator at the tail
-                if (typingIdx >= 0) {
-                    currentList.add(ChatListItem.TypingIndicator())
-                }
-
-                // Update tracking state
+                // Build adapter list from the FULL updated message state (not adapter state),
+                // so pagination results stay consistent with the deferred flow emission.
+                // When scroll stops, the deferred flow applies the full list; if pagination
+                // used adapter.currentList as a base, the adapter would show stale partial
+                // results until the deferred emission corrects it — the "stale after stop"
+                // bug.
                 currentMessages = newMessages
                 renderedMessageOrder = newMessages.map { it.id }
                 chatAdapter.replyLookupMessages = newMessages
-                updateDisplayedMessageIds(currentList)
+
+                val fullAdapterList = withContext(Dispatchers.Default) {
+                    val rawList = processMessagesWithHeaders(
+                        newMessages,
+                        showTypingIndicator = false,
+                        newIncomingIds = emptySet(),
+                        expressiveActive = false,
+                        expressiveText = "",
+                        expressiveSent = com.glyph.glyph_v3.ui.chat.expressive.SentimentType.NEUTRAL
+                    )
+                    TextLayoutPrecomputer.precomputeForItems(rawList)
+                    rawList
+                }
+
+                // Preserve typing indicator at tail if it was present before
+                val typingIdxInFull = fullAdapterList.indexOfLast { it is ChatListItem.TypingIndicator }
+                val hadTyping = typingIdxInFull >= 0 || chatAdapter.currentList.indexOfLast { it is ChatListItem.TypingIndicator } >= 0
+                val finalList = if (hadTyping) {
+                    val listWithoutTyping = fullAdapterList.filterNot { it is ChatListItem.TypingIndicator }
+                    listWithoutTyping + ChatListItem.TypingIndicator()
+                } else {
+                    fullAdapterList
+                }
+
+                updateDisplayedMessageIds(finalList)
                 hasMoreOlderMessages = newMessages.size >= windowAfter
 
-                // Submit the merged list — DiffUtil finds items unchanged, only new ones added
-                chatAdapter.submitList(currentList) {
+                // Submit the full rebuilt adapter list — consistent with the deferred flow
+                // emission so pagination results never diverge from the full flow state.
+                chatAdapter.submitList(finalList) {
                     // Keep scroll position stable at the same content
                 }
             } catch (_: Exception) {
