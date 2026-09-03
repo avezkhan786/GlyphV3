@@ -2273,14 +2273,21 @@ class ChatActivity : AppCompatActivity(),
         if (isFinishing || isDestroyed) return
         StartupTrace.logStage("chat_prefill_start", "chatId=$id")
 
-        // ── MEMORY CACHE (warm reopen) ──────────────────────────────────
-        // HashMap lookup ~1ms. Submit synchronously so the RecyclerView has
-        // data before its first layout. Snapshot items already have precomputed
-        // text heights (PersistedRenderItem.premeasuredTextHeightPx).
-        val memorySnapshot = MessageCacheManager.getSnapshot(id)
+        // ── MEMORY + DISK CACHE (warm reopen / cold start from notification) ───
+        // getRenderableSnapshot checks the in-memory map first (~1ms), then falls
+        // back to the disk snapshot (gson deserialize ~10-30ms). The disk snapshot
+        // now persists premeasuredTextHeightPx, so cold-start notification opens
+        // (where Android killed the process between FCM receipt and the user
+        // tapping the notification) still get a prefill with valid minHeight values
+        // — bubbles don't resize 8px on first paint.
+        val memorySnapshot = MessageCacheManager.getRenderableSnapshot(id)
         if (memorySnapshot != null && memorySnapshot.listItems.isNotEmpty()) {
+            // getRenderableSnapshot appends "_disk" if loaded from disk (see
+            // MessageCacheManager.loadSnapshotFromDisk), so the source field
+            // already carries the correct provenance — don't append "_memory"
+            // again or the trace will read e.g. "fcm_persist_disk_memory".
             StartupTrace.logStage("chat_prefill_source",
-                "chatId=$id source=${memorySnapshot.source}_memory count=${memorySnapshot.recentMessages.size}")
+                "chatId=$id source=${memorySnapshot.source} count=${memorySnapshot.recentMessages.size}")
 
             if (isGroupChat) primeGroupSenderCachesForMessages(memorySnapshot.recentMessages)
             val normalized = normalizePrefillListItems(memorySnapshot.listItems)
@@ -2289,7 +2296,7 @@ class ChatActivity : AppCompatActivity(),
                 mediaController.consumePrefetcherRetainedMediaPreloads(id)
             }
             submitPrefillAndShow(id, normalized, memorySnapshot.recentMessages,
-                "${memorySnapshot.source}_memory")
+                memorySnapshot.source)
             lifecycleScope.launch(Dispatchers.Default) {
                 memorySnapshot.recentMessages.forEach { it.warmUpForUi() }
             }
@@ -2297,7 +2304,7 @@ class ChatActivity : AppCompatActivity(),
             return
         }
 
-        // ── DISK CACHE (not yet wired) — skip for now ────────────────────
+        // ── NO CACHE (first ever open for this chat) — Room DB query ────────
 
         // ── COLD START (no cache at all) — Room DB query ─────────────────
         // The RecyclerView stays at alpha=0 until content arrives. The user
@@ -10774,6 +10781,19 @@ class ChatActivity : AppCompatActivity(),
             if (!::chatAdapter.isInitialized || chatAdapter.isScrolling || isFinishing || isDestroyed) {
                 return@launch
             }
+            // DEBUG: log the flag flip so we can correlate it with the next re-bind
+            // (or the lack of one). If no notifyVisibleScrollStoppedMedia log follows
+            // within a few seconds, hypothesis 4 (no re-bind after flip) is confirmed.
+            if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                val rv = binding.recyclerViewMessages
+                val lm = rv.layoutManager as? androidx.recyclerview.widget.LinearLayoutManager
+                val first = lm?.findFirstVisibleItemPosition() ?: -1
+                val last = lm?.findLastVisibleItemPosition() ?: -1
+                Log.d("BubbleResize",
+                    "isFirstLayout FLIP false reason=post-500ms-idle " +
+                    "visibleCount=${if (last >= first) last - first + 1 else 0} " +
+                    "first=$first last=$last")
+            }
             chatAdapter.isFirstLayout = false
             // Flush the live flow emission that was deferred while isFirstLayout was true.
             // Without this, the 521-item emission stays deferred forever if the user doesn't
@@ -10809,6 +10829,9 @@ class ChatActivity : AppCompatActivity(),
                 )
             }
 
+            Log.d("BubbleResize",
+                "notifyVisibleScrollStoppedMedia fired " +
+                "first=$first last=$last visible=${last - first + 1}")
             chatAdapter.notifyVisibleScrollStoppedMedia(binding.recyclerViewMessages)
         }
     }

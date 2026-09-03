@@ -380,6 +380,26 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     text = text,
                     senderId = senderId,
                     timestamp = timestamp,
+                    // The FCM data payload does not carry a server-authoritative
+                    // `serverTimestamp` (Firestore's `FieldValue.serverTimestamp()` is only
+                    // written when the message document is created in Firestore). Without
+                    // this, the FCM-persisted message has `serverTimestamp = null`, but
+                    // the live flow's Firestore-delivered version has it set to a real
+                    // epoch ms. DiffUtil compares `Message` as a data class — `serverTimestamp`
+                    // is in the constructor — so it sees the FCM-persisted item and the
+                    // Firestore-delivered item as different, removes the prefill item,
+                    // and rebinds the bubble. If the prefill had `preH=0` and the rebind
+                    // has `preH=57`, the bubble resizes 8px — the "list moves up" symptom.
+                    //
+                    // Use the FCM-supplied client timestamp as a best-effort match. The
+                    // sender's client clock and the server's `serverTimestamp` typically
+                    // differ by tens to hundreds of ms, so this is not a perfect equality
+                    // match — but combined with Fix A (TextLayoutPrecomputer init at app
+                    // startup so the FCM precompute runs and the snapshot has preH=57), any
+                    // residual rebind is visually silent. Firestore's eventual write will
+                    // overwrite `serverTimestamp` to the authoritative value, but DiffUtil's
+                    // rebind is then a no-op for bubble height (both have preH=57).
+                    serverTimestamp = timestamp,
                     status = status,
                     isIncoming = true,
                     type = type,
@@ -426,10 +446,26 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     .map { it.toDomainMessage() }
                 if (recentMessages.isNotEmpty()) {
                     recentMessages.forEach { it.warmUpForUi() }
+                    // Run the text-height precompute so the snapshot items carry non-zero
+                    // premeasuredTextHeightPx. Without this, the notification open path
+                    // reads a snapshot whose items have preH=0, the first bind measures
+                    // bubbles without a minHeight, and the precompute completion 100-200ms
+                    // later triggers a visible height change in the bottom-most message
+                    // (the "list slightly moves up" symptom).
+                    // precomputeForItems already uses Dispatchers.Default internally, so
+                    // we just need to call it as a suspend function from this runBlocking
+                    // coroutine.
+                    val builtListItems = ChatTranscriptSnapshotBuilder.build(recentMessages)
+                    val precomputedListItems =
+                        if (com.glyph.glyph_v3.ui.chat.TextLayoutPrecomputer.isReady()) {
+                            com.glyph.glyph_v3.ui.chat.TextLayoutPrecomputer.precomputeForItems(builtListItems)
+                        } else {
+                            builtListItems
+                        }
                     MessageCacheManager.putSnapshot(
                         chatId = chatId,
                         recentMessages = recentMessages,
-                        listItems = ChatTranscriptSnapshotBuilder.build(recentMessages),
+                        listItems = precomputedListItems,
                         source = "fcm_persist"
                     )
                 }
@@ -1226,6 +1262,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         ).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
+        // Run the 3 prefetch calls so the chat underneath the camera prompt is already
+        // primed (prevents the bubble resize that happens on the first frame when
+        // precomputed minHeight arrives after the initial measure pass).
+        runNotificationChatPrefetch(chatId, senderUserId)
         val openChatPi = PendingIntent.getActivity(
             applicationContext, notifId,
             openChatIntent,
@@ -1249,6 +1289,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     Intent.FLAG_ACTIVITY_CLEAR_TOP or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
+        // The "Yes" path is the actual user-driven open — make sure the chat is primed
+        // before the activity launches (same reason as openChatIntent above).
+        runNotificationChatPrefetch(chatId, senderUserId)
         val acceptPi = PendingIntent.getActivity(
             applicationContext, notifId + 1,
             acceptIntent,
@@ -1351,6 +1394,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         ).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
+        runNotificationChatPrefetch(chatId, senderUserId)
         val openChatPi = PendingIntent.getActivity(
             applicationContext, notifId,
             openChatIntent,
@@ -2710,6 +2754,49 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 // animation which causes notification-drawer lag on some devices.
             }
             nm.createNotificationChannel(channel)
+        }
+    }
+
+    /**
+     * Run the 3 prefetch calls before building a PendingIntent that opens ChatActivity.
+     * Mirrors ChatListFragment.openChat / ChatListComposeFragment.navigateToChat so the
+     * notification open path has the same first-paint stability as the chat-list tap path
+     * (no bubble resize, no missing-message first frame).
+     *
+     * Safe to call from the FCM service thread — all heavy work goes to Dispatchers.IO.
+     * No-op if GlyphApplication has not yet been constructed (should not happen in
+     * practice, but guard against the FCM service receiving a message before the
+     * process fully started).
+     */
+    private fun runNotificationChatPrefetch(chatId: String, otherUserId: String) {
+        val app = applicationContext as? com.glyph.glyph_v3.GlyphApplication ?: return
+        val trimmedChatId = chatId.trim()
+        if (trimmedChatId.isEmpty()) return
+        try {
+            app.ensureSharedRepositoryStartup(reason = "fcm_notification_tap")
+            val repository = app.getOrCreateRealtimeRepository()
+            com.glyph.glyph_v3.ui.chat.ChatOpenPrefetcher.noteChatOpenStarting(trimmedChatId)
+            com.glyph.glyph_v3.ui.chat.ChatConnectionPrewarmer.prewarmForChatOpen(
+                repository = repository,
+                chatId = trimmedChatId,
+                otherUserId = otherUserId
+            )
+            kotlinx.coroutines.CoroutineScope(
+                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+            ).launch {
+                runCatching {
+                    com.glyph.glyph_v3.ui.chat.ChatOpenPrefetcher.primeChatOpen(
+                        context = applicationContext,
+                        repository = repository,
+                        chatId = trimmedChatId,
+                        source = "fcm_notification_tap",
+                        peerUserId = otherUserId
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Notification chat prefetch failed for $trimmedChatId; " +
+                "ChatActivity will fall back to its normal open path", e)
         }
     }
 

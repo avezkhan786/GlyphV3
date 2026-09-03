@@ -182,12 +182,31 @@ object TextLayoutPrecomputer {
         val msg = item.message
         val beforeMinH = textView.minHeight
         val beforeMaxH = textView.maxHeight
+        val caller = (textView.tag as? String)?.take(8) ?: "?"
+        // CAUSE tag: the precomputer is about to set minHeight using a width that assumed
+        // 17dp+8dp=25dp of horizontal padding, but the bubble may end up with the narrower
+        // 2/6/4/4 dp emoji padding. Compare the precomputed text width with the actual
+        // bubble width the view is allowed to render at.
+        if (com.glyph.glyph_v3.BuildConfig.DEBUG && !item.isEmojiContent) {
+            val density = textView.resources.displayMetrics.density
+            val actualAvailablePx = textView.width.takeIf { it > 0 }
+            val expectedAvailablePx = maxBubbleWidthPx
+            if (actualAvailablePx != null && actualAvailablePx < expectedAvailablePx - (4 * density).toInt()) {
+                Log.d(
+                    "BubbleResizeCause",
+                    "CAUSE=precompute_uses_wider_width_than_actual msg=${msg.id.take(8)} " +
+                        "precomputerWidth=$expectedAvailablePx px " +
+                        "actualBubbleContentWidth=$actualAvailablePx px " +
+                        "diff=${expectedAvailablePx - actualAvailablePx}px (likely narrow bubble padding or short single-line text)"
+                )
+            }
+        }
         // Emoji-only messages use a larger font (24sp vs 15sp). The premeasured height
         // was computed with the standard 15sp TextPaint — applying it would clip emojis.
         if (item.isEmojiContent) {
             textView.minHeight = 0
             textView.maxHeight = Int.MAX_VALUE
-            Log.d(TAG, "applyToTextView: EMOJI msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} premeasured=${item.premeasuredTextHeightPx} → skipped, reset minHeight $beforeMinH→0")
+            Log.d(TAG, "applyToTextView: EMOJI msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} premeasured=${item.premeasuredTextHeightPx} → skipped, reset minHeight $beforeMinH→0 caller=$caller")
             return false
         }
         // No pre-measured height — clear any stale minHeight from a previous bind
@@ -204,17 +223,17 @@ object TextLayoutPrecomputer {
             if (item.premeasuredTextHeightPx <= 0) {
                 textView.minHeight = 0
                 textView.maxHeight = Int.MAX_VALUE
-                Log.d(TAG, "applyToTextView: NO_PREMEASURED msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} → reset minHeight $beforeMinH→0")
+                Log.d(TAG, "applyToTextView: NO_PREMEASURED msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} → reset minHeight $beforeMinH→0 caller=$caller")
                 return false
             }
             // measureAndSetHeight succeeded — fall through to APPLY path below
-            Log.d(TAG, "applyToTextView: SYNC_MEASURE msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} → height=${item.premeasuredTextHeightPx}")
+            Log.d(TAG, "applyToTextView: SYNC_MEASURE msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} → height=${item.premeasuredTextHeightPx} caller=$caller")
         }
         try {
             val paddingV = textView.paddingTop + textView.paddingBottom
             val newMinH = item.premeasuredTextHeightPx + paddingV
             val willChange = beforeMinH != newMinH
-            Log.d(TAG, "applyToTextView: APPLY msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} premeasured=${item.premeasuredTextHeightPx} paddingV=$paddingV minHeight $beforeMinH→$newMinH maxHeight=$beforeMaxH→Int.MAX_VALUE change=$willChange")
+            Log.d(TAG, "applyToTextView: APPLY msg=${msg.id} text='${msg.text.take(30)}' deleted=${msg.isDeletedForAll} premeasured=${item.premeasuredTextHeightPx} paddingV=$paddingV minHeight $beforeMinH→$newMinH maxHeight=$beforeMaxH→Int.MAX_VALUE change=$willChange caller=$caller")
             // Set minHeight only — NOT maxHeight. The precomputed height is measured at
             // a fixed width (maxBubbleWidthPx) which may differ from the actual display
             // width due to varying screen sizes, bubble padding, or layout constraints.

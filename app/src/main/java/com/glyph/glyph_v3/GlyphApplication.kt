@@ -234,6 +234,20 @@ class GlyphApplication : Application() {
             // overlaps with splash screen, and the chat list fragment gets a ready DB.
             getOrCreateAppDatabase()
 
+            // Initialize TextLayoutPrecomputer at app startup so its `isReady()` returns
+            // true even before the first ChatActivity opens. Without this, the FCM
+            // service's `persistIncomingMessageToLocalStore` (which runs in the background
+            // when an FCM message arrives) gates its precompute on `isReady()` and stores
+            // a snapshot with `preH=0`. The first bind then measures bubbles without a
+            // minHeight (100px), and 200ms later the in-Activity precompute + Firestore
+            // rebind applies `minHeight=73` → 108px → the visible "list moves up" 8px
+            // shift on the notification open path. Capturing params here with a
+            // programmatic TextView (no XML inflation needed) makes the precomputer ready
+            // for the lifetime of the process — `isReady()` is then true on the FCM
+            // service's worker thread, the FCM-persisted snapshot is stored with the
+            // correct preH, and the first bind already has minHeight set.
+            initTextLayoutPrecomputer()
+
             // Initialize shared data layer prewarming (lightweight)
             prewarmSharedDataLayerAsync(reason = "app_onCreate_early")
 
@@ -292,6 +306,25 @@ class GlyphApplication : Application() {
                 appDatabase = db
             }
         }
+    }
+
+    /**
+     * Captures TextLayoutPrecomputer params at app startup so the FCM service's
+     * background precompute (which gates on [TextLayoutPrecomputer.isReady]) can run
+     * before any ChatActivity has been opened. Uses a programmatic TextView with the
+     * 15sp text size that matches chat messages — the paint snapshot is the only thing
+     * captureParams actually needs, and TextPaint is independent of the TextView once
+     * captured, so the source TextView can be discarded immediately.
+     *
+     * Idempotent: captureParams itself returns early if already captured, and the
+     * precomputer has no release() call site in this codebase, so this runs exactly
+     * once per process.
+     */
+    private fun initTextLayoutPrecomputer() {
+        if (com.glyph.glyph_v3.ui.chat.TextLayoutPrecomputer.isReady()) return
+        val tv = android.widget.TextView(this)
+        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
+        com.glyph.glyph_v3.ui.chat.TextLayoutPrecomputer.captureParams(tv)
     }
 
     fun getOrCreateRealtimeRepository(): RealtimeMessageRepository {

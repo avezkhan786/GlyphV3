@@ -50,6 +50,15 @@ class MessageBubbleLayout @JvmOverloads constructor(
 
     private var cachedTextView: TextView? = null
 
+    // --- DEBUG ONLY: bubble-resize diagnostic tags (BubbleResize log tag) ---------------
+    // Set by the ViewHolder during bind so onMeasure can log structured context. Null/empty
+    // when the view is uninflated or not yet bound. Read-only after bind — never read by
+    // the production layout path.
+    var debugMsgId: String? = null
+    var debugIsEmojiOnly: Boolean = false
+    var debugMeasurePass: Int = 0
+    // --- END DEBUG ---------------------------------------------------------------------
+
     init {
         // Default padding — incoming-style. Overridden per-direction by ChatAdapter
         // via setPaddingRelative() on every bind, so these are just the pre-bind defaults.
@@ -86,6 +95,28 @@ class MessageBubbleLayout @JvmOverloads constructor(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+            debugMeasurePass += 1
+            val msgId = debugMsgId?.take(8) ?: "?"
+            val tv = cachedTextView
+            val tvLayoutNull = tv?.layout == null
+            val tvLineCount = tv?.lineCount ?: -1
+            val tvWidthBefore = tv?.measuredWidth ?: -1
+            val tvText = (tv?.text?.toString() ?: "").take(20)
+            val density = resources.displayMetrics.density
+            val wMode = MeasureSpec.getMode(widthMeasureSpec)
+            val wSize = MeasureSpec.getSize(widthMeasureSpec)
+            val hSize = MeasureSpec.getSize(heightMeasureSpec)
+            android.util.Log.d(
+                "BubbleResize",
+                "MB.onMeasure START pass=$debugMeasurePass msgId=$msgId " +
+                    "wSpec=${modeChar(wMode)}$wSize hSpec=atmost$hSize " +
+                    "tvLayoutNull=$tvLayoutNull tvLineCount=$tvLineCount " +
+                    "tvW(before)=$tvWidthBefore tvText='$tvText' " +
+                    "emojiOnly=$debugIsEmojiOnly " +
+                    "bubblePad=L${paddingLeft / density}/R${paddingRight / density}/T${paddingTop / density}/B${paddingBottom / density}dp"
+            )
+        }
         val widthMode = MeasureSpec.getMode(widthMeasureSpec)
         val specSize = MeasureSpec.getSize(widthMeasureSpec)
         val maxAvailableWidth = if (widthMode == MeasureSpec.UNSPECIFIED) Int.MAX_VALUE else specSize
@@ -318,10 +349,52 @@ class MessageBubbleLayout @JvmOverloads constructor(
 
         // Clamp to our max bubble width to keep text bubbles consistent
         finalWidth = min(finalWidth, maxBubbleWidth)
-        
+
         // Ensure minimum dimensions
         finalWidth = max(finalWidth, suggestedMinimumWidth)
         finalHeight = max(finalHeight, suggestedMinimumHeight)
+
+        if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+            val msgId = debugMsgId?.take(8) ?: "?"
+            val tv = cachedTextView
+            val density = resources.displayMetrics.density
+            val content = if (childCount >= 1) getChildAt(0) else null
+            val contentW = content?.measuredWidth ?: -1
+            val contentH = content?.measuredHeight ?: -1
+            val maxBubbleWPx = (maxAvailableWidth.toFloat() * maxBubbleWidthFraction).toInt()
+            android.util.Log.d(
+                "BubbleResize",
+                "MB.onMeasure END pass=$debugMeasurePass msgId=$msgId " +
+                    "final=${finalWidth}x${finalHeight} " +
+                    "maxBubbleW=${maxBubbleWPx}px(${maxBubbleWPx / density}dp) " +
+                    "content=${contentW}x${contentH} " +
+                    "tvLayoutNull=${tv?.layout == null} tvLineCount=${tv?.lineCount ?: -1} " +
+                    "tvW=${tv?.measuredWidth ?: -1} " +
+                    "emojiOnly=$debugIsEmojiOnly " +
+                    "fitsInline=$fitsInline " +
+                    "bubblePad=L${paddingLeft / density}/R${paddingRight / density}/T${paddingTop / density}/B${paddingBottom / density}dp"
+            )
+            // CAUSE tag: textView.layout was null at the END of onMeasure, meaning the
+            // bubble was sized using the single-line fallback (line 286-304). This is the
+            // smoking gun for hypothesis 2 (stale layout). It will be a 1-line-to-multi-line
+            // jump on the next pass.
+            if (tv?.layout == null && !debugIsEmojiOnly) {
+                android.util.Log.d(
+                    "BubbleResizeCause",
+                    "CAUSE=tv_layout_null_at_measure_end msgId=$msgId pass=$debugMeasurePass"
+                )
+            }
+            // CAUSE tag: emoji bubble padding is narrower than what the precomputer assumed.
+            // The precomputer always measures at 17dp bubble H-padding, but emoji messages
+            // use 2/6/4/4 dp. If the content width is at the maxBubbleW limit, the precomputed
+            // height is one line short. Smoking gun for hypothesis 3.
+            if (debugIsEmojiOnly && contentW >= maxBubbleWPx - 4) {
+                android.util.Log.d(
+                    "BubbleResizeCause",
+                    "CAUSE=emoji_bubble_at_max_width_padding_narrower_than_precompute msgId=$msgId"
+                )
+            }
+        }
 
         setMeasuredDimension(finalWidth, finalHeight)
     }
@@ -412,5 +485,13 @@ class MessageBubbleLayout @JvmOverloads constructor(
             }
         }
         return null
+    }
+
+    // DEBUG-ONLY helper used by the onMeasure diagnostic log.
+    private fun modeChar(mode: Int): String = when (mode) {
+        android.view.View.MeasureSpec.EXACTLY -> "exact"
+        android.view.View.MeasureSpec.AT_MOST -> "atmost"
+        android.view.View.MeasureSpec.UNSPECIFIED -> "unspec"
+        else -> "?($mode)"
     }
 }

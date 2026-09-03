@@ -55,7 +55,14 @@ object MessageCacheManager {
         val messageId: String? = null,
         val dateString: String? = null,
         val groupPosition: String? = null,
-        val isEmojiContent: Boolean = false
+        val isEmojiContent: Boolean = false,
+        // Persist the pre-measured text height so the first frame after a process
+        // death (notification open from cold process) has a minHeight value and the
+        // bubbles don't resize 8px when the in-Activity precompute fires 300ms later.
+        // Without this field, restoreRenderItems creates fresh MessageItem objects
+        // with premeasuredTextHeightPx=0 (the default), and the first bind measures
+        // bubbles at 100px → precompute rebind to 108px = visible "list moves up".
+        val premeasuredTextHeightPx: Int = 0
     )
 
     private val lock = Any()
@@ -228,7 +235,8 @@ object MessageCacheManager {
                         messageId = item.message.id,
                         dateString = item.dateString,
                         groupPosition = item.groupPosition.name,
-                        isEmojiContent = item.isEmojiContent
+                        isEmojiContent = item.isEmojiContent,
+                        premeasuredTextHeightPx = item.premeasuredTextHeightPx
                     )
                 }
                 is ChatListItem.TypingIndicator -> Unit
@@ -296,7 +304,7 @@ object MessageCacheManager {
                 }
                 "message" -> {
                     val message = messagesById[item.messageId] ?: return@forEach
-                    restoredItems += ChatListItem.MessageItem(
+                    val mi = ChatListItem.MessageItem(
                         message = message,
                         groupPosition = item.groupPosition
                             ?.let { runCatching { BubbleGroupPosition.valueOf(it) }.getOrNull() }
@@ -304,6 +312,14 @@ object MessageCacheManager {
                         dateString = item.dateString.orEmpty(),
                         isEmojiContent = item.isEmojiContent
                     )
+                    // Restore the pre-measured text height so the first bind on a
+                    // cold-start notification open has a minHeight to apply. Without
+                    // this, the disk snapshot rebuilds items with preH=0 and the
+                    // bubble resizes 8px when the in-Activity precompute fires later.
+                    if (item.premeasuredTextHeightPx > 0) {
+                        mi.premeasuredTextHeightPx = item.premeasuredTextHeightPx
+                    }
+                    restoredItems += mi
                 }
             }
         }

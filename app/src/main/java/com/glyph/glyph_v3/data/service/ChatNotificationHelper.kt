@@ -25,7 +25,6 @@ import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
 import com.bumptech.glide.Glide
-import com.glyph.glyph_v3.MainActivity
 import com.glyph.glyph_v3.R
 import androidx.core.content.FileProvider
 import com.google.firebase.auth.FirebaseAuth
@@ -35,6 +34,7 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 data class ChatNotificationPrefs(
@@ -278,11 +278,47 @@ object ChatNotificationHelper {
         // MessagingStyle attachments frequently render only the latest image.
         val (collageBitmap, collageCount) = buildMediaCollageBitmap(context, messages)
 
-        val intent = Intent(context, MainActivity::class.java).apply {
+        // Point the PendingIntent at ChatActivity directly (same as the chat-list tap path
+        // in ChatListFragment.openChat / ChatListComposeFragment.navigateToChat). Routing
+        // through MainActivity previously skipped the prefetch pipeline and caused bubbles
+        // to resize on the first frame because the precomputed minHeight arrived 240ms
+        // after the first paint.
+        val intent = com.glyph.glyph_v3.ui.chat.ChatActivity.newIntent(
+            context = context,
+            chatId = normalizedChatId,
+            otherUserId = otherUserId,
+            otherUsername = senderName
+        ).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-            putExtra("chat_id", normalizedChatId)
-            putExtra("other_user_id", otherUserId)
-            putExtra("other_username", senderName)
+        }
+
+        // Mirror the chat-list tap path: run the three prefetch calls so the message list
+        // and text precomputer are primed before ChatActivity.onCreate runs. This makes
+        // the first paint have correct minHeight values, eliminating the visible resize.
+        val appContext = context.applicationContext
+        val app = appContext as? com.glyph.glyph_v3.GlyphApplication
+        if (app != null) {
+            app.ensureSharedRepositoryStartup(reason = "notification_tap")
+            val repository = app.getOrCreateRealtimeRepository()
+            com.glyph.glyph_v3.ui.chat.ChatOpenPrefetcher.noteChatOpenStarting(normalizedChatId)
+            com.glyph.glyph_v3.ui.chat.ChatConnectionPrewarmer.prewarmForChatOpen(
+                repository = repository,
+                chatId = normalizedChatId,
+                otherUserId = otherUserId
+            )
+            kotlinx.coroutines.CoroutineScope(
+                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+            ).launch {
+                runCatching {
+                    com.glyph.glyph_v3.ui.chat.ChatOpenPrefetcher.primeChatOpen(
+                        context = appContext,
+                        repository = repository,
+                        chatId = normalizedChatId,
+                        source = "notification_tap",
+                        peerUserId = otherUserId
+                    )
+                }
+            }
         }
 
         val pendingIntent = PendingIntent.getActivity(
@@ -355,11 +391,14 @@ object ChatNotificationHelper {
         val shortcutId = "chat_$otherUserId"
         if (circularAvatarBitmap != null) {
             try {
-                val shortcutIntent = Intent(context, MainActivity::class.java).apply {
+                val shortcutIntent = com.glyph.glyph_v3.ui.chat.ChatActivity.newIntent(
+                    context = context,
+                    chatId = normalizedChatId,
+                    otherUserId = otherUserId,
+                    otherUsername = senderName
+                ).apply {
                     action = Intent.ACTION_VIEW
-                    putExtra("chat_id", normalizedChatId)
-                    putExtra("other_user_id", otherUserId)
-                    putExtra("other_username", senderName)
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 val shortcut = ShortcutInfoCompat.Builder(context, shortcutId)
                     .setLongLived(true)

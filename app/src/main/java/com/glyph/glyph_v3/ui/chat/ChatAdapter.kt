@@ -2512,6 +2512,66 @@ class ChatAdapter(
         isEmojiOnly: Boolean,
         isIncoming: Boolean
     ) {
+        if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+            val density = messageView.resources.displayMetrics.density
+            val tvParams = messageView.layoutParams
+            val tvW = when (tvParams.width) {
+                ViewGroup.LayoutParams.MATCH_PARENT -> "MATCH"
+                ViewGroup.LayoutParams.WRAP_CONTENT -> "WRAP"
+                else -> "${tvParams.width}px"
+            }
+            val tvG = when {
+                tvParams is LinearLayout.LayoutParams -> {
+                    when (tvParams.gravity) {
+                        Gravity.START -> "START"
+                        Gravity.END -> "END"
+                        Gravity.NO_GRAVITY -> "NONE"
+                        else -> "0x${Integer.toHexString(tvParams.gravity)}"
+                    }
+                }
+                else -> "?"
+            }
+            val bubbleLayout = findMessageBubbleLayout(messageView)
+            val bp = if (bubbleLayout != null)
+                "L${bubbleLayout.paddingLeft / density}/R${bubbleLayout.paddingRight / density}/T${bubbleLayout.paddingTop / density}/B${bubbleLayout.paddingBottom / density}dp"
+            else "?"
+            val tvSizeSp = messageView.textSize / messageView.resources.displayMetrics.scaledDensity
+            val msgId = (messageView.tag as? String) ?: "?"
+            android.util.Log.d(
+                "BubbleResize",
+                "applyEmojiOnlyStyle msgId=$msgId isEmojiOnly=$isEmojiOnly " +
+                    "tvMinH=${messageView.minHeight} tvMaxH=${messageView.maxHeight} " +
+                    "tvTextSize=${tvSizeSp}sp tvW=$tvW tvG=$tvG " +
+                    "bubblePad=$bp " +
+                    "→ willSetSize=${if (isEmojiOnly) emojiOnlyTextSizeSp else normalMessageTextSizeSp}sp " +
+                    "willSetW=${if (isEmojiOnly) "WRAP" else "WRAP"} " +
+                    "willSetG=${if (isEmojiOnly) (if (isIncoming) "START" else "END") else "NONE"} " +
+                    "willSetPad=${if (isEmojiOnly) "2/6/4/4dp(in)" else "9/8/6/5dp(in)"}"
+            )
+            // CAUSE tag: precomputed minHeight was set for 15sp text, but we are about
+            // to switch the same TextView to 36sp (emoji). This forces a re-measure and
+            // is the smoking gun for hypothesis 1 + the core of hypothesis 3.
+            if (isEmojiOnly && messageView.minHeight > 0) {
+                android.util.Log.d(
+                    "BubbleResizeCause",
+                    "CAUSE=text_size_changed_after_precompute msgId=$msgId tvMinH=${messageView.minHeight} (was 15sp) → 36sp"
+                )
+            }
+            // CAUSE tag: emoji message has the 2/6/4/4 dp padding, narrower than the
+            // 9/8/6/5 dp the precomputer assumed. Precomputed height is at least one
+            // line short. Smoking gun for hypothesis 3.
+            if (isEmojiOnly && bubbleLayout != null) {
+                val startPx = ((if (isIncoming) 2 else 6) * density).toInt()
+                if (bubbleLayout.paddingStart != startPx) {
+                    android.util.Log.d(
+                        "BubbleResizeCause",
+                        "CAUSE=emoji_padding_narrower_than_precompute msgId=$msgId " +
+                            "bubbleStart=${bubbleLayout.paddingStart}px → will-be=${startPx}px " +
+                            "(precomputer measured at 17dp+8dp h-padding; emoji is 2/6+8=10dp or 6/2+8=10dp)"
+                    )
+                }
+            }
+        }
         messageView.setTag(R.id.tag_emoji_only, isEmojiOnly)
         updateBubblePaddingForEmoji(messageView, isEmojiOnly, isIncoming)
         val targetSizeSp = if (isEmojiOnly) emojiOnlyTextSizeSp else normalMessageTextSizeSp
@@ -2590,6 +2650,52 @@ class ChatAdapter(
             parent = parent.parent
         }
         return null
+    }
+
+    // DEBUG helper — same walk as findMessageBubbleLayout, kept separate so the
+    // production path stays free of the debug-only null-check on the parent chain.
+    private fun findMessageBubbleLayoutDebug(messageView: TextView): MessageBubbleLayout? {
+        var parent = messageView.parent
+        while (parent is View) {
+            if (parent is MessageBubbleLayout) return parent
+            parent = parent.parent
+        }
+        return null
+    }
+
+    // DEBUG helper — single-fire post-draw observer that logs the final settled state
+    // of a bound message. Attaches on the root view, fires on the next draw, detaches.
+    private fun installPostDrawLog(view: View, msgId: String, direction: String) {
+        val vto = view.viewTreeObserver
+        val listener = object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                val v = view
+                val tv = v.findViewById<TextView?>(R.id.tvMessage)
+                val bbl = findMessageBubbleLayoutDebug(tv ?: return@onPreDraw true)
+                val density = v.resources.displayMetrics.density
+                val tvSizeSp = tv?.textSize?.div(v.resources.displayMetrics.scaledDensity) ?: -1f
+                val tvLineCount = tv?.lineCount ?: -1
+                val tvMinH = tv?.minHeight ?: -1
+                val tvMaxH = tv?.maxHeight ?: -1
+                val bblMeasuredW = bbl?.measuredWidth ?: -1
+                val bblMeasuredH = bbl?.measuredHeight ?: -1
+                val bblPad = if (bbl != null)
+                    "L${bbl.paddingLeft / density}/R${bbl.paddingRight / density}/T${bbl.paddingTop / density}/B${bbl.paddingBottom / density}dp"
+                else "?"
+                android.util.Log.d(
+                    "BubbleResize",
+                    "$direction.bind POST_DRAW msgId=${msgId.take(8)} " +
+                        "bbl=${bblMeasuredW}x${bblMeasuredH} " +
+                        "tvTextSize=${tvSizeSp}sp tvLineCount=$tvLineCount " +
+                        "tvMinH=$tvMinH tvMaxH=$tvMaxH " +
+                        "bubblePad=$bblPad " +
+                        "bblPasses=${bbl?.debugMeasurePass ?: -1}"
+                )
+                view.viewTreeObserver.removeOnPreDrawListener(this)
+                return true
+            }
+        }
+        vto.addOnPreDrawListener(listener)
     }
 
     /**
@@ -7134,6 +7240,8 @@ class ChatAdapter(
     }
 
     inner class IncomingTextViewHolder(private val binding: ItemMessageIncomingTextBinding) : BaseViewHolder(binding) {
+        private var debugPreviousText: String = ""
+
         override fun applyTextHeight(item: ChatListItem) {
             // Deleted messages DO get a premeasured height (computed for
             // " This message was deleted ") — apply it so the bubble starts
@@ -7168,6 +7276,66 @@ class ChatAdapter(
                 // so it doesn't fire during the upcoming setTextSize/applyToTextView/setText
                 // calls and log spurious HeightChange events.
                 detachHeightTracker(binding.tvMessage)
+
+                // ---- DEBUG: bind START log (BubbleResize tag) ----
+                if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                    val tv = binding.tvMessage
+                    val density = tv.resources.displayMetrics.density
+                    val tvParams = tv.layoutParams
+                    val tvWBefore = when (tvParams.width) {
+                        ViewGroup.LayoutParams.MATCH_PARENT -> "MATCH"
+                        ViewGroup.LayoutParams.WRAP_CONTENT -> "WRAP"
+                        else -> "${tvParams.width}px"
+                    }
+                    val tvTextBefore = tv.text?.toString()?.take(20) ?: ""
+                    val preH = item.premeasuredTextHeightPx
+                    android.util.Log.d(
+                        "BubbleResize",
+                        "IN.bind START msgId=${msg.id.take(8)} pos=$position " +
+                            "fastBind=$isFastBind firstLayout=$isFirstLayout " +
+                            "preH=$preH deleted=${msg.isDeletedForAll} emoji=${item.isEmojiContent} " +
+                            "tvMinH(before)=${tv.minHeight} tvMaxH(before)=${tv.maxHeight} " +
+                            "tvTextSize(before)=${tv.textSize / tv.resources.displayMetrics.scaledDensity}sp " +
+                            "tvW(before)=$tvWBefore " +
+                            "tvText(before)='$tvTextBefore' " +
+                            "prevBoundText='${debugPreviousText.take(20)}'"
+                    )
+                    // CAUSE: tv.layout is non-null from a previous message with different text.
+                    // The first onMeasure of this bind will read lineCount from the stale layout.
+                    if (tv.layout != null && tvTextBefore.isNotEmpty() && tvTextBefore != debugPreviousText) {
+                        android.util.Log.d(
+                            "BubbleResizeCause",
+                            "CAUSE=stale_textview_layout_at_bind_start msgId=${msg.id.take(8)} " +
+                                "staleText='$tvTextBefore' newText will differ → next setText rebuilds layout"
+                        )
+                    }
+                    // CAUSE: stale minHeight from a recycled ViewHolder (hypothesis 6).
+                    if (preH == 0 && tv.minHeight > 0) {
+                        android.util.Log.d(
+                            "BubbleResizeCause",
+                            "CAUSE=stale_minH_on_recycled_holder msgId=${msg.id.take(8)} " +
+                                "tvMinH(before)=${tv.minHeight} newPreH=0 → precomputer will reset it"
+                        )
+                    }
+                    // CAUSE: fast-bind path is in effect — the first measurement may differ
+                    // from the full-bind re-pass after the 500ms isFirstLayout flip.
+                    if (isFastBind || isFirstLayout) {
+                        android.util.Log.d(
+                            "BubbleResizeCause",
+                            "CAUSE=fastbind_or_firstLayout msgId=${msg.id.take(8)} " +
+                                "fastBind=$isFastBind firstLayout=$isFirstLayout"
+                        )
+                    }
+                    // Tag the TextView with the messageId so applyEmojiOnlyStyle can log it.
+                    tv.tag = msg.id.take(16)
+                    // Tag the MessageBubbleLayout with diagnostic info for onMeasure logs.
+                    findMessageBubbleLayoutDebug(binding.tvMessage)?.let { bbl ->
+                        bbl.debugMsgId = msg.id
+                        bbl.debugIsEmojiOnly = item.isEmojiContent
+                        bbl.debugMeasurePass = 0
+                    }
+                }
+                // ---- END DEBUG ----
 
                 // Capture text layout params once for background-thread precomputation.
                 if (!TextLayoutPrecomputer.isReady()) {
@@ -7231,11 +7399,39 @@ class ChatAdapter(
                     binding.tvTimestamp.text = formatTimestampWithEdited(msg, msg.formattedTime)
                     Log.d("ChatAdapterDEBUG", "Incoming.bind EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=${wouldShowReplyOrLinkPreview(msg)} textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
                     applyEmojiOnlyStyle(binding.cardMessage, binding.tvMessage, emojiOnly, isIncoming = true)
+                    // ---- DEBUG: POST_EMOJI (fast-bind path) ----
+                    if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                        val tv2 = binding.tvMessage
+                        val d2 = tv2.resources.displayMetrics.density
+                        val tp2 = tv2.layoutParams
+                        val tw2 = when (tp2.width) {
+                            ViewGroup.LayoutParams.MATCH_PARENT -> "MATCH"
+                            ViewGroup.LayoutParams.WRAP_CONTENT -> "WRAP"
+                            else -> "${tp2.width}px"
+                        }
+                        val bbl2 = findMessageBubbleLayoutDebug(tv2)
+                        val bp2 = if (bbl2 != null)
+                            "L${bbl2.paddingLeft / d2}/R${bbl2.paddingRight / d2}/T${bbl2.paddingTop / d2}/B${bbl2.paddingBottom / d2}dp"
+                        else "?"
+                        android.util.Log.d(
+                            "BubbleResize",
+                            "IN.bind POST_EMOJI msgId=${msg.id.take(8)} path=fast " +
+                                "tvMinH=${tv2.minHeight} tvMaxH=${tv2.maxHeight} " +
+                                "tvSize=${tv2.textSize / tv2.resources.displayMetrics.scaledDensity}sp " +
+                                "tvW=$tw2 " +
+                                "bubblePad=$bp2"
+                        )
+                    }
+                    // ---- END DEBUG ----
                     setupEmojiTapToReveal(binding.tvMessage, emojiOnly, binding.tvTimestamp, null)
                     updateGrouping(position)
                     bindSelection(item, animate = false)
                     // Attach height-change listener AFTER all view modifications are done
                     trackHeightChanges("IN", binding.tvMessage, msg)
+                    if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                        installPostDrawLog(binding.root, msg.id, "IN")
+                        debugPreviousText = binding.tvMessage.text?.toString() ?: ""
+                    }
                     return
                 }
 
@@ -7249,6 +7445,30 @@ class ChatAdapter(
 
                 Log.d("ChatAdapterDEBUG", "Incoming.bind FULL EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=${wouldShowReplyOrLinkPreview(msg)} textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
                 applyEmojiOnlyStyle(binding.cardMessage, binding.tvMessage, emojiOnly, isIncoming = true)
+                // ---- DEBUG: POST_EMOJI (full-bind path) ----
+                if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                    val tv2 = binding.tvMessage
+                    val d2 = tv2.resources.displayMetrics.density
+                    val tp2 = tv2.layoutParams
+                    val tw2 = when (tp2.width) {
+                        ViewGroup.LayoutParams.MATCH_PARENT -> "MATCH"
+                        ViewGroup.LayoutParams.WRAP_CONTENT -> "WRAP"
+                        else -> "${tp2.width}px"
+                    }
+                    val bbl2 = findMessageBubbleLayoutDebug(tv2)
+                    val bp2 = if (bbl2 != null)
+                        "L${bbl2.paddingLeft / d2}/R${bbl2.paddingRight / d2}/T${bbl2.paddingTop / d2}/B${bbl2.paddingBottom / d2}dp"
+                    else "?"
+                    android.util.Log.d(
+                        "BubbleResize",
+                        "IN.bind POST_EMOJI msgId=${msg.id.take(8)} path=full " +
+                            "tvMinH=${tv2.minHeight} tvMaxH=${tv2.maxHeight} " +
+                            "tvSize=${tv2.textSize / tv2.resources.displayMetrics.scaledDensity}sp " +
+                            "tvW=$tw2 " +
+                            "bubblePad=$bp2"
+                    )
+                }
+                // ---- END DEBUG ----
                 setupEmojiTapToReveal(binding.tvMessage, emojiOnly, binding.tvTimestamp, null)
 
                 updateGrouping(position)
@@ -7256,6 +7476,10 @@ class ChatAdapter(
                 bindSelection(item, animate = false)
                 // Attach height-change listener AFTER all view modifications are done
                 trackHeightChanges("IN", binding.tvMessage, msg)
+                if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                    installPostDrawLog(binding.root, msg.id, "IN")
+                    debugPreviousText = binding.tvMessage.text?.toString() ?: ""
+                }
             }
         }
 
@@ -7295,6 +7519,7 @@ class ChatAdapter(
 
     inner class OutgoingTextViewHolder(private val binding: ItemMessageOutgoingTextBinding) : BaseViewHolder(binding) {
         private var lastStatus: MessageStatus? = null
+        private var debugPreviousText: String = ""
 
         override fun applyTextHeight(item: ChatListItem) {
             // Deleted messages DO get a premeasured height (computed for
@@ -7331,6 +7556,61 @@ class ChatAdapter(
                 // so it doesn't fire during the upcoming setTextSize/applyToTextView/setText
                 // calls and log spurious HeightChange events.
                 detachHeightTracker(binding.tvMessage)
+
+                // ---- DEBUG: bind START log (BubbleResize tag) ----
+                if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                    val tv = binding.tvMessage
+                    val density = tv.resources.displayMetrics.density
+                    val tvParams = tv.layoutParams
+                    val tvWBefore = when (tvParams.width) {
+                        ViewGroup.LayoutParams.MATCH_PARENT -> "MATCH"
+                        ViewGroup.LayoutParams.WRAP_CONTENT -> "WRAP"
+                        else -> "${tvParams.width}px"
+                    }
+                    val tvTextBefore = tv.text?.toString()?.take(20) ?: ""
+                    val preH = item.premeasuredTextHeightPx
+                    android.util.Log.d(
+                        "BubbleResize",
+                        "OUT.bind START msgId=${msg.id.take(8)} pos=$position " +
+                            "fastBind=$isFastBind firstLayout=$isFirstLayout " +
+                            "preH=$preH deleted=${msg.isDeletedForAll} emoji=${item.isEmojiContent} " +
+                            "tvMinH(before)=${tv.minHeight} tvMaxH(before)=${tv.maxHeight} " +
+                            "tvTextSize(before)=${tv.textSize / tv.resources.displayMetrics.scaledDensity}sp " +
+                            "tvW(before)=$tvWBefore " +
+                            "tvText(before)='$tvTextBefore' " +
+                            "prevBoundText='${debugPreviousText.take(20)}'"
+                    )
+                    // CAUSE: tv.layout is non-null from a previous message with different text.
+                    if (tv.layout != null && tvTextBefore.isNotEmpty() && tvTextBefore != debugPreviousText) {
+                        android.util.Log.d(
+                            "BubbleResizeCause",
+                            "CAUSE=stale_textview_layout_at_bind_start msgId=${msg.id.take(8)} " +
+                                "staleText='$tvTextBefore'"
+                        )
+                    }
+                    // CAUSE: stale minHeight from a recycled ViewHolder (hypothesis 6).
+                    if (preH == 0 && tv.minHeight > 0) {
+                        android.util.Log.d(
+                            "BubbleResizeCause",
+                            "CAUSE=stale_minH_on_recycled_holder msgId=${msg.id.take(8)} " +
+                                "tvMinH(before)=${tv.minHeight} newPreH=0"
+                        )
+                    }
+                    if (isFastBind || isFirstLayout) {
+                        android.util.Log.d(
+                            "BubbleResizeCause",
+                            "CAUSE=fastbind_or_firstLayout msgId=${msg.id.take(8)} " +
+                                "fastBind=$isFastBind firstLayout=$isFirstLayout"
+                        )
+                    }
+                    tv.tag = msg.id.take(16)
+                    findMessageBubbleLayoutDebug(binding.tvMessage)?.let { bbl ->
+                        bbl.debugMsgId = msg.id
+                        bbl.debugIsEmojiOnly = item.isEmojiContent
+                        bbl.debugMeasurePass = 0
+                    }
+                }
+                // ---- END DEBUG ----
 
                 // Capture text layout params once for background-thread precomputation.
                 if (!TextLayoutPrecomputer.isReady()) {
@@ -7388,6 +7668,30 @@ class ChatAdapter(
                     binding.tvTimestamp.text = formatTimestampWithEdited(msg, msg.formattedTime)
                     Log.d("ChatAdapterDEBUG", "Outgoing.bind EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=${wouldShowReplyOrLinkPreview(msg)} textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
                     applyEmojiOnlyStyle(binding.cardMessage, binding.tvMessage, emojiOnly, isIncoming = false)
+                    // ---- DEBUG: POST_EMOJI (fast-bind path) ----
+                    if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                        val tv2 = binding.tvMessage
+                        val d2 = tv2.resources.displayMetrics.density
+                        val tp2 = tv2.layoutParams
+                        val tw2 = when (tp2.width) {
+                            ViewGroup.LayoutParams.MATCH_PARENT -> "MATCH"
+                            ViewGroup.LayoutParams.WRAP_CONTENT -> "WRAP"
+                            else -> "${tp2.width}px"
+                        }
+                        val bbl2 = findMessageBubbleLayoutDebug(tv2)
+                        val bp2 = if (bbl2 != null)
+                            "L${bbl2.paddingLeft / d2}/R${bbl2.paddingRight / d2}/T${bbl2.paddingTop / d2}/B${bbl2.paddingBottom / d2}dp"
+                        else "?"
+                        android.util.Log.d(
+                            "BubbleResize",
+                            "OUT.bind POST_EMOJI msgId=${msg.id.take(8)} path=fast " +
+                                "tvMinH=${tv2.minHeight} tvMaxH=${tv2.maxHeight} " +
+                                "tvSize=${tv2.textSize / tv2.resources.displayMetrics.scaledDensity}sp " +
+                                "tvW=$tw2 " +
+                                "bubblePad=$bp2"
+                        )
+                    }
+                    // ---- END DEBUG ----
                     if (!msg.isDeletedForAll) {
                         binding.ivStatus.visibility = View.VISIBLE
                         setStatus(rememberStrongestOutgoingStatus(msg))
@@ -7399,6 +7703,10 @@ class ChatAdapter(
                     bindSelection(item, animate = false)
                     // Attach height-change listener AFTER all view modifications are done
                     trackHeightChanges("OUT", binding.tvMessage, msg)
+                    if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                        installPostDrawLog(binding.root, msg.id, "OUT")
+                        debugPreviousText = binding.tvMessage.text?.toString() ?: ""
+                    }
                     return
                 }
 
@@ -7412,6 +7720,30 @@ class ChatAdapter(
 
                 Log.d("ChatAdapterDEBUG", "Outgoing.bind FULL EMPOJI_STATE msg=${msg.id.take(8)} emojiOnly=$emojiOnly isEmoji=${item.isEmojiContent} deleted=${msg.isDeletedForAll} fastBind=$isFastBind firstLayout=$isFirstLayout linkPreviewVisible=$linkPreviewVisible replyVisible=${wouldShowReplyOrLinkPreview(msg)} textSizeSp=${binding.tvMessage.textSize / binding.root.resources.displayMetrics.scaledDensity}")
                 applyEmojiOnlyStyle(binding.cardMessage, binding.tvMessage, emojiOnly, isIncoming = false)
+                // ---- DEBUG: POST_EMOJI (full-bind path) ----
+                if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                    val tv2 = binding.tvMessage
+                    val d2 = tv2.resources.displayMetrics.density
+                    val tp2 = tv2.layoutParams
+                    val tw2 = when (tp2.width) {
+                        ViewGroup.LayoutParams.MATCH_PARENT -> "MATCH"
+                        ViewGroup.LayoutParams.WRAP_CONTENT -> "WRAP"
+                        else -> "${tp2.width}px"
+                    }
+                    val bbl2 = findMessageBubbleLayoutDebug(tv2)
+                    val bp2 = if (bbl2 != null)
+                        "L${bbl2.paddingLeft / d2}/R${bbl2.paddingRight / d2}/T${bbl2.paddingTop / d2}/B${bbl2.paddingBottom / d2}dp"
+                    else "?"
+                    android.util.Log.d(
+                        "BubbleResize",
+                        "OUT.bind POST_EMOJI msgId=${msg.id.take(8)} path=full " +
+                            "tvMinH=${tv2.minHeight} tvMaxH=${tv2.maxHeight} " +
+                            "tvSize=${tv2.textSize / tv2.resources.displayMetrics.scaledDensity}sp " +
+                            "tvW=$tw2 " +
+                            "bubblePad=$bp2"
+                    )
+                }
+                // ---- END DEBUG ----
 
                 if (!msg.isDeletedForAll) {
                     binding.ivStatus.visibility = View.VISIBLE
@@ -7427,6 +7759,10 @@ class ChatAdapter(
                 bindSelection(item, animate = false)
                 // Attach height-change listener AFTER all view modifications are done
                 trackHeightChanges("OUT", binding.tvMessage, msg)
+                if (com.glyph.glyph_v3.BuildConfig.DEBUG) {
+                    installPostDrawLog(binding.root, msg.id, "OUT")
+                    debugPreviousText = binding.tvMessage.text?.toString() ?: ""
+                }
             }
         }
 

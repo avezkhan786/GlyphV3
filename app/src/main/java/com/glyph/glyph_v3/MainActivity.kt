@@ -31,7 +31,6 @@ import com.glyph.glyph_v3.databinding.ActivityMainBinding
 import com.glyph.glyph_v3.data.preferences.StatusNotificationPrefs
 import com.glyph.glyph_v3.data.resolver.ContactDisplayNameResolver
 import com.glyph.glyph_v3.ui.calls.CallsFragment
-import com.glyph.glyph_v3.ui.chat.ChatActivity
 import com.glyph.glyph_v3.ui.chatlist.ChatListComposeFragment
 import com.glyph.glyph_v3.ui.main.MainPagerAdapter
 import com.glyph.glyph_v3.ui.onboarding.RestoreOfferActivity
@@ -569,26 +568,13 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        intent?.getStringExtra("chat_id")?.let { chatId ->
-            val otherUserId = intent.getStringExtra("other_user_id")
-            if (otherUserId.isNullOrEmpty()) {
-                Log.w("MainActivity", "Missing other_user_id for chat $chatId; ignoring deep link")
-                return
-            }
-
-            val otherUsername = intent.getStringExtra("other_username") ?: ""
-            val otherUserAvatar = intent.getStringExtra("other_user_avatar") ?: ""
-
-            // Launch XML ChatActivity instead of fragment
-            val chatIntent = ChatActivity.newIntent(
-                this,
-                chatId,
-                otherUserId,
-                otherUsername,
-                otherUserAvatar
-            )
-            startActivity(chatIntent)
-        }
+        // NOTE: The "chat_id" deep-link branch was removed in 2026-09-02. The canonical
+        // route to open a chat from outside MainActivity is now ChatActivity.newIntent(...)
+        // (used by ChatNotificationHelper, MyFirebaseMessagingService camera invites, and
+        // ChatListFragment / ChatListComposeFragment). Routing chat deep-links through
+        // MainActivity previously skipped the 3 prefetch calls (noteChatOpenStarting +
+        // prewarmForChatOpen + primeChatOpen) which made the first frame measure without
+        // precomputed text heights, causing bubble resize on open.
     }
     
     private fun applyBottomNavigationTheme() {
