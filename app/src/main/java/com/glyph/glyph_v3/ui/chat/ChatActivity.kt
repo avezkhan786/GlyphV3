@@ -1538,25 +1538,20 @@ class ChatActivity : AppCompatActivity(),
                 // 1. Professional dismissal of keyboard with modern API before showing sheet
                 val controller = WindowCompat.getInsetsController(window, binding.root)
                 controller.hide(WindowInsetsCompat.Type.ime())
-                
+
                 // 2. Clear focus from input to ensure keyboard doesn't pop back up
                 binding.etMessageInput.clearFocus()
 
-                // 3. Wait for keyboard to dismiss for a cleaner transition
-                // Non-blocking wait using lifecycleScope for the premium UX requested
+                // 3. Wait for the IME dismiss to settle before opening the AI composer
+                // sheet. The previous 16ms-polling loop issued up to 20
+                // getRootWindowInsets() + WindowInsetsCompat.isVisible() calls per tap,
+                // each walking the view tree. KeyboardController.awaitImeHidden is a
+                // one-shot signal: a CompletableDeferred that fires from the existing
+                // WindowInsetsAnimationCompat.Callback's onEnd when imeBottom settles to 0.
+                // 320ms caps the wait at the worst-case dismiss duration so a stuck
+                // animation cannot block the sheet.
                 lifecycleScope.launch {
-                    val insets = ViewCompat.getRootWindowInsets(binding.root)
-                    val isImeVisible = insets?.isVisible(WindowInsetsCompat.Type.ime()) == true
-                    
-                    if (isImeVisible) {
-                        // Max wait 320ms (standard Android keyboard dismissal)
-                        var timer = 0
-                        while (timer < 20 && ViewCompat.getRootWindowInsets(binding.root)?.isVisible(WindowInsetsCompat.Type.ime()) == true) {
-                            delay(16)
-                            timer++
-                        }
-                    }
-                    
+                    keyboardController.awaitImeHidden(timeoutMs = 320L)
                     // Show AI Composer after keyboard is hidden (or timeout)
                     aiComposerManager.openSheet(currentText)
                     showAiComposerOverlay()
@@ -11384,11 +11379,25 @@ class ChatActivity : AppCompatActivity(),
         if (expressiveInputLayoutChangeListener != null) return
 
         val listener = View.OnLayoutChangeListener { _, _, top, _, _, _, _, _, _ ->
+            // Skip the anchor update while the IME is animating or its end-layout commit
+            // is in flight. The input bar's top is momentarily wrong during the slide (it
+            // follows the hidden-state layout until onEnd commits the shown padding), and
+            // during onEnd itself the value is mid-commit. Writing expressiveComposerTopPx
+            // here triggers a Compose state read in the expressive overlay, which would
+            // recompose it on the critical frame the user sees. The next non-animating
+            // layout pass picks up the correct value. This matches the pattern used by
+            // setupBottomAnchoring's listener.
+            if (isKeyboardAnimating) return@OnLayoutChangeListener
+            if (::keyboardController.isInitialized && keyboardController.isInEndLayoutCommit) {
+                return@OnLayoutChangeListener
+            }
             expressiveComposerTopPx = top
         }
         expressiveInputLayoutChangeListener = listener
         binding.layoutInput.addOnLayoutChangeListener(listener)
         binding.layoutInput.post {
+            // Set the initial anchor outside the listener so the post-handshake value is
+            // captured even if the listener path bailed out above.
             expressiveComposerTopPx = binding.layoutInput.top
         }
     }

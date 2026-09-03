@@ -8,6 +8,7 @@ import android.view.ViewTreeObserver
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsAnimationCompat
 import androidx.core.view.WindowInsetsCompat
+import com.glyph.glyph_v3.BuildConfig
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.databinding.ActivityChatBinding
 import com.glyph.glyph_v3.ui.chat.picker.EmojiPickerPanel
@@ -69,18 +70,18 @@ internal class KeyboardController(
     // The blocked banner is absent for the common (non-blocked) case, so a per-frame
     // findViewById on the whole view tree during the IME animation is pure overhead — on cold
     // (pre-JIT) first animations that tree walk is a measurable slice of every frame. Resolve it
-    // lazily off the animation path and reuse the reference for the duration of each animation.
+    // ONCE at installInsetsHandlers and reuse the reference for the lifetime of the controller.
     private var blockedBannerView: View? = null
     private var blockedBannerResolved = false
 
     private fun resolveBlockedBanner(): View? {
+        // Eagerly populated in installInsetsHandlers. applyBottomPadding's only job is to
+        // return the cached reference; if the view tree is mutated later, the cache will
+        // be stale and we re-resolve once.
         if (blockedBannerResolved) return blockedBannerView
-        // Don't walk the view tree while the keyboard is animating; reuse the last resolution.
-        // Blocking state is established before keyboard use, so the non-animating insets pass
-        // (OnApplyWindowInsetsListener) resolves and caches it ahead of the first IME animation.
         if (isAnimating) return blockedBannerView
         blockedBannerView = binding.root.findViewById(R.id.layoutBlockedBanner)
-        blockedBannerResolved = blockedBannerView != null
+        blockedBannerResolved = true
         return blockedBannerView
     }
 
@@ -106,6 +107,11 @@ internal class KeyboardController(
         // when translated upward. bringToFront() moves AppBarLayout to draw last, ensuring it
         // always renders on top of the translated content — no toolbar overlap.
         binding.appBarLayout.bringToFront()
+
+        // Eagerly resolve the (optional) blocked banner once. applyBottomPadding will run
+        // this findViewById on every IME-related padding change otherwise, which is wasted
+        // work for the common (non-blocked) case where the result is always null.
+        resolveBlockedBanner()
 
         ViewCompat.setWindowInsetsAnimationCallback(
             binding.root,
@@ -182,7 +188,15 @@ internal class KeyboardController(
                         return insets
                     }
 
-                    pendingBottomAnchorAfterIme = pendingBottomAnchorAfterIme || shouldAnchorToBottom()
+                    // Skip the bottom-anchor + panel-state polling when the emoji picker is
+                    // not active. During the common IME show from text input the picker is
+                    // closed, so isPickerModeProvider() returns false; deferring these reads
+                    // keeps the per-frame work to the absolute minimum: target/delta + one
+                    // translationY write. The translationY math below always runs — that is
+                    // the whole point of the animation.
+                    if (isPickerModeProvider()) {
+                        pendingBottomAnchorAfterIme = pendingBottomAnchorAfterIme || shouldAnchorToBottom()
+                    }
 
                     // Unified translation for BOTH directions. The layout is fixed on the hidden
                     // state (base = hiddenPadding, set in onPrepare), so:
@@ -191,11 +205,11 @@ internal class KeyboardController(
                     // it falls. This is a pure GPU transform — no requestLayout, no ConstraintLayout
                     // measure/layout cascade per frame — so the descent (HIDE) is as smooth as the
                     // ascent (SHOW), and neither stutters on the first open.
-                    val t0 = System.nanoTime()
                     val targetPadding = computeTargetPadding(imeInsets.bottom, navBars.bottom)
                     val delta = targetPadding - animationStartPaddingBottom
                     binding.chatContentContainer.translationY = -delta.toFloat()
                     if (VERBOSE_IME_DEBUG) {
+                        val t0 = System.nanoTime()
                         val us = (System.nanoTime() - t0) / 1000
                         Log.d(TAG, "onProgress ime=${imeInsets.bottom} nav=${navBars.bottom} " +
                             "target=$targetPadding base=$animationStartPaddingBottom " +
@@ -208,7 +222,7 @@ internal class KeyboardController(
                     super.onEnd(animation)
                     if ((animation.typeMask and WindowInsetsCompat.Type.ime()) == 0) return
 
-                    val t0 = System.nanoTime()
+                    val t0Start = System.nanoTime()
                     setKeyboardAnimating(false)
 
                     val endInsets = ViewCompat.getRootWindowInsets(binding.root)
@@ -238,7 +252,9 @@ internal class KeyboardController(
                     val shouldAnchor = count > 0 && (pendingBottomAnchorAfterIme || shouldAnchorToBottom())
                     if (shouldAnchor) {
                         binding.recyclerViewMessages.scrollToPosition(count - 1)
-                        Log.d(FLASH_TAG, "onEnd: pre-scroll scrollToPosition(${count - 1}) before layout commit")
+                        if (VERBOSE_IME_DEBUG) {
+                            Log.d(FLASH_TAG, "onEnd: pre-scroll scrollToPosition(${count - 1}) before layout commit")
+                        }
                     }
 
                     // Apply the real layout state (schedules requestLayout for next traversal).
@@ -256,7 +272,26 @@ internal class KeyboardController(
                     val priorTranslation = container.translationY
                     val capturedEpoch = imeAnimationEpoch
                     val capturedCount = count
-                    Log.d(FLASH_TAG, "onEnd: registering PreDraw reset. translationY=$priorTranslation imeBottom=$imeBottom epoch=$capturedEpoch")
+                    if (VERBOSE_IME_DEBUG) {
+                        Log.d(FLASH_TAG, "onEnd: registering PreDraw reset. translationY=$priorTranslation imeBottom=$imeBottom epoch=$capturedEpoch")
+                    }
+                    // PreDraw's only remaining job is to clear isInEndLayoutCommit and reset
+                    // translationY=0 (safety net for pre-API-30). All animation-restart work
+                    // (GIF start(), Glide resumeRequests, onFinalizeScroll) is deferred to
+                    // container.post {} so it runs AFTER the current draw commits — not on the
+                    // critical path before the buffer is presented.
+                    //
+                    // Why this matters: onAnimatedMediaReady() walks the visible RV children
+                    // and calls drawable.start() on each Animatable. Each start() schedules a
+                    // next-frame decode + RenderThread upload, all happening synchronously
+                    // inside the old onPreDraw. With several on-screen GIFs/stickers this is
+                    // 6-10+ invalidate()s on the main thread right before the buffer is
+                    // committed. On the first IME open after entering the chat, recent message
+                    // image/GIF/sticker loads are still settling and the frame budget is
+                    // already tight; the synchronous restart lands on the very frame the user
+                    // sees the settled layout, producing the visible "worse on first open"
+                    // stutter. container.post {} moves the work onto the next main-thread
+                    // message after draw, with no invalidates in the critical path.
                     container.viewTreeObserver.addOnPreDrawListener(
                         object : ViewTreeObserver.OnPreDrawListener {
                             override fun onPreDraw(): Boolean {
@@ -264,7 +299,9 @@ internal class KeyboardController(
                                 // Layout is now committed; BottomAnchorListener can fire freely.
                                 isInEndLayoutCommit = false
                                 if (capturedEpoch != imeAnimationEpoch) {
-                                    Log.d(FLASH_TAG, "PreDraw-reset: STALE (captured=$capturedEpoch current=$imeAnimationEpoch), discarding")
+                                    if (VERBOSE_IME_DEBUG) {
+                                        Log.d(FLASH_TAG, "PreDraw-reset: STALE (captured=$capturedEpoch current=$imeAnimationEpoch), discarding")
+                                    }
                                     return true
                                 }
                                 val beforeReset = container.translationY
@@ -272,14 +309,23 @@ internal class KeyboardController(
                                 // during insets-animation cleanup. This line is a safety net for
                                 // older API levels or other edge cases.
                                 container.translationY = 0f
-                                Log.d(FLASH_TAG, "PreDraw-reset: translationY $beforeReset → 0 (was expected: $priorTranslation) epoch=$capturedEpoch")
-                                onAnimatedMediaReady()
-                                // Fine-grained post-layout adjustment runs AFTER the draw via
-                                // rv.post — no rv.requestLayout/invalidate, so no extra traversal,
-                                // no detach-scrap cycle, no GIF placeholder flash window.
-                                if (capturedCount > 0) {
-                                    binding.recyclerViewMessages.post {
-                                        if (capturedEpoch == imeAnimationEpoch) {
+                                if (VERBOSE_IME_DEBUG) {
+                                    Log.d(FLASH_TAG, "PreDraw-reset: translationY $beforeReset → 0 (was expected: $priorTranslation) epoch=$capturedEpoch")
+                                }
+                                // Defer animated-media resume (GIF start() + Glide resumeRequests)
+                                // and the post-layout scroll finalization to AFTER the current
+                                // draw commits. container.post {} is the same mechanism already
+                                // used below for onFinalizeScroll — it queues work onto the main
+                                // thread's message queue after the current draw is presented, so
+                                // no invalidate() runs in the critical path.
+                                container.post {
+                                    if (capturedEpoch == imeAnimationEpoch) {
+                                        onAnimatedMediaReady()
+                                        // Fine-grained post-layout adjustment runs after the
+                                        // draw — no rv.requestLayout/invalidate, so no extra
+                                        // traversal, no detach-scrap cycle, no GIF placeholder
+                                        // flash window.
+                                        if (capturedCount > 0) {
                                             onFinalizeScroll(capturedCount)
                                         }
                                     }
@@ -289,9 +335,11 @@ internal class KeyboardController(
                         }
                     )
 
-                    val ms = (System.nanoTime() - t0) / 1_000_000f
-                    Log.d(TAG, "onEnd settle ${ms}ms finalIme=$imeBottom nav=$navBottom " +
-                        "appliedPadding=$lastAppliedInputPaddingBottom")
+                    if (VERBOSE_IME_DEBUG) {
+                        val ms = (System.nanoTime() - t0Start) / 1_000_000f
+                        Log.d(TAG, "onEnd settle ${ms}ms finalIme=$imeBottom nav=$navBottom " +
+                            "appliedPadding=$lastAppliedInputPaddingBottom")
+                    }
 
                     val panel = binding.emojiPickerPanel
                     if (imeBottom > 0 && isPickerModeProvider() && panel.panelMode != EmojiPickerPanel.PanelMode.COMPACT) {
@@ -315,6 +363,15 @@ internal class KeyboardController(
                     // + scheduleScrollFabUpdate is handled by onFinalizeScroll (rv.post in PreDraw-A).
                     if (pendingBottomAnchorAfterIme) {
                         pendingBottomAnchorAfterIme = false
+                    }
+
+                    // Wake any coroutines awaiting the IME-hide transition. This is the
+                    // proper signal for the AI-composer flow (and any other code that needs
+                    // to chain off a keyboard dismiss): a one-shot complete() instead of
+                    // a 16ms-polling isVisible() loop. Only fires for HIDE (imeBottom == 0)
+                    // — a SHOW completion does not match the dismiss-awaiter contract.
+                    if (imeBottom == 0) {
+                        notifyImeHidden()
                     }
                 }
             }
@@ -342,11 +399,15 @@ internal class KeyboardController(
             }
 
             val translationYNow = binding.chatContentContainer.translationY
-            Log.d(FLASH_TAG, "onApplyWindowInsets: ime=${ime.bottom} nav=${navBars.bottom} isAnimating=$isAnimating translationY=$translationYNow pending=$pendingBottomAnchorAfterIme")
+            if (VERBOSE_IME_DEBUG) {
+                Log.d(FLASH_TAG, "onApplyWindowInsets: ime=${ime.bottom} nav=${navBars.bottom} isAnimating=$isAnimating translationY=$translationYNow pending=$pendingBottomAnchorAfterIme")
+            }
             if (!isAnimating) {
                 val willAnchor = shouldAnchorToBottom()
                 val newPadding = computeTargetPadding(ime.bottom, navBars.bottom)
-                Log.d(FLASH_TAG, "  → NOT animating: willAnchor=$willAnchor newPadding=$newPadding lastApplied=$lastAppliedInputPaddingBottom layoutPadding=${binding.layoutInput.paddingBottom}")
+                if (VERBOSE_IME_DEBUG) {
+                    Log.d(FLASH_TAG, "  → NOT animating: willAnchor=$willAnchor newPadding=$newPadding lastApplied=$lastAppliedInputPaddingBottom layoutPadding=${binding.layoutInput.paddingBottom}")
+                }
                 if (willAnchor) {
                     onRequestBottomAnchor()
                 }
@@ -387,9 +448,47 @@ internal class KeyboardController(
         updateContentBottomPadding(imeBottom, navBars)
     }
 
+    // One-shot deferreds awaiting the next IME-hide animation's onEnd. Drained on each
+    // successful hide so multiple concurrent awaiters all resolve at once.
+    private val pendingImeHideAwaiters = mutableListOf<kotlinx.coroutines.CompletableDeferred<Unit>>()
+
+    /**
+     * Suspends until the next IME-hide animation completes (i.e. the keyboard finishes
+     * dismissing), or until [timeoutMs] elapses. Returns true if the signal fired, false
+     * if the timeout hit.
+     *
+     * This is the proper replacement for a `while (isVisible(ime())) delay(16)` polling
+     * loop. The polling loop allocates a WindowInsetsCompat on every iteration and walks
+     * the view tree; this one-shot signal has zero per-frame work and resolves exactly
+     * once per dismiss.
+     */
+    suspend fun awaitImeHidden(timeoutMs: Long): Boolean {
+        val deferred = kotlinx.coroutines.CompletableDeferred<Unit>()
+        pendingImeHideAwaiters.add(deferred)
+        return kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
+            deferred.await()
+            true
+        } ?: false.also {
+            // Timed out — drop our reference so the list does not grow unbounded.
+            pendingImeHideAwaiters.remove(deferred)
+        }
+    }
+
+    private fun notifyImeHidden() {
+        // Drain under no lock: pendingImeHideAwaiters is only mutated on the main thread
+        // (awaitImeHidden runs in lifecycleScope.launch on Main; this fires from onEnd
+        // which is also on Main). The list is small (≤ a few concurrent awaiters).
+        if (pendingImeHideAwaiters.isEmpty()) return
+        val toComplete = pendingImeHideAwaiters.toList()
+        pendingImeHideAwaiters.clear()
+        toComplete.forEach { it.complete(Unit) }
+    }
+
     private fun applyBottomPadding(targetPadding: Int) {
         val changed = lastAppliedInputPaddingBottom != targetPadding || binding.layoutInput.paddingBottom != targetPadding
-        Log.d(FLASH_TAG, "applyBottomPadding: target=$targetPadding last=$lastAppliedInputPaddingBottom layoutCurrent=${binding.layoutInput.paddingBottom} changed=$changed isAnimating=$isAnimating translationY=${binding.chatContentContainer.translationY}")
+        if (VERBOSE_IME_DEBUG) {
+            Log.d(FLASH_TAG, "applyBottomPadding: target=$targetPadding last=$lastAppliedInputPaddingBottom layoutCurrent=${binding.layoutInput.paddingBottom} changed=$changed isAnimating=$isAnimating translationY=${binding.chatContentContainer.translationY}")
+        }
         if (changed) {
             lastAppliedInputPaddingBottom = targetPadding
             binding.layoutInput.setPadding(
@@ -438,12 +537,17 @@ internal class KeyboardController(
         // taller than any navigation bar, so 300 px cleanly separates the two.
         private const val SHOW_DETECT_THRESHOLD_PX = 300
 
-        // Logs are always on (Log.d, visible in Android Studio logcat at Debug level).
+        // Per-frame Log.d is gated on this flag. Default false in release builds so the
+        // ~30 Log.d calls + string interpolations per IME show do not compete with the
+        // translationY write for the 16ms frame budget. Set to true (or run a debug
+        // build) to re-enable.
+        //
         // Filter in logcat: tag:KeyboardPerfDebug
         // onPrepare logs: basePadding at animation start
         // onProgress logs: per-frame ime/nav/delta/translationY (µs cost)
         // onEnd logs: settle time ms + final applied padding
-        // Set to false to silence in production builds.
-        const val VERBOSE_IME_DEBUG = true
+        // val (not const val) because BuildConfig.DEBUG is a Java static final, not a
+        // Kotlin compile-time constant.
+        val VERBOSE_IME_DEBUG: Boolean = BuildConfig.DEBUG
     }
 }
