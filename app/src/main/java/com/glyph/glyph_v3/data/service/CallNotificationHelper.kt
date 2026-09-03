@@ -63,6 +63,16 @@ object CallNotificationHelper {
 
     /**
      * Show a heads-up incoming call notification that launches the fullscreen incoming call UI.
+     *
+     * The notification is posted on a **silent** channel (no sound) by default, because
+     * the fullscreen IncomingCallActivity plays the ringtone itself. Posting the
+     * notification on the audible channel would produce a double ringtone (channel
+     * sound + activity sound) and a heads-up banner appearing on top of the fullscreen
+     * UI. As soon as the activity is visible it cancels the notification in onResume.
+     *
+     * If the fullscreen activity fails to launch (e.g. blocked by the system, the user
+     * swiped it away, or the app was killed), we repost the notification on the
+     * **audible** channel so the user still hears the ringtone.
      */
     suspend fun showIncomingCallNotification(
         context: Context,
@@ -77,7 +87,8 @@ object CallNotificationHelper {
             notificationManager.getNotificationChannel(CallForegroundService.currentIncomingChannelId) == null) {
             CallForegroundService.ensureNotificationChannels(context)
         }
-        val channelId = CallForegroundService.currentIncomingChannelId
+        val audibleChannelId = CallForegroundService.currentIncomingChannelId
+        val silentChannelId = CallForegroundService.currentSilentIncomingChannelId
 
         // Full-screen intent → opens IncomingCallActivity
         val fullScreenIntent = Intent(context, IncomingCallActivity::class.java).apply {
@@ -134,10 +145,18 @@ object CallNotificationHelper {
             .setName(callerName)
             .build()
 
+        // Decide which channel to use BEFORE posting. If the fullscreen UI is going
+        // to be on screen (the common case), use the silent channel so we don't get
+        // a second ringtone on top of the activity's own. The system can still show
+        // a heads-up banner on the silent channel, but the activity will cancel it
+        // in onResume, so it doesn't sit on top of the fullscreen UI for long.
+        val willLaunchFullscreen = shouldLaunchIncomingUi(context)
+        val useChannelId = if (willLaunchFullscreen) silentChannelId else audibleChannelId
+
         // NotificationCompat.CallStyle is the correct API for call notifications:
         // it renders the Person.icon in the big left/centre avatar position and
         // provides styled Answer / Decline buttons automatically.
-        val builder = NotificationCompat.Builder(context, channelId)
+        val builder = NotificationCompat.Builder(context, useChannelId)
             .setSmallIcon(R.drawable.ic_call)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(callerPerson, declinePending, acceptPending))
             .setContentText(callTypeLabel)
@@ -150,16 +169,21 @@ object CallNotificationHelper {
             .setContentIntent(fullScreenPending)
             .setFullScreenIntent(fullScreenPending, true)
 
+        // Pre-O fallback (no channels): we still don't want to double-ring, so the
+        // activity's own ringtone is the only source of sound there too — leave
+        // the notification silent. (Note: the channel-sound path is the modern
+        // path; this only fires on API < 26, which is increasingly rare.)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE))
+            // No-op: keep silent, activity plays the ringtone
         }
         CallLockScreenHelper.pulseScreenWake(context, "$TAG:IncomingCallWake")
 
-        // Reliability first: always post the incoming-call notification so the user
-        // has at least one surface even if a direct activity launch is blocked.
+        // Post the silent heads-up so the system knows there's a call. The
+        // IncomingCallActivity will cancel this in onResume the moment it
+        // becomes visible, so the banner doesn't sit on top of the fullscreen UI.
         notificationManager.notify(INCOMING_NOTIFICATION_ID, builder.build())
 
-        val launchedFullscreenUi = if (shouldLaunchIncomingUi(context)) {
+        val launchedFullscreenUi = if (willLaunchFullscreen) {
             launchIncomingCallUi(
                 context = context,
                 callId = callId,
@@ -171,6 +195,27 @@ object CallNotificationHelper {
             )
         } else {
             false
+        }
+
+        // If the fullscreen UI failed to launch (e.g. background activity start
+        // blocked on Android 14+, or the system denied the startActivity), repost
+        // the notification on the AUDIBLE channel so the user still hears a
+        // ringtone. This is the only branch that should produce channel sound.
+        if (willLaunchFullscreen && !launchedFullscreenUi) {
+            Log.w(TAG, "Fullscreen incoming UI launch failed; reposting on audible channel")
+            val audibleBuilder = NotificationCompat.Builder(context, audibleChannelId)
+                .setSmallIcon(R.drawable.ic_call)
+                .setStyle(NotificationCompat.CallStyle.forIncomingCall(callerPerson, declinePending, acceptPending))
+                .setContentText(callTypeLabel)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setTimeoutAfter(35_000L)
+                .setContentIntent(fullScreenPending)
+                .setFullScreenIntent(fullScreenPending, true)
+            notificationManager.notify(INCOMING_NOTIFICATION_ID, audibleBuilder.build())
         }
 
         if (callerAvatar.isNotEmpty()) {
@@ -196,7 +241,7 @@ object CallNotificationHelper {
                     .setIcon(IconCompat.createWithBitmap(avatarBitmap))
                     .build()
 
-                val updatedBuilder = NotificationCompat.Builder(context, channelId)
+                val updatedBuilder = NotificationCompat.Builder(context, useChannelId)
                     .setSmallIcon(R.drawable.ic_call)
                     .setStyle(NotificationCompat.CallStyle.forIncomingCall(updatedPerson, declinePending, acceptPending))
                     .setContentText(callTypeLabel)
@@ -210,16 +255,8 @@ object CallNotificationHelper {
                     .setFullScreenIntent(fullScreenPending, true)
                     .setLargeIcon(avatarBitmap)
 
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-                    updatedBuilder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE))
-                }
-
                 notificationManager.notify(INCOMING_NOTIFICATION_ID, updatedBuilder.build())
             }
-        }
-
-        if (!launchedFullscreenUi) {
-        } else {
         }
     }
 

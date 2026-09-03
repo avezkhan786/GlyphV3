@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.RingtoneManager
@@ -33,9 +34,27 @@ class CallForegroundService : Service() {
         const val ONGOING_CHANNEL_ID = "glyph_ongoing_call"
         const val NOTIFICATION_ID = 9001
 
+        /**
+         * Silent incoming-call channel used when the fullscreen IncomingCallActivity
+         * is or will be shown. The activity itself plays the ringtone, so the channel
+         * must NOT play a sound — otherwise the user hears the ringtone twice (once
+         * from the channel-sound on the heads-up, once from the activity's own
+         * Ringtone.play() loop). Vibration is still honoured so the user gets the
+         * haptic feedback in their pocket even with the screen on.
+         *
+         * The dynamic part (vib on/off) matches the audible channel so changed
+         * vibrate settings take effect without leaking stale channels.
+         */
+        const val INCOMING_SILENT_CHANNEL_PREFIX = "glyph_incoming_call_silent"
+
         /** Dynamic incoming call channel ID — updated by [ensureNotificationChannels]. */
         @Volatile
         var currentIncomingChannelId: String = INCOMING_CHANNEL_ID
+            private set
+
+        /** Dynamic silent incoming call channel ID — updated by [ensureNotificationChannels]. */
+        @Volatile
+        var currentSilentIncomingChannelId: String = INCOMING_SILENT_CHANNEL_PREFIX + "_v0"
             private set
 
         const val EXTRA_CALL_ID = "call_id"
@@ -44,6 +63,46 @@ class CallForegroundService : Service() {
 
         const val ACTION_END_CALL = "com.glyph.glyph_v3.ACTION_END_CALL"
         private const val ACTION_STOP_SERVICE = "com.glyph.glyph_v3.ACTION_STOP_CALL_SERVICE"
+
+        /**
+         * Resolves the FGS type the OS will actually accept given the runtime
+         * permissions currently held by the app. On Android 14+ (targetSDK=34),
+         * requesting FOREGROUND_SERVICE_TYPE_CAMERA without CAMERA (or
+         * SYSTEM_CAMERA) granted throws SecurityException from startForeground().
+         * We narrow the requested type to whatever the app is actually allowed
+         * to use, so a missing camera permission degrades gracefully to mic-only
+         * instead of crashing the whole process.
+         *
+         * Note: on Android < 14 the type was implicit and the type bitmap is
+         * simply ignored by startForeground(id, notification).
+         */
+        internal fun resolveServiceType(context: Context, requested: Int): Int {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                return requested
+            }
+            val pm = context.packageManager
+            val micGranted = pm.checkPermission(
+                android.Manifest.permission.RECORD_AUDIO, context.packageName
+            ) == PackageManager.PERMISSION_GRANTED
+            val cameraGranted = pm.checkPermission(
+                android.Manifest.permission.CAMERA, context.packageName
+            ) == PackageManager.PERMISSION_GRANTED
+
+            var resolved = 0
+            if (micGranted && (requested and ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE) != 0) {
+                resolved = resolved or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            }
+            if (cameraGranted && (requested and ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA) != 0) {
+                resolved = resolved or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+            }
+            // Phone-call type is needed for the in-call style notification & to
+            // keep the call alive when backgrounded; the FOREGROUND_SERVICE_PHONE_CALL
+            // permission is declared in the manifest so it is always allowed.
+            if ((requested and ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL) != 0) {
+                resolved = resolved or ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
+            }
+            return resolved
+        }
 
         fun start(context: Context, callId: String, callType: CallType, isIncoming: Boolean) {
             val intent = Intent(context, CallForegroundService::class.java).apply {
@@ -91,14 +150,32 @@ class CallForegroundService : Service() {
             val soundTag = if (callRingtonePref == "Default" || callRingtonePref.isBlank()) "def"
                            else callRingtonePref.hashCode().toUInt().toString(16)
             val dynamicIncomingChannelId = "glyph_incoming_call_v${vibTag}_s${soundTag}"
+            val dynamicSilentIncomingChannelId = "${INCOMING_SILENT_CHANNEL_PREFIX}_v$vibTag"
 
-            // If the channel ID changed, delete old incoming call channels
+            // If the channel ID changed, delete old AUDIBLE incoming call channels.
+            // CRITICAL: don't blanket-delete all "glyph_incoming_call_*" — that would
+            // also delete the silent channel, and on the next call the silent channel
+            // would be recreated mid-ringing. Filter on the audible-channel pattern
+            // ("glyph_incoming_call_v" — does NOT start with "glyph_incoming_call_silent").
             manager.notificationChannels
-                .filter { it.id.startsWith("glyph_incoming_call_") && it.id != dynamicIncomingChannelId }
+                .filter {
+                    it.id.startsWith("glyph_incoming_call_") &&
+                        !it.id.startsWith(INCOMING_SILENT_CHANNEL_PREFIX) &&
+                        it.id != dynamicIncomingChannelId
+                }
                 .forEach { manager.deleteNotificationChannel(it.id) }
 
             // Update the companion constant so CallNotificationHelper uses the right channel
             currentIncomingChannelId = dynamicIncomingChannelId
+
+            // Clean up old silent channels if vibrate preference changed
+            manager.notificationChannels
+                .filter {
+                    it.id.startsWith(INCOMING_SILENT_CHANNEL_PREFIX) &&
+                        it.id != dynamicSilentIncomingChannelId
+                }
+                .forEach { manager.deleteNotificationChannel(it.id) }
+            currentSilentIncomingChannelId = dynamicSilentIncomingChannelId
 
             val ringtoneAudioAttributes = AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
@@ -121,6 +198,27 @@ class CallForegroundService : Service() {
                     }
                 }
                 manager.createNotificationChannel(incomingChannel)
+            }
+
+            // Silent channel for the heads-up shown alongside the fullscreen
+            // IncomingCallActivity. The activity plays the ringtone itself, so the
+            // channel must stay silent — otherwise the user hears two overlapping
+            // ringtones (channel sound + activity sound). Vibration is preserved so
+            // the user still feels the call. Importance is HIGH so the heads-up
+            // banner still appears, but no sound is emitted by the system.
+            if (manager.getNotificationChannel(dynamicSilentIncomingChannelId) == null) {
+                val silentChannel = NotificationChannel(
+                    dynamicSilentIncomingChannelId,
+                    "Incoming Calls (in-call)",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Silent notification shown when an incoming call is already on screen"
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    enableVibration(callVibratePref)
+                    // CRITICAL: no sound on this channel — the activity plays it.
+                    setSound(null, null)
+                }
+                manager.createNotificationChannel(silentChannel)
             }
 
             val notifUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -184,10 +282,23 @@ class CallForegroundService : Service() {
         val notification = buildOngoingNotification(callId, callType)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val serviceType = if (callType == CallType.VIDEO) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            val requested = if (callType == CallType.VIDEO) {
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA or
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
             } else {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
+            }
+            val serviceType = resolveServiceType(this, requested)
+            if (serviceType == 0) {
+                // No allowed FGS type — we'd crash with SecurityException. Bail out
+                // cleanly; the call UI is already up and WebRTC is local, so a
+                // missing FGS just means no background survival.
+                Log.w(TAG, "No allowed FGS type for callType=$callType; skipping startForeground")
+                stopForegroundCompat()
+                stopSelf()
+                return START_NOT_STICKY
             }
             startForeground(NOTIFICATION_ID, notification, serviceType)
         } else {

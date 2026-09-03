@@ -51,6 +51,7 @@ import com.glyph.glyph_v3.data.models.CallState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import android.widget.CheckBox
 import android.widget.PopupWindow
@@ -1911,15 +1912,40 @@ class IncomingCallActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Resolves the call ringtone URI from the user's preference, mirroring
+     * the channel-sound selection in [com.glyph.glyph_v3.data.service.CallForegroundService].
+     * Returns `null` if the user explicitly chose "None" (silent). The caller
+     * should skip ringtone playback in that case.
+     */
+    private fun resolveCallRingtoneUri(): android.net.Uri? {
+        val pref = kotlinx.coroutines.runBlocking {
+            com.glyph.glyph_v3.data.preferences.SettingsDataStore
+                .callRingtoneFlow(this@IncomingCallActivity).first()
+        }
+        return when (pref) {
+            "Default", "" -> RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            "None" -> null
+            else -> runCatching { android.net.Uri.parse(pref) }.getOrNull()
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+        }
+    }
+
     private fun startRinging() {
-        // Ringtone
+        // Ringtone — honour the user's call-ringtone preference (same source of
+        // truth as the notification channel). The activity is the single source
+        // of ringtone sound (the channel is silent when the fullscreen UI is up).
         try {
-            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            ringtone = RingtoneManager.getRingtone(this, uri)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                ringtone?.isLooping = true
+            val uri = resolveCallRingtoneUri()
+            if (uri == null) {
+                Log.i(TAG, "Call ringtone is set to None — skipping ringtone playback")
+            } else {
+                ringtone = RingtoneManager.getRingtone(this, uri)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    ringtone?.isLooping = true
+                }
+                ringtone?.play()
             }
-            ringtone?.play()
         } catch (e: Exception) {
             Log.e(TAG, "Error playing ringtone", e)
         }
@@ -2100,6 +2126,24 @@ class IncomingCallActivity : AppCompatActivity() {
         if (!acceptSignalSent && !activeLaunchStarted) {
             startCallAnimations()
         }
+    }
+
+    /**
+     * Defense-in-depth: also cancel the heads-up notification when the activity
+     * becomes fully resumed. `onStart` already does this, but on some OEM ROMs
+     * (Xiaomi/MIUI, Vivo, Huawei EMUI) the heads-up banner briefly lingers
+     * between `onStart` and the first frame of the fullscreen UI. Cancelling in
+     * `onResume` guarantees the banner is gone the moment the user actually sees
+     * the fullscreen UI.
+     *
+     * The notification is also on the silent channel (see CallNotificationHelper),
+     * so this also prevents a second, channel-driven ringtone from overlapping
+     * with the activity's own [startRinging] ringtone if some OEM still surfaces
+     * sound for silent-channel heads-ups.
+     */
+    override fun onResume() {
+        super.onResume()
+        CallNotificationHelper.cancelIncomingNotification(this)
     }
 
     override fun onStop() {

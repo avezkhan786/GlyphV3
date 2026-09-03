@@ -977,6 +977,46 @@ class ChatActivity : AppCompatActivity(),
         }
     }
 
+    /**
+     * Tracks which call type the user was trying to start so the
+     * permission callback knows whether to launch a voice or video call.
+     * Only set between the permission request and the callback firing.
+     */
+    private var pendingCallAfterPermissions: com.glyph.glyph_v3.data.models.CallType? = null
+
+    /**
+     * Camera + microphone permission request for starting a 1:1 call.
+     * On Android 14+ the CallForegroundService requires CAMERA to be granted
+     * before we can request FOREGROUND_SERVICE_TYPE_CAMERA — otherwise
+     * startForeground() throws SecurityException and crashes the process.
+     */
+    private val callPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val callType = pendingCallAfterPermissions ?: return@registerForActivityResult
+        pendingCallAfterPermissions = null
+
+        val cameraGranted = permissions[Manifest.permission.CAMERA] == true ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        val micGranted = permissions[Manifest.permission.RECORD_AUDIO] == true ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+        when {
+            // Mic is non-negotiable for any call.
+            !micGranted -> {
+                Toast.makeText(this, "Microphone permission required for calls", Toast.LENGTH_SHORT).show()
+            }
+            // User asked for video but declined camera — fall back to a voice call
+            // so the user can still talk. (CallForegroundService already degrades
+            // gracefully if CAMERA is missing, but the UI should match.)
+            callType == com.glyph.glyph_v3.data.models.CallType.VIDEO && !cameraGranted -> {
+                Toast.makeText(this, "Camera denied — starting voice call instead", Toast.LENGTH_SHORT).show()
+                actuallyInitiateCall(com.glyph.glyph_v3.data.models.CallType.VOICE)
+            }
+            else -> actuallyInitiateCall(callType)
+        }
+    }
+
     // In-app camera launcher
     private val inAppCameraLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
@@ -2954,6 +2994,37 @@ class ChatActivity : AppCompatActivity(),
             return
         }
         if (isRealtimeInteractionBlocked(feature = RealtimeBlockFeature.CALL, showFeedback = true)) {
+            return
+        }
+
+        // On Android 14+ starting a foreground service with FOREGROUND_SERVICE_TYPE_CAMERA
+        // requires the CAMERA runtime permission to already be granted; otherwise
+        // CallForegroundService.startForeground throws SecurityException and crashes the
+        // process. Request CAMERA + RECORD_AUDIO up front, then launch the call from the
+        // permission callback. For VOICE-only calls we still need RECORD_AUDIO.
+        val needsCamera = callType == com.glyph.glyph_v3.data.models.CallType.VIDEO
+        val cameraGranted = !needsCamera ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        val micGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+
+        if (cameraGranted && micGranted) {
+            actuallyInitiateCall(callType)
+            return
+        }
+
+        pendingCallAfterPermissions = callType
+        val toRequest = buildList {
+            if (!micGranted) add(Manifest.permission.RECORD_AUDIO)
+            if (needsCamera && !cameraGranted) add(Manifest.permission.CAMERA)
+        }.toTypedArray()
+        callPermissionsLauncher.launch(toRequest)
+    }
+
+    private fun actuallyInitiateCall(callType: com.glyph.glyph_v3.data.models.CallType) {
+        val receiverId = otherUserId
+        if (receiverId.isNullOrEmpty()) {
+            Toast.makeText(this, "Cannot call – user info unavailable", Toast.LENGTH_SHORT).show()
             return
         }
         val callManager = com.glyph.glyph_v3.data.webrtc.CallManager

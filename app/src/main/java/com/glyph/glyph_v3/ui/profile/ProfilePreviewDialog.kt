@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.app.Dialog
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
@@ -15,6 +16,8 @@ import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
@@ -631,10 +634,67 @@ class ProfilePreviewDialog : DialogFragment() {
         null
     }
 
+    /**
+     * Tracks which call type the user wanted so the permission callback can launch
+     * the right thing. Mirrors ChatActivity.initiateCall — on Android 14+ we must
+     * hold CAMERA before the FGS asks for FOREGROUND_SERVICE_TYPE_CAMERA.
+     */
+    private var pendingCallType: CallType? = null
+
+    private val callPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val wanted = pendingCallType ?: return@registerForActivityResult
+        pendingCallType = null
+        val ctx = context ?: return@registerForActivityResult
+
+        val micGranted = permissions[android.Manifest.permission.RECORD_AUDIO] == true ||
+            ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val cameraGranted = permissions[android.Manifest.permission.CAMERA] == true ||
+            ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+
+        when {
+            !micGranted -> {
+                android.widget.Toast.makeText(ctx, "Microphone permission required for calls", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            wanted == CallType.VIDEO && !cameraGranted -> {
+                android.widget.Toast.makeText(ctx, "Camera denied — starting voice call instead", android.widget.Toast.LENGTH_SHORT).show()
+                actuallyInitiateCall(CallType.VOICE)
+            }
+            else -> actuallyInitiateCall(wanted)
+        }
+    }
+
     private fun initiateCall(callType: CallType) {
         val ctx = context ?: return
         if (userId.isBlank()) {
             // Group calls not yet supported
+            android.widget.Toast.makeText(ctx, "Group calls are not yet supported", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val needsCamera = callType == CallType.VIDEO
+        val cameraGranted = !needsCamera ||
+            ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        val micGranted = ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+
+        if (cameraGranted && micGranted) {
+            actuallyInitiateCall(callType)
+            return
+        }
+
+        pendingCallType = callType
+        val toRequest = buildList {
+            if (!micGranted) add(android.Manifest.permission.RECORD_AUDIO)
+            if (needsCamera && !cameraGranted) add(android.Manifest.permission.CAMERA)
+        }.toTypedArray()
+        callPermissionsLauncher.launch(toRequest)
+    }
+
+    private fun actuallyInitiateCall(callType: CallType) {
+        val ctx = context ?: return
+        if (userId.isBlank()) {
             android.widget.Toast.makeText(ctx, "Group calls are not yet supported", android.widget.Toast.LENGTH_SHORT).show()
             return
         }
