@@ -212,12 +212,22 @@ object TextLayoutPrecomputer {
         // No pre-measured height — clear any stale minHeight from a previous bind
         // (e.g. ViewHolder recycling after a translation toggle via item.copy()).
         if (item.premeasuredTextHeightPx <= 0) {
-            // For deleted text messages, synchronously compute the height as a fallback.
-            // This handles the edge case where the message entered the adapter via a path
-            // that didn't run precomputeForItems (e.g. loadOlderMessages direct path with
-            // a pre-warmed TextLayoutPrecomputer that wasn't ready when the items were first created).
-            // The measurement is a cheap StaticLayout call for a single short string.
-            if (msg.isDeletedForAll) {
+            // Synchronous fallback for ALL text messages (not just deleted) with no
+            // pre-measured height. The background-thread precomputeForItems in
+            // ChatActivity's collectLatest block is awaited before submitList, but
+            // a new sent message can still reach the bind with preH=0 in edge cases
+            // (e.g. the message entered via a path that bypassed the post-fix
+            // precompute at line 7495, or the precompute ran but the mutation wasn't
+            // visible to the diff'd adapter list for some reason). Without this
+            // fallback, the first bind has minHeight=0 → the bubble's contentHeight
+            // is too short → the metadata (positioned at contentHeight - metadataHeight
+            // + verticalOffset) lands inside the text area → visual overlap between
+            // text and timestamp. Scrolling triggers a rebind that picks up the correct
+            // preH from the precompute, which is why the layout self-corrects on scroll.
+            // The measurement is a cheap StaticLayout call for a single short string
+            // (~1ms on a modern device). measureAndSetHeight internally skips emoji
+            // content and already-measured items, so this is safe to call unconditionally.
+            if (!item.isEmojiContent) {
                 measureAndSetHeight(item)
             }
             if (item.premeasuredTextHeightPx <= 0) {
