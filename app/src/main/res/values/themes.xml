@@ -507,6 +507,34 @@
         <item name="android:windowLightNavigationBar">false</item>
     </style>
 
+    <!--
+        LAUNCHER theme: AndroidX SplashScreen API.
+
+        On Android 12+ (API 31+) the system manages the cold-start splash from
+        windowSplashScreenBackground + windowSplashScreenAnimatedIcon. The
+        postSplashScreenTheme attribute tells the framework which theme to
+        transition to once MainActivity calls installSplashScreen() and
+        setKeepOnScreenCondition() releases.
+
+        On pre-API-31 devices, windowSplashScreen* attributes are no-ops and
+        the postSplashScreenTheme is applied at first frame. Theme.SplashScreen
+        itself is a NoActionBar parent that the AndroidX splashscreen artifact
+        back-ports to API 23+, so the same style works for the whole minSdk=26
+        range without needing a values-v31 split.
+    -->
+    <style name="Theme.GlyphV3.Launcher" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <!--
+            ic_launcher_foreground is the adaptive-icon foreground layer, which
+            is already designed around the 108dp safe zone. Using the raw
+            ic_splash here makes the logo bleed into the 2/3 viewport cap and
+            circular mask on Android 12+, so the "G" reads as cropped.
+        -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/ic_launcher_background</item>
+        <item name="postSplashScreenTheme">@style/Theme.GlyphV3</item>
+    </style>
+
     <style name="Theme.GlyphV3.TransparentLiveAudio" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>

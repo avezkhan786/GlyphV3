@@ -25,6 +25,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.widget.ViewPager2
 import com.glyph.glyph_v3.databinding.ActivityMainBinding
@@ -76,6 +77,13 @@ class MainActivity : AppCompatActivity() {
         if (!chatListFirstFrameReady) chatListFirstFrameReady = true // safety release; never hang
     }
 
+    // SplashScreen keep-on-screen gate. Flipped to true by ensureAuthenticated()
+    // after the cached auth state is read (a few ms on the main thread). When
+    // true, the system-managed splash transitions to MainActivity's first frame.
+    // This replaces the legacy SplashActivity that used to gate on the same check
+    // before routing here.
+    @Volatile private var authReadFromDisk = false
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
@@ -86,11 +94,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Apply saved theme before creating the activity
+        // Apply saved theme before creating the activity. Must happen BEFORE
+        // installSplashScreen() so the LAUNCHER theme attrs (windowSplashScreenBackground,
+        // windowSplashScreenAnimatedIcon) are visible to the framework.
         ThemeManager.applyTheme(this)
-        
+
+        // AndroidX SplashScreen API. Must be called BEFORE super.onCreate().
+        // The keep-on-screen condition holds the system-managed splash visible
+        // until authReadFromDisk flips (in ensureAuthenticated). The flag is
+        // set in the same call stack as onCreate, so the splash transitions
+        // to MainActivity's first frame on the next vsync.
+        val splashScreen = installSplashScreen()
+        splashScreen.setKeepOnScreenCondition { !authReadFromDisk }
+
         super.onCreate(savedInstanceState)
-        
+
         // Ensure user is authenticated (anonymous auth if not signed in)
         ensureAuthenticated()
 
@@ -189,12 +207,12 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         })
-        
+
         askNotificationPermission()
-        
+
         // Check battery optimization (for reliable FCM delivery)
         checkBatteryOptimization()
-        
+
         // Update FCM Token
         updateFcmToken()
 
@@ -673,6 +691,10 @@ class MainActivity : AppCompatActivity() {
      */
     private fun ensureAuthenticated() {
         val auth = FirebaseAuth.getInstance()
+        // Flip the splash keep-on-screen flag as soon as we know the auth state.
+        // FirebaseAuth.getInstance().currentUser is an in-memory read (~ms). The
+        // system-managed splash transitions on the next vsync after this line.
+        authReadFromDisk = true
         if (auth.currentUser == null) {
             auth.signInAnonymously()
                 .addOnSuccessListener { result ->

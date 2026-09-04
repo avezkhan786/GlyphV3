@@ -83,16 +83,6 @@
                 android:value="androidx.startup" />
         </provider>
 
-        <activity
-            android:name=".SplashActivity"
-            android:exported="true"
-            android:theme="@style/Theme.GlyphV3.SplashBranded">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
         <!-- Auth flow (new Compose-based screens) -->
         <activity
             android:name=".ui.auth.WelcomeActivity"
@@ -222,8 +212,14 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="false" 
-            android:launchMode="singleTop"/>
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.GlyphV3.Launcher">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
             
         <activity android:name=".ui.chatlist.ArchivedChatsActivity" />
         <activity android:name=".ui.chatlist.LockedChatsActivity" />

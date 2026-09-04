@@ -52,3 +52,7 @@ credentials.json
 # Build output logs
 build_*.log
 build_*.txt
+
+# Debug capture logs (one-off adb / instrumentation captures)
+*_capture.log
+*_capture.txt

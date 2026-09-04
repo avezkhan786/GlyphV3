@@ -83,13 +83,6 @@ class GlyphApplication : Application() {
         private const val STARTUP_CHAT_PREFETCH_LIMIT = 20
 
         /**
-         * True after the first Activity creation in this process.
-         * Used by SplashActivity to apply the branded window background only on a cold start.
-         */
-        @JvmField
-        var splashShown: Boolean = false
-
-        /**
          * True after Coil image loader has been initialized.
          * Coil is only needed for Compose UI, so we defer initialization until
          * the first Compose screen is displayed.
