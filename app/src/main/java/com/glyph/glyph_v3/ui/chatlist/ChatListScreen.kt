@@ -987,7 +987,12 @@ fun ChatListScreen(
                 blockedUserIds,
                 currentUserId,
                 showHeaderSections,
-                hiddenSectionsHeightPx
+                hiddenSectionsHeightPx,
+                showLockedSection,
+                lockedChatsCount,
+                hasUnreadLockedMessages,
+                archivedChatsCount,
+                hasUnreadArchivedMessages
             ) {
                 val base = buildChatListItems(
                     filteredChats = filteredChats,
@@ -1001,7 +1006,15 @@ fun ChatListScreen(
                     blockedUserIds = blockedUserIds
                 )
                 if (showHeaderSections && hiddenSectionsHeightPx > 0f) {
-                    mutableListOf<ChatListScreenItem>(ChatListScreenItem.HiddenSections()).apply { addAll(base) }
+                    mutableListOf<ChatListScreenItem>(
+                        ChatListScreenItem.HiddenSections(
+                            showLockedRow = showLockedSection,
+                            lockedCount = lockedChatsCount,
+                            lockedHasUnread = hasUnreadLockedMessages,
+                            archivedCount = archivedChatsCount,
+                            archivedHasUnread = hasUnreadArchivedMessages
+                        )
+                    ).apply { addAll(base) }
                 } else {
                     base
                 }
@@ -1021,6 +1034,8 @@ fun ChatListScreen(
                         onAiAgentClick = aiAgentClickCallback,
                         selectionBackgroundColor = selectionBgInt,
                         scrollSuspensionCoordinator = scrollSuspensionCoordinator,
+                        onHiddenLockedChatsClick = { lockedClick.value() },
+                        onHiddenArchivedChatsClick = { archivedClick.value() },
                         initialRevealOffsetPx = revealOffsetPx,
                         hiddenSectionsHeightPx = hiddenSectionsHeightPx
                     )
@@ -1104,6 +1119,12 @@ fun ChatListScreen(
             LaunchedEffect(revealOffsetPx, recyclerViewAdapter) {
                 recyclerViewAdapter?.revealOffsetPx = revealOffsetPx
             }
+            // The reveal cap is captured at adapter creation — on cold start the
+            // archived/locked counts haven't loaded yet (fallback 50f), so it must be
+            // re-synced as the real value arrives.
+            LaunchedEffect(hiddenSectionsHeightPx, recyclerViewAdapter) {
+                recyclerViewAdapter?.hiddenSectionsHeightPx = hiddenSectionsHeightPx
+            }
 
             Box(
                 modifier = Modifier
@@ -1164,21 +1185,44 @@ fun ChatListScreen(
                                 // Mirror chatListState.firstVisibleItemIndex/ScrollOffset for
                                 // the NestedScrollConnection's reveal/hide gesture.
                                 val listAtTopListener = object : RecyclerView.OnScrollListener() {
+                                    // "At top" CANNOT use computeVerticalScrollOffset() or
+                                    // canScrollVertically(-1) on this list: the hidden-sections
+                                    // row sits at adapter position 0 with a height that animates
+                                    // 0 → hiddenSectionsHeightPx, and while collapsed (height 0)
+                                    // LinearLayoutManager skips it in both the layout and the
+                                    // scroll-offset computation — extrapolating a phantom offset
+                                    // (first laid-out position × avg row height, ≈200px) while the
+                                    // list is visually at the very top. That phantom made every
+                                    // pull-down pass through (no reveal). The check is geometric
+                                    // instead: the topmost laid-out child sits at the viewport top
+                                    // AND is the list's first content item — adapter position 0, or
+                                    // position 1 (the AI agent) while the hidden-sections row is
+                                    // collapsed above it.
+                                    private fun isAtTop(recyclerView: RecyclerView): Boolean {
+                                        val first = recyclerView.getChildAt(0) ?: return true
+                                        if (first.top < 0) return false
+                                        val pos = recyclerView.getChildAdapterPosition(first)
+                                        if (pos == RecyclerView.NO_POSITION) return listAtTopState.value
+                                        if (pos <= 0) return true
+                                        val hsAdapter = recyclerView.adapter as? ChatListScreenAdapter
+                                        return pos == 1 && hsAdapter != null &&
+                                            hsAdapter.hasHiddenSectionsItemAtTop() &&
+                                            hsAdapter.revealOffsetPx <= 0f
+                                    }
+
                                     override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                                        // computeVerticalScrollOffset() is O(1) — reads the
-                                        // LinearLayoutManager's cached mScrollOffset field directly.
-                                        // Equivalent to !canScrollVertically(-1) but avoids a
-                                        // view-lookup layout traversal on every scroll frame.
-                                        val isAtTop = recyclerView.computeVerticalScrollOffset() == 0
-                                        if (isAtTop != listAtTopState.value) {
-                                            listAtTopState.value = isAtTop
+                                        val atTop = isAtTop(recyclerView)
+                                        if (atTop != listAtTopState.value) {
+                                            Log.d(TAG, "listAtTop -> $atTop (scrolled dy=$dy)")
+                                            listAtTopState.value = atTop
                                         }
                                     }
 
                                     override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                                        val isAtTop = !recyclerView.canScrollVertically(-1)
-                                        if (isAtTop != listAtTopState.value) {
-                                            listAtTopState.value = isAtTop
+                                        val atTop = isAtTop(recyclerView)
+                                        if (atTop != listAtTopState.value) {
+                                            Log.d(TAG, "listAtTop -> $atTop (state=$newState)")
+                                            listAtTopState.value = atTop
                                         }
                                     }
                                 }

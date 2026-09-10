@@ -24,8 +24,10 @@ import com.bumptech.glide.signature.ObjectKey
 import com.glyph.glyph_v3.R
 import com.glyph.glyph_v3.data.models.Chat
 import com.glyph.glyph_v3.ui.aiagent.AiAgentConstants
+import com.glyph.glyph_v3.utils.ThemeManager
 import java.io.File
 import java.text.SimpleDateFormat
+import kotlin.math.roundToInt
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -42,6 +44,7 @@ internal const val VIEW_TYPE_AI_AGENT = 1
 internal const val VIEW_TYPE_CHAT = 2
 internal const val VIEW_TYPE_PLACEHOLDER = 3
 internal const val VIEW_TYPE_EMPTY = 4
+internal const val VIEW_TYPE_HIDDEN_SECTIONS = 5
 
 // ─── Payload Change Types ────────────────────────────────────────────────────
 // These mirror the DiffUtil payloads used by the Compose implementation — each
@@ -95,6 +98,17 @@ internal sealed class ChatListScreenItem {
         override val stableKey: String = key
     ) : ChatListScreenItem()
 
+    /** Hidden-sections row (locked chats + archived) at the top of the list. */
+    data class HiddenSections(
+        val showLockedRow: Boolean = false,
+        val lockedCount: Int = 0,
+        val lockedHasUnread: Boolean = false,
+        val archivedCount: Int = 0,
+        val archivedHasUnread: Boolean = false,
+        val key: String = "hidden_sections",
+        override val stableKey: String = key
+    ) : ChatListScreenItem()
+
     /** A regular chat row. */
     data class Chat(
         val chat: com.glyph.glyph_v3.data.models.Chat,
@@ -133,6 +147,11 @@ internal object ChatListDiffCallback : DiffUtil.ItemCallback<ChatListScreenItem>
             oldItem is ChatListScreenItem.ArchivedBanner && newItem is ChatListScreenItem.ArchivedBanner ->
                 oldItem.key == newItem.key
             oldItem is ChatListScreenItem.Empty && newItem is ChatListScreenItem.Empty ->
+                oldItem.key == newItem.key
+            // MUST be recognised: with `else -> false` every submitListSync would
+            // re-insert the hidden-sections row at position 0, re-triggering
+            // LinearLayoutManager's insert re-anchoring on every list update.
+            oldItem is ChatListScreenItem.HiddenSections && newItem is ChatListScreenItem.HiddenSections ->
                 oldItem.key == newItem.key
             else -> false
         }
@@ -227,7 +246,14 @@ internal class ChatListScreenAdapter(
     private val onAvatarClick: (Chat, Rect) -> Unit,
     private val onAiAgentClick: () -> Unit,
     private val selectionBackgroundColor: Int,
-    private val scrollSuspensionCoordinator: ScrollSuspensionCoordinator
+    private val scrollSuspensionCoordinator: ScrollSuspensionCoordinator,
+    internal val onHiddenLockedChatsClick: () -> Unit,
+    internal val onHiddenArchivedChatsClick: () -> Unit,
+    private val initialRevealOffsetPx: Float = 0f,
+    // Live-updatable reveal cap — on cold start the archived/locked counts haven't
+    // loaded yet (the first composition falls back to the 50f minimum), so
+    // ChatListScreen syncs this as the real value arrives.
+    internal var hiddenSectionsHeightPx: Float = 0f
 ) : ListAdapter<ChatListScreenItem, RecyclerView.ViewHolder>(ChatListDiffCallback) {
 
     // ── Synchronous list mode ────────────────────────────────────────────────────
@@ -291,6 +317,7 @@ internal class ChatListScreenAdapter(
             is ChatListScreenItem.Chat -> VIEW_TYPE_CHAT
             is ChatListScreenItem.Placeholder -> VIEW_TYPE_PLACEHOLDER
             is ChatListScreenItem.Empty -> VIEW_TYPE_EMPTY
+            is ChatListScreenItem.HiddenSections -> VIEW_TYPE_HIDDEN_SECTIONS
         }
     }
 
@@ -314,6 +341,16 @@ internal class ChatListScreenAdapter(
                 EmptyViewHolder(
                     inflater.inflate(R.layout.item_chat_list_screen_empty, parent, false)
                 )
+            VIEW_TYPE_HIDDEN_SECTIONS -> {
+                val view = inflater.inflate(R.layout.item_chat_list_hidden_sections, parent, false)
+                // Pin the height immediately: the rows' natural wrap_content height
+                // (~200px) would be measured for one layout pass between create and
+                // bind — corrupting RecyclerView's insert anchor and scroll-offset
+                // bookkeeping. bind() applies the live reveal-derived height.
+                view.layoutParams.height =
+                    initialRevealOffsetPx.roundToInt().coerceIn(0, hiddenSectionsHeightPx.roundToInt())
+                HiddenSectionsViewHolder(view)
+            }
             else -> ChatRowViewHolder(
                 inflater.inflate(R.layout.item_chat_list_screen, parent, false),
                 scrollSuspensionCoordinator,
@@ -336,6 +373,8 @@ internal class ChatListScreenAdapter(
             // PlaceholderViewHolder shimmer is started in onViewAttachedToWindow
             is EmptyViewHolder -> holder.bind()
             is ArchivedBannerViewHolder -> holder.bind()
+            is HiddenSectionsViewHolder ->
+                holder.bind(item as ChatListScreenItem.HiddenSections, this)
         }
     }
 
@@ -392,14 +431,142 @@ internal class ChatListScreenAdapter(
         }
     }
 
+    private var recyclerViewAdapterInstance: RecyclerView? = null
+    private var _revealOffsetPx: Float = initialRevealOffsetPx
+    internal var revealOffsetPx: Float
+        get() = _revealOffsetPx
+        set(value) {
+            _revealOffsetPx = value
+            applyRevealToHolder(value)
+        }
+
+    /** True when adapter position 0 is the hidden-sections row (it may be zero-height). */
+    internal fun hasHiddenSectionsItemAtTop(): Boolean {
+        return itemCount > 0 && getItem(0) is ChatListScreenItem.HiddenSections
+    }
+
+    /**
+     * Pushes the current reveal offset into the bound hidden-sections row (adapter
+     * position 0) — the row's height IS the reveal offset, so growing it pushes the
+     * chat content down smoothly.
+     *
+     * When the row is collapsed (height 0), LinearLayoutManager may skip laying it out
+     * entirely — findViewHolderForAdapterPosition(0) then returns null and the row has
+     * no holder to grow. In that state (topmost laid-out child is position 1 at the
+     * viewport top) the layout must be re-anchored to position 0 so the row is created,
+     * bound, and takes the reveal height. Never re-anchor while the list is scrolled —
+     * there the row simply re-syncs on rebind, and anchoring to position 0 would yank
+     * the scroll.
+     */
+    private fun applyRevealToHolder(reveal: Float) {
+        val rv = recyclerViewAdapterInstance ?: return
+        val holder = rv.findViewHolderForAdapterPosition(0) as? HiddenSectionsViewHolder
+        if (holder != null) {
+            holder.applyRevealHeight(reveal, hiddenSectionsHeightPx)
+            return
+        }
+        if (reveal > 0f) {
+            val first = rv.getChildAt(0)
+            if (first != null && first.top >= 0 && rv.getChildAdapterPosition(first) == 1) {
+                rv.scrollToPosition(0)
+                rv.requestLayout()
+            }
+        }
+    }
+
     override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
         super.onAttachedToRecyclerView(recyclerView)
+        this.recyclerViewAdapterInstance = recyclerView
         scrollSuspensionCoordinator.attach(recyclerView)
     }
 
     override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
         super.onDetachedFromRecyclerView(recyclerView)
+        this.recyclerViewAdapterInstance = null
         scrollSuspensionCoordinator.detach()
+    }
+}
+
+/**
+ * Hosts the hidden (locked chats / archived) sections row at adapter position 0.
+ * Its height is owned by the adapter — it always equals the current reveal offset
+ * (0 when hidden, up to hiddenSectionsHeightPx when revealed), never wrap_content.
+ * The adapter pushes height updates via [applyRevealHeight] as the reveal offset
+ * animates; no polling loop, so there is nothing to unbind on recycle.
+ */
+internal class HiddenSectionsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+
+    private val lockedRow: LinearLayout = itemView.findViewById(R.id.lockedChatsRow)
+    private val archivedRow: LinearLayout = itemView.findViewById(R.id.archivedRow)
+    private val lockedBadge: TextView = itemView.findViewById(R.id.tvLockedBadge)
+    private val archivedBadge: TextView = itemView.findViewById(R.id.tvArchiveBadge)
+
+    // Reusable pill backgrounds — one per badge, since both mutate per bind.
+    // setBackgroundColor() would replace the drawable with a plain rectangular
+    // ColorDrawable (the square-badge bug); the OVAL drawable keeps the rounded
+    // pill shape while the color is set per bind (same pattern as ChatRowViewHolder's
+    // avatarInitialBg).
+    private val lockedBadgeBg: GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+    }
+    private val archivedBadgeBg: GradientDrawable = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+    }
+
+    fun applyRevealHeight(revealPx: Float, capPx: Float) {
+        val lp = itemView.layoutParams
+        val newHeight = revealPx.roundToInt().coerceIn(0, capPx.roundToInt())
+        if (lp.height != newHeight) {
+            lp.height = newHeight
+            itemView.layoutParams = lp
+        }
+    }
+
+    fun bind(item: ChatListScreenItem.HiddenSections, adapter: ChatListScreenAdapter) {
+        applyRevealHeight(adapter.revealOffsetPx, adapter.hiddenSectionsHeightPx)
+
+        // Row visibility: the locked row is shown while locked chats exist (or when
+        // the secret-code search reveals it); the archived row while any archived
+        // chats exist.
+        lockedRow.visibility = if (item.showLockedRow) View.VISIBLE else View.GONE
+        archivedRow.visibility = if (item.archivedCount > 0) View.VISIBLE else View.GONE
+
+        lockedRow.setOnClickListener { adapter.onHiddenLockedChatsClick() }
+        archivedRow.setOnClickListener { adapter.onHiddenArchivedChatsClick() }
+
+        // Badge colors — unread uses the theme green badge; neutral a per-theme gray.
+        val ctx = itemView.context
+        val unreadBadgeColor = ctx.resolveColor(R.attr.glyphUnreadBadge)
+        val neutralBadgeColor = when (ThemeManager.getCurrentTheme(ctx)) {
+            ThemeManager.THEME_DARK -> 0xFF374151.toInt()
+            ThemeManager.THEME_LIGHT -> 0xFFE0E0E0.toInt()
+            else -> 0xB0B0C0CF.toInt()
+        }
+        val neutralBadgeTextColor = when (ThemeManager.getCurrentTheme(ctx)) {
+            ThemeManager.THEME_DARK -> 0xFF9CA3AF.toInt()
+            ThemeManager.THEME_LIGHT -> 0xFF757575.toInt()
+            else -> 0xFFFFFFFF.toInt()
+        }
+
+        val lockedUnreadBg = if (item.lockedHasUnread) unreadBadgeColor else neutralBadgeColor
+        val lockedUnreadText = if (item.lockedHasUnread) android.graphics.Color.BLACK else neutralBadgeTextColor
+        lockedBadge.visibility = if (item.lockedCount > 0) View.VISIBLE else View.GONE
+        if (item.lockedCount > 0) {
+            lockedBadge.text = if (item.lockedCount > 99) "99+" else item.lockedCount.toString()
+            lockedBadgeBg.setColor(lockedUnreadBg)
+            lockedBadge.background = lockedBadgeBg
+            lockedBadge.setTextColor(lockedUnreadText)
+        }
+
+        val archivedUnreadBg = if (item.archivedHasUnread) unreadBadgeColor else neutralBadgeColor
+        val archivedUnreadText = if (item.archivedHasUnread) android.graphics.Color.BLACK else neutralBadgeTextColor
+        archivedBadge.visibility = if (item.archivedCount > 0) View.VISIBLE else View.GONE
+        if (item.archivedCount > 0) {
+            archivedBadge.text = if (item.archivedCount > 99) "99+" else item.archivedCount.toString()
+            archivedBadgeBg.setColor(archivedUnreadBg)
+            archivedBadge.background = archivedBadgeBg
+            archivedBadge.setTextColor(archivedUnreadText)
+        }
     }
 }
 
