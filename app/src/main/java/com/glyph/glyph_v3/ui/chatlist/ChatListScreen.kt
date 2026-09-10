@@ -142,6 +142,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Velocity
@@ -494,7 +495,12 @@ fun ChatListScreen(
     val showHeaderSections = !isSelectionMode && !isArchivedMode && (showLockedSection || showArchivedSection)
     val hiddenSectionsRowCount = (if (showLockedSection) 1 else 0) + (if (showArchivedSection) 1 else 0)
     val hiddenSectionsHeight = (hiddenSectionsRowCount * 50).dp
-    val hiddenSectionsHeightPx = with(density) { hiddenSectionsHeight.roundToPx().toFloat() }
+    val hiddenSectionsHeightPx = with(density) {
+        // Ensure minimum positive height so reveal scroll processing isn't skipped
+        // on cold start when archivedChatsCount may be 0 before DB is populated.
+        val h = hiddenSectionsHeight.roundToPx().toFloat()
+        if (h <= 0f) 50f else h
+    }
 
     // ── Badge colors for the XML-based hidden sections overlay ────────────────
     // These mirror the color logic that was previously in the HiddenChatsSections
@@ -524,7 +530,7 @@ fun ChatListScreen(
     var userIsClosingSection by remember { mutableStateOf(false) }
     // Rate-limit scroll debug logs: log at most once every ~200ms
     val lastScrollLogMs = remember { mutableStateOf(0L) }
-    val revealConnection = remember(showHeaderSections, isArchivedMode, hiddenSectionsHeightPx, chatListState) {
+    val revealConnection = remember(showHeaderSections, isArchivedMode, hiddenSectionsHeightPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val canLog = System.currentTimeMillis() - lastScrollLogMs.value > 200L
@@ -548,6 +554,7 @@ fun ChatListScreen(
                         val nextOffset = (revealOffsetPx + available.y).coerceIn(0f, hiddenSectionsHeightPx)
                         val consumedY = nextOffset - revealOffsetPx
                         if (consumedY != 0f) {
+                            Log.d(TAG, "DEBUG revealOffsetPx CHANGED push: $revealOffsetPx -> $nextOffset (delta=$consumedY)")
                             revealOffsetPx = nextOffset
                             revealInteractionNonce += 1
                         }
@@ -558,17 +565,16 @@ fun ChatListScreen(
                         Offset(0f, consumedY)
                     }
 
-                    isPushingUp && revealOffsetPx > 0.5f -> {
+                    isPushingUp && revealOffsetPx > 0f -> {
                         userIsClosingSection = true
                         val nextOffset = (revealOffsetPx + available.y).coerceIn(0f, hiddenSectionsHeightPx)
                         val consumedY = nextOffset - revealOffsetPx
                         if (consumedY != 0f) {
+                            Log.d(TAG, "DEBUG revealOffsetPx CHANGED pull: $revealOffsetPx -> $nextOffset (delta=$consumedY)")
                             revealOffsetPx = nextOffset
                             revealInteractionNonce += 1
                         }
-                        // Snap to zero when very close to avoid tiny residuals
-                        // that would consume scroll events on the next gesture.
-                        if (revealOffsetPx < 1f) revealOffsetPx = 0f
+                        // No abrupt snap — smooth scroll to zero avoids jump.
                         if (canLog) {
                             Log.d(TAG, "onPreScroll PUSH-UP(BLOCKED): avail=${available.y} offset=${revealOffsetPx}→$nextOffset consumed=$consumedY nonce=$revealInteractionNonce listAtTop=$listAtTop")
                             lastScrollLogMs.value = System.currentTimeMillis()
@@ -579,7 +585,7 @@ fun ChatListScreen(
                     else -> {
                         if (canLog) {
                             val reason = when {
-                                isPushingUp -> "offset=$revealOffsetPx ≤0.5f → PASS-THROUGH"
+                                isPushingUp -> "offset=$revealOffsetPx ≤0f → PASS-THROUGH"
                                 isPullingDown -> "!listAtTop (idx=${chatListState.firstVisibleItemIndex} off=${chatListState.firstVisibleItemScrollOffset}) → PASS-THROUGH"
                                 else -> "idle → PASS-THROUGH"
                             }
@@ -979,9 +985,11 @@ fun ChatListScreen(
                 groupSenderNamesByUserId,
                 statusRingStatesByUserId,
                 blockedUserIds,
-                currentUserId
+                currentUserId,
+                showHeaderSections,
+                hiddenSectionsHeightPx
             ) {
-                buildChatListItems(
+                val base = buildChatListItems(
                     filteredChats = filteredChats,
                     groupSenderNamesByUserId = groupSenderNamesByUserId,
                     statusRingStatesByUserId = statusRingStatesByUserId,
@@ -992,6 +1000,11 @@ fun ChatListScreen(
                     currentUserId = currentUserId,
                     blockedUserIds = blockedUserIds
                 )
+                if (showHeaderSections && hiddenSectionsHeightPx > 0f) {
+                    mutableListOf<ChatListScreenItem>(ChatListScreenItem.HiddenSections()).apply { addAll(base) }
+                } else {
+                    base
+                }
             }
 
             val recyclerViewAdapter = remember(
@@ -1007,7 +1020,9 @@ fun ChatListScreen(
                         onAvatarClick = { chat, rect -> onAvatarClickState.value(chat, rect) },
                         onAiAgentClick = aiAgentClickCallback,
                         selectionBackgroundColor = selectionBgInt,
-                        scrollSuspensionCoordinator = scrollSuspensionCoordinator
+                        scrollSuspensionCoordinator = scrollSuspensionCoordinator,
+                        initialRevealOffsetPx = revealOffsetPx,
+                        hiddenSectionsHeightPx = hiddenSectionsHeightPx
                     )
                     // Pre-submit the initial list during creation so the RecyclerView
                     // is never shown empty on the first layout pass. This is critical
@@ -1085,11 +1100,15 @@ fun ChatListScreen(
                 }
             }
 
+            // Continuously sync reveal offset to adapter for smooth native slide
+            LaunchedEffect(revealOffsetPx, recyclerViewAdapter) {
+                recyclerViewAdapter?.revealOffsetPx = revealOffsetPx
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (useRecyclerView) Modifier.padding(recyclerViewBoxPadding) else Modifier.padding(listPadding))
-                    .graphicsLayer { translationY = revealOffsetPx }
             ) {
                 if (useRecyclerView) {
                     // ═══════════════════════════════════════════════════════════
@@ -1138,7 +1157,7 @@ fun ChatListScreen(
                                 // the "disappear and reappear quickly" flicker. False lets the
                                 // stretched content draw beyond the padding so the last row stays
                                 // visible throughout the entire stretch cycle.
-                                setPadding(0, 0, 0, recyclerViewTotalBottomPaddingPx)
+                                setPadding(0, revealOffsetPx.roundToInt(), 0, recyclerViewTotalBottomPaddingPx)
                                 clipToPadding = false
                                 // Mirror Compose's LocalListScrolling for infinite animations.
                                 scrollSuspensionCoordinator.attach(this)
@@ -1157,11 +1176,9 @@ fun ChatListScreen(
                                     }
 
                                     override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                                        if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                                            val isAtTop = recyclerView.computeVerticalScrollOffset() == 0
-                                            if (isAtTop != listAtTopState.value) {
-                                                listAtTopState.value = isAtTop
-                                            }
+                                        val isAtTop = !recyclerView.canScrollVertically(-1)
+                                        if (isAtTop != listAtTopState.value) {
+                                            listAtTopState.value = isAtTop
                                         }
                                     }
                                 }
@@ -1206,7 +1223,7 @@ fun ChatListScreen(
                     // ═══════════════════════════════════════════════════════════
                     if (isInitialLoading) {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().offset { IntOffset(0, revealOffsetPx.roundToInt()) },
                             contentPadding = listPadding
                         ) {
                             if (isArchivedMode) {
@@ -1218,7 +1235,7 @@ fun ChatListScreen(
                         }
                     } else {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().offset { IntOffset(0, revealOffsetPx.roundToInt()) },
                             state = chatListState,
                             contentPadding = listPadding
                         ) {
@@ -1295,67 +1312,9 @@ fun ChatListScreen(
                 }
             }
 
-            if (showHeaderSections && hiddenSectionsHeightPx > 0f) {
-                AndroidView(
-                    factory = { ctx ->
-                        val view = LayoutInflater.from(ctx)
-                            .inflate(R.layout.item_chat_list_hidden_sections, null) as LinearLayout
-                        view.findViewById<LinearLayout>(R.id.lockedChatsRow).setOnClickListener {
-                            lockedClick.value()
-                        }
-                        view.findViewById<LinearLayout>(R.id.archivedRow).setOnClickListener {
-                            archivedClick.value()
-                        }
-                        view
-                    },
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .fillMaxWidth()
-                        .padding(top = contentPadding.calculateTopPadding())
-                        .height(hiddenSectionsHeight)
-                        .clipToBounds()
-                        .zIndex(1f)
-                        .graphicsLayer {
-                            translationY = revealOffsetPx - hiddenSectionsHeightPx
-                        },
-                    update = { container ->
-                        val lockedRow = container.findViewById<LinearLayout>(R.id.lockedChatsRow)
-                        val archivedRow = container.findViewById<LinearLayout>(R.id.archivedRow)
-                        val lockedBadge = container.findViewById<TextView>(R.id.tvLockedBadge)
-                        val archivedBadge = container.findViewById<TextView>(R.id.tvArchiveBadge)
 
-                        // Locked row: visible when locked chats count > 0 (normal)
-                        // or when the secret-code search reveals the hidden row.
-                        val showLockedRow = showLockedSection
-                        lockedRow.visibility = if (showLockedRow) View.VISIBLE else View.GONE
-                        lockedBadge.visibility = if (lockedChatsCount > 0) View.VISIBLE else View.GONE
-                        if (lockedChatsCount > 0) {
-                            lockedBadge.text = if (lockedChatsCount > 99) "99+" else lockedChatsCount.toString()
-                        }
-
-                        // Archived row: always visible when there are archived chats.
-                        archivedRow.visibility = if (showArchivedSection) View.VISIBLE else View.GONE
-                        if (archivedChatsCount > 0) {
-                            archivedBadge.visibility = View.VISIBLE
-                            archivedBadge.text = if (archivedChatsCount > 99) "99+" else archivedChatsCount.toString()
-                        }
-
-                        // Badge colors — unread uses the theme green badge;
-                        // neutral uses a per-theme gray.
-                        val lockedUnreadBg = if (hasUnreadLockedMessages) unreadBadgeColor else neutralBadgeColor
-                        val lockedUnreadText = if (hasUnreadLockedMessages) unreadBadgeTextColor else neutralBadgeTextColor
-                        lockedBadge.setBackgroundResource(R.drawable.bg_neutral_badge)
-                        lockedBadge.setBackgroundColor(lockedUnreadBg)
-                        lockedBadge.setTextColor(lockedUnreadText)
-
-                        val archivedUnreadBg = if (hasUnreadArchivedMessages) unreadBadgeColor else neutralBadgeColor
-                        val archivedUnreadText = if (hasUnreadArchivedMessages) unreadBadgeTextColor else neutralBadgeTextColor
-                        archivedBadge.setBackgroundResource(R.drawable.bg_neutral_badge)
-                        archivedBadge.setBackgroundColor(archivedUnreadBg)
-                        archivedBadge.setTextColor(archivedUnreadText)
-                    }
-                )
-            }
+            // Archive/locked sections are handled by adapter-level HiddenSections item
+            // (see adapter buildChatListItems) with smooth native padding + .translationY.
 
             // ── Undo Delete Snackbar overlay ──
             AnimatedVisibility(
