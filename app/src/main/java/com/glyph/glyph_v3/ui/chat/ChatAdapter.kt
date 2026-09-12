@@ -806,11 +806,41 @@ class ChatAdapter(
         return String.format("%d:%02d", seconds / 60, seconds % 60)
     }
 
+    /**
+     * Extra negative top margin (px) for the timestamp/status row under a caption.
+     * The caption's −5dp bottom margin is the safe base for any text; when the last
+     * character has no descender (g j p q y / non-Latin), the row can sit ~2dp tighter
+     * without the glyphs colliding.
+     */
+    private fun tightRowExtraMarginPx(captionText: String?): Int {
+        val last = captionText?.trimEnd()?.lastOrNull()?.lowercaseChar()
+        return if (last != null && last in 'a'..'z' && last !in "gjpqy") -dpToPx(2f) else 0
+    }
+
     private fun formatFileSize(bytes: Long): String {
         if (bytes <= 0) return "0 B"
         val units = arrayOf("B", "KB", "MB", "GB")
         val digitGroups = (Math.log10(bytes.toDouble()) / Math.log10(1024.0)).toInt()
         return String.format("%.1f %s", bytes / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+    }
+
+    /**
+     * Detail overlay text for an active media transfer, e.g.
+     * "42% · 12.3/45.6 MB · 1.2 MB/s". Returns null for indeterminate progress.
+     */
+    private fun formatTransferDetails(progress: MediaProgressManager.MediaProgress?): String? {
+        if (progress == null || progress.isIndeterminate) return null
+        val sb = StringBuilder((progress.progress.toInt().coerceIn(0, 100)).toString()).append('%')
+        if (progress.totalBytes > 0) {
+            sb.append(" · ")
+                .append(formatFileSize(progress.transferredBytes))
+                .append('/')
+                .append(formatFileSize(progress.totalBytes))
+        }
+        if (progress.speedBps > 0f) {
+            sb.append(" · ").append(formatFileSize(progress.speedBps.toLong())).append("/s")
+        }
+        return sb.toString()
     }
 
     private fun hasExistingLocalUri(localUri: String?): Boolean {
@@ -916,7 +946,7 @@ class ChatAdapter(
     companion object {
         private const val MEDIA_DEBUG_ENABLED = false
         private const val MEDIA_DEBUG_TAG = "GlyphDebug"
-        private val DEFAULT_MEDIA_LABELS = setOf("Photo", "Video", "GIF", "Sticker", "Meme", "photo", "video", "gif", "sticker", "meme")
+        private val DEFAULT_MEDIA_LABELS = setOf("Photo", "Video", "GIF", "Sticker", "Meme", "Media", "photo", "video", "gif", "sticker", "meme", "media")
 
         private const val VIEW_TYPE_INCOMING_TEXT = 1
         private const val VIEW_TYPE_OUTGOING_TEXT = 2
@@ -2089,6 +2119,59 @@ class ChatAdapter(
             }
         }
         
+        /**
+         * Caption below a collage plus the timestamp chrome that goes with it:
+         * with a caption the timestamp/status move below the caption (like regular
+         * text bubbles) and the media overlay pill is hidden; without a caption the
+         * overlay pill stays. Captions shown only for real user text, never for the
+         * auto-generated placeholder labels ("Media", "Photo", …).
+         *
+         * @param statusIconBelow optional (outgoing only) status icon inside the below-row
+         */
+        protected fun bindCollageCaptionChrome(
+            tvCaption: TextView,
+            overlayTimestamp: View,
+            overlayTimestampText: TextView,
+            belowRow: View,
+            tvTimestampBelow: TextView,
+            msg: Message,
+            statusIconBelow: ImageView? = null
+        ) {
+            val captionText = msg.text?.takeIf { it.isNotBlank() && it !in DEFAULT_MEDIA_LABELS }
+            if (captionText != null) {
+                tvCaption.text = captionText
+                // Keep the caption size identical to regular message text (the adapter
+                // overrides the XML size at runtime with normalMessageTextSizeSp)
+                tvCaption.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, normalMessageTextSizeSp)
+                tvCaption.visibility = View.VISIBLE
+                overlayTimestamp.visibility = View.GONE
+                belowRow.visibility = View.VISIBLE
+                tvTimestampBelow.text = overlayTimestampText.text
+                if (statusIconBelow != null) {
+                    updateMessageStatus(statusIconBelow, rememberStrongestOutgoingStatus(msg))
+                }
+            } else {
+                tvCaption.visibility = View.GONE
+                overlayTimestamp.visibility = View.VISIBLE
+                belowRow.visibility = View.GONE
+            }
+            applyTimestampRowTightness(belowRow, captionText)
+        }
+
+        /**
+         * Applies the tightness margin for the timestamp/status row under a caption.
+         * Call with the caption text in the captioned branch, and with null in the
+         * sticker/uncaptioned branches so a recycled holder resets the margin.
+         */
+        protected fun applyTimestampRowTightness(row: View, captionText: String?) {
+            val lp = row.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+            val target = tightRowExtraMarginPx(captionText)
+            if (lp.topMargin != target) {
+                lp.topMargin = target
+                row.layoutParams = lp
+            }
+        }
+
         protected fun updateMessageStatus(imageView: android.widget.ImageView, status: com.glyph.glyph_v3.data.models.MessageStatus) {
             imageView.clearColorFilter()
             imageView.imageTintList = null
@@ -3412,7 +3495,7 @@ class ChatAdapter(
 
     private fun applyStableCollageWidth(collageView: CollageImageView) {
         val density = android.content.res.Resources.getSystem().displayMetrics.density
-        val targetWidth = ChatMediaLayoutSizing.cappedLandscapeMediaWidthPx(
+        val targetWidth = ChatMediaLayoutSizing.cappedGroupMediaWidthPx(
             density = density,
             viewportWidthPx = resolveViewportWidthPx(collageView),
             rootHorizontalPaddingPx = resolveRootHorizontalPaddingPx(collageView),
@@ -4327,14 +4410,22 @@ class ChatAdapter(
                 }
                 
                 // Display caption if present (only real user captions, not default placeholders)
-                if (!msg.text.isNullOrBlank() && msg.text !in DEFAULT_MEDIA_LABELS && msg.type != MessageType.KLIPY_EMOJI) {
+                val hasCaption = !msg.text.isNullOrBlank() && msg.text !in DEFAULT_MEDIA_LABELS && msg.type != MessageType.KLIPY_EMOJI
+                if (hasCaption) {
                     binding.tvCaption.text = msg.text
                     binding.tvCaption.visibility = View.VISIBLE
                 } else {
                     binding.tvCaption.visibility = View.GONE
                 }
 
-                if (isSticker) {
+                // Captioned media (and stickers): timestamp below the content like regular
+                // text bubbles — the caption's negative bottom margin pulls the row tight
+                // against the caption text. Uncaptioned media: pill overlaid on the media.
+                if (hasCaption) {
+                    binding.tvTimestamp.visibility = View.GONE
+                    binding.tvTimestampBelow.visibility = View.VISIBLE
+                    binding.tvTimestampBelow.text = binding.tvTimestamp.text
+                } else if (isSticker) {
                     binding.tvTimestamp.visibility = View.GONE
                     binding.tvTimestampBelow.visibility = View.VISIBLE
                     binding.tvTimestampBelow.text = binding.tvTimestamp.text
@@ -4346,7 +4437,8 @@ class ChatAdapter(
                     val px2 = dpToPx(2f)
                     binding.tvTimestamp.setPadding(px6, px2, px6, px2)
                 }
-                
+                applyTimestampRowTightness(binding.tvTimestampBelow, if (hasCaption) msg.text else null)
+
                 if (msg.type == MessageType.VIDEO) {
                     binding.ivPlayButton.visibility = View.VISIBLE
                     binding.tvVideoDuration.visibility = View.VISIBLE
@@ -4361,11 +4453,12 @@ class ChatAdapter(
                 val downloadProgress = MediaProgressManager.getProgress(msg.id)
                 val isDownloading = downloadProgress != null && !downloadProgress.isUploading && !downloadProgress.isComplete
                 val isReady = hasLocalMedia || (mediaLocalFileResolver?.isReadyForPlayback(msg) == true)
-                
+
                 when {
                     isReady -> {
                         binding.ivDownloadButton.visibility = View.GONE
                         binding.progressIndicator.visibility = View.GONE
+                        binding.tvFileSize.text = formatFileSize(msg.fileSize ?: 0)
                     }
                     isDownloading -> {
                         binding.progressIndicator.visibility = View.VISIBLE
@@ -4375,13 +4468,15 @@ class ChatAdapter(
                         } else {
                             binding.progressIndicator.setProgress(downloadProgress.progress, animate = false)
                         }
+                        formatTransferDetails(downloadProgress)?.let { binding.tvFileSize.text = it }
                     }
                     else -> {
                         binding.ivDownloadButton.visibility = View.VISIBLE
                         binding.progressIndicator.visibility = View.GONE
+                        binding.tvFileSize.text = formatFileSize(msg.fileSize ?: 0)
                     }
                 }
-                
+
                 binding.ivDownloadButton.setOnClickListener { mediaDownloadListener?.onDownloadClicked(msg) }
                 
                 binding.messageBubble.setOnClickListener {
@@ -4424,14 +4519,21 @@ class ChatAdapter(
                 binding.tvFileSize.visibility = View.VISIBLE
             }
 
-            if (!msg.text.isNullOrBlank() && msg.text !in DEFAULT_MEDIA_LABELS && msg.type != MessageType.KLIPY_EMOJI) {
+            val hasCaption = !msg.text.isNullOrBlank() && msg.text !in DEFAULT_MEDIA_LABELS && msg.type != MessageType.KLIPY_EMOJI
+            if (hasCaption) {
                 binding.tvCaption.text = msg.text
                 binding.tvCaption.visibility = View.VISIBLE
             } else {
                 binding.tvCaption.visibility = View.GONE
             }
 
-            if (isSticker) {
+            // Captioned media (and stickers): timestamp below the content; the caption's
+            // negative bottom margin pulls the row tight. Uncaptioned: overlay pill.
+            if (hasCaption) {
+                binding.tvTimestamp.visibility = View.GONE
+                binding.tvTimestampBelow.visibility = View.VISIBLE
+                binding.tvTimestampBelow.text = binding.tvTimestamp.text
+            } else if (isSticker) {
                 binding.tvTimestamp.visibility = View.GONE
                 binding.tvTimestampBelow.visibility = View.VISIBLE
                 binding.tvTimestampBelow.text = binding.tvTimestamp.text
@@ -4439,6 +4541,7 @@ class ChatAdapter(
                 binding.tvTimestamp.visibility = View.VISIBLE
                 binding.tvTimestampBelow.visibility = View.GONE
             }
+            applyTimestampRowTightness(binding.tvTimestampBelow, if (hasCaption) msg.text else null)
 
             if (msg.type == MessageType.VIDEO) {
                 binding.ivPlayButton.visibility = View.VISIBLE
@@ -4482,6 +4585,7 @@ class ChatAdapter(
                 isReady -> {
                     binding.ivDownloadButton.visibility = View.GONE
                     binding.progressIndicator.visibility = View.GONE
+                    binding.tvFileSize.text = formatFileSize(msg.fileSize ?: 0)
                 }
                 isDownloading -> {
                     binding.progressIndicator.visibility = View.VISIBLE
@@ -4491,10 +4595,12 @@ class ChatAdapter(
                     } else {
                         binding.progressIndicator.setProgress(downloadProgress.progress, animate = true)
                     }
+                    formatTransferDetails(downloadProgress)?.let { binding.tvFileSize.text = it }
                 }
                 else -> {
                     binding.ivDownloadButton.visibility = View.VISIBLE
                     binding.progressIndicator.visibility = View.GONE
+                    binding.tvFileSize.text = formatFileSize(msg.fileSize ?: 0)
                 }
             }
         }
@@ -4789,14 +4895,25 @@ class ChatAdapter(
                 }
                 
                 // Display caption if present (only real user captions, not default placeholders)
-                if (!msg.text.isNullOrBlank() && msg.text !in DEFAULT_MEDIA_LABELS && msg.type != MessageType.KLIPY_EMOJI) {
+                val hasCaption = !msg.text.isNullOrBlank() && msg.text !in DEFAULT_MEDIA_LABELS && msg.type != MessageType.KLIPY_EMOJI
+                if (hasCaption) {
+                    // Timestamp + status icon render INLINE at the end of the caption
+                    // line, like regular text bubbles — no separate row below.
                     binding.tvCaption.text = msg.text
                     binding.tvCaption.visibility = View.VISIBLE
                 } else {
                     binding.tvCaption.visibility = View.GONE
                 }
 
-                if (isSticker) {
+                // Captioned media (and stickers): timestamp + status below the content —
+                // the caption's negative bottom margin pulls the row tight against the
+                // caption text. Uncaptioned: pill overlaid on the media. setStatus()
+                // updates both status icons either way.
+                if (hasCaption) {
+                    binding.layoutTimestamp.visibility = View.GONE
+                    binding.layoutTimestampBelow.visibility = View.VISIBLE
+                    binding.tvTimestampBelow.text = binding.tvTimestamp.text
+                } else if (isSticker) {
                     binding.layoutTimestamp.visibility = View.GONE
                     binding.layoutTimestampBelow.visibility = View.VISIBLE
                     binding.tvTimestampBelow.text = binding.tvTimestamp.text
@@ -4808,7 +4925,8 @@ class ChatAdapter(
                     val px2 = dpToPx(2f)
                     binding.layoutTimestamp.setPadding(px6, px2, px6, px2)
                 }
-                
+                applyTimestampRowTightness(binding.layoutTimestampBelow, if (hasCaption) msg.text else null)
+
                 // Upload state governs whether to show progress, retry, or play button for VIDEO
                 if (msg.type == MessageType.VIDEO) {
                     val uploadProg = MediaProgressManager.getProgress(msg.id)
@@ -4827,12 +4945,15 @@ class ChatAdapter(
                             } else {
                                 binding.progressIndicator.startIndeterminate()
                             }
+                            // Live transfer details in the size overlay (percent · MB · speed)
+                            formatTransferDetails(uploadProg)?.let { binding.tvFileSize.text = it }
                         }
                         isUploadFailed -> {
                             binding.progressIndicator.visibility = View.GONE
                             binding.ivStatusAction.visibility = View.VISIBLE
                             binding.ivPlayButton.visibility = View.GONE
                             binding.tvVideoDuration.visibility = View.GONE
+                            binding.tvFileSize.text = formatFileSize(msg.fileSize ?: 0)
                             binding.ivStatusAction.setOnClickListener {
                                 onRetryUpload?.invoke(msg)
                             }
@@ -4843,6 +4964,7 @@ class ChatAdapter(
                             binding.ivPlayButton.visibility = View.VISIBLE
                             binding.tvVideoDuration.visibility = View.VISIBLE
                             binding.tvVideoDuration.text = formatDuration(msg.videoDuration ?: 0)
+                            binding.tvFileSize.text = formatFileSize(msg.fileSize ?: 0)
                         }
                     }
                 } else {
@@ -4907,14 +5029,22 @@ class ChatAdapter(
                 binding.tvFileSize.visibility = View.VISIBLE
             }
 
-            if (!msg.text.isNullOrBlank() && msg.text !in DEFAULT_MEDIA_LABELS && msg.type != MessageType.KLIPY_EMOJI) {
+            val hasCaption = !msg.text.isNullOrBlank() && msg.text !in DEFAULT_MEDIA_LABELS && msg.type != MessageType.KLIPY_EMOJI
+            if (hasCaption) {
                 binding.tvCaption.text = msg.text
                 binding.tvCaption.visibility = View.VISIBLE
             } else {
                 binding.tvCaption.visibility = View.GONE
             }
 
-            if (isSticker) {
+            // Captioned media (and stickers): timestamp + status below the content —
+            // the caption's negative bottom margin pulls the row tight. Uncaptioned:
+            // pill overlaid on the media.
+            if (hasCaption) {
+                binding.layoutTimestamp.visibility = View.GONE
+                binding.layoutTimestampBelow.visibility = View.VISIBLE
+                binding.tvTimestampBelow.text = binding.tvTimestamp.text
+            } else if (isSticker) {
                 binding.layoutTimestamp.visibility = View.GONE
                 binding.layoutTimestampBelow.visibility = View.VISIBLE
                 binding.tvTimestampBelow.text = binding.tvTimestamp.text
@@ -4922,6 +5052,7 @@ class ChatAdapter(
                 binding.layoutTimestamp.visibility = View.VISIBLE
                 binding.layoutTimestampBelow.visibility = View.GONE
             }
+            applyTimestampRowTightness(binding.layoutTimestampBelow, if (hasCaption) msg.text else null)
 
             if (msg.type == MessageType.VIDEO) {
                 binding.ivPlayButton.visibility = View.VISIBLE
@@ -4952,9 +5083,13 @@ class ChatAdapter(
             if (status == MessageStatus.READ) {
                 binding.ivStatus.imageTintList = null
                 binding.ivStatusBelow.imageTintList = null
+                // Below-row icon matches regular text bubbles: solid blue when read
+                binding.ivStatusBelow.alpha = 1.0f
             } else {
                 binding.ivStatus.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
-                binding.ivStatusBelow.imageTintList = null
+                // Below-row icon matches regular text bubbles: white at half opacity
+                binding.ivStatusBelow.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
+                binding.ivStatusBelow.alpha = 0.5f
             }
 
             when (status) {
@@ -4978,6 +5113,8 @@ class ChatAdapter(
                 MessageStatus.FAILED -> {
                     binding.ivStatus.setImageResource(R.drawable.ic_error_outline)
                     binding.ivStatusBelow.setImageResource(R.drawable.ic_error_outline)
+                    // Keep the error icon solid and visible on the bubble
+                    binding.ivStatusBelow.alpha = 1.0f
                 }
                 else -> {
                     binding.ivStatus.setImageResource(R.drawable.ic_check)
@@ -5061,12 +5198,15 @@ class ChatAdapter(
                     } else {
                         binding.progressIndicator.startIndeterminate()
                     }
+                    // Live transfer details in the size overlay (percent · MB · speed)
+                    formatTransferDetails(uploadProg)?.let { binding.tvFileSize.text = it }
                 }
                 isUploadFailed -> {
                     binding.progressIndicator.visibility = View.GONE
                     binding.ivStatusAction.visibility = View.VISIBLE
                     binding.ivPlayButton.visibility = View.GONE
                     binding.tvVideoDuration.visibility = View.GONE
+                    binding.tvFileSize.text = formatFileSize(msg.fileSize ?: 0)
                     binding.ivStatusAction.setOnClickListener { onRetryUpload?.invoke(msg) }
                 }
                 else -> {
@@ -5075,6 +5215,7 @@ class ChatAdapter(
                     binding.ivPlayButton.visibility = View.VISIBLE
                     binding.tvVideoDuration.visibility = View.VISIBLE
                     binding.tvVideoDuration.text = formatDuration(msg.videoDuration ?: 0)
+                    binding.tvFileSize.text = formatFileSize(msg.fileSize ?: 0)
                 }
             }
         }
@@ -6018,6 +6159,10 @@ class ChatAdapter(
 
                 if (isFastBind) {
                     bindReplyPreview(binding.root.context, binding.root, msg)
+                    bindCollageCaptionChrome(
+                        binding.tvCaption, binding.tvTimestamp, binding.tvTimestamp,
+                        binding.layoutTimestampBelow, binding.tvTimestampBelow, msg
+                    )
                     binding.progressIndicator.visibility = View.GONE
                     binding.tvProgressText.visibility = View.GONE
                     binding.messageBubble.setOnClickListener(null)
@@ -6046,6 +6191,12 @@ class ChatAdapter(
                 
                 // Reply preview
                 bindReplyPreview(binding.root.context, binding.root, msg)
+
+                // Caption below the collage (user captions only, not placeholders)
+                bindCollageCaptionChrome(
+                    binding.tvCaption, binding.tvTimestamp, binding.tvTimestamp,
+                    binding.layoutTimestampBelow, binding.tvTimestampBelow, msg
+                )
 
                 // Progress indicator (downloads)
                 updateProgressUi(msg, mediaItems)
@@ -6133,7 +6284,7 @@ class ChatAdapter(
                     } else {
                         val percent = progress.progress.toInt().coerceIn(0, 99)
                         binding.progressIndicator.setProgress(percent.toFloat(), animate = false)
-                        binding.tvProgressText.text = "$percent%"
+                        binding.tvProgressText.text = formatTransferDetails(progress) ?: "$percent%"
                     }
                 }
                 else -> {
@@ -6228,6 +6379,11 @@ class ChatAdapter(
 
                 if (isFastBind) {
                     bindReplyPreview(binding.root.context, binding.root, msg)
+                    bindCollageCaptionChrome(
+                        binding.tvCaption, binding.layoutTimestamp, binding.tvTimestamp,
+                        binding.layoutTimestampBelow, binding.tvTimestampBelow, msg,
+                        statusIconBelow = binding.ivStatusBelow
+                    )
                     binding.progressIndicator.visibility = View.GONE
                     binding.tvProgressText.visibility = View.GONE
                     binding.messageBubble.setOnClickListener(null)
@@ -6256,6 +6412,13 @@ class ChatAdapter(
                 
                 // Reply preview
                 bindReplyPreview(binding.root.context, binding.root, msg)
+
+                // Caption below the collage (user captions only, not placeholders)
+                bindCollageCaptionChrome(
+                    binding.tvCaption, binding.layoutTimestamp, binding.tvTimestamp,
+                    binding.layoutTimestampBelow, binding.tvTimestampBelow, msg,
+                    statusIconBelow = binding.ivStatusBelow
+                )
 
                 // Progress indicator (uploads)
                 updateProgressUi(msg, mediaItems)
@@ -6342,7 +6505,7 @@ class ChatAdapter(
                     } else {
                         val percent = progress.progress.toInt().coerceIn(0, 99)
                         binding.progressIndicator.setProgress(percent.toFloat(), animate = false)
-                        binding.tvProgressText.text = "$percent%"
+                        binding.tvProgressText.text = formatTransferDetails(progress) ?: "$percent%"
                     }
                 }
                 else -> {

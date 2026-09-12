@@ -153,31 +153,22 @@ class MediaTransferManager private constructor(
             onComplete = { file ->
                 scope.launch {
                     if (file != null) {
-                        
+
                         // Update message with local path
                         updateMessageLocalPath(messageId, file.absolutePath, storageMediaType)
-                        
+
                         // Update message status
                         messageDao.updateMessageStatus(messageId, MessageStatus.DOWNLOADED)
-                        
-                        // Delete from Firebase Storage now that we have local copy
-                        deleteFromFirebaseStorage(remoteUrl)
-                        
-                        // For videos and documents, also delete the thumbnail
-                        if (mediaType == MessageType.VIDEO || mediaType == MessageType.DOCUMENT) {
-                            val message = messageDao.getMessageById(messageId)
-                            if (message?.thumbnailUrl != null && message.thumbnailUrl.isNotEmpty()) {
-                                deleteFromFirebaseStorage(message.thumbnailUrl)
-                            }
-                        }
-                        
-                        // Also try to send ACK (for future use when sender registers)
+
+                        // The remote copy stays in Firebase Storage as the source of truth
+                        // (other recipients/devices/reinstalls still need it). The sender
+                        // deletes it once all recipients acknowledge — report ours now.
                         try {
                             MediaAcknowledgmentService.sendAcknowledgment(messageId)
                         } catch (e: Exception) {
                             Log.w(TAG, "ACK failed (sender may not have registered): ${e.message}")
                         }
-                        
+
                         onComplete?.invoke(true, file.absolutePath)
                     } else {
                         Log.e(TAG, "Download failed: $messageId")
@@ -203,26 +194,34 @@ class MediaTransferManager private constructor(
             var completedCount = 0
             var failedCount = 0
             val totalCount = items.size
-            
+
             items.forEachIndexed { index, item ->
-                
+                // ACK key must match the sender's per-item registration
+                val itemAckKey = "${message.id}_item_$index"
+
                 // Check if already downloaded
                 if (!item.localUri.isNullOrEmpty() && File(item.localUri).exists()) {
                     completedCount++
+                    // Acknowledge items we already have so the sender's cleanup can proceed
+                    try {
+                        MediaAcknowledgmentService.sendAcknowledgment(itemAckKey)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "ACK failed for existing item: ${e.message}")
+                    }
                     if (completedCount == totalCount) {
                          messageDao.updateMessageStatus(message.id, MessageStatus.DOWNLOADED)
                     }
                     return@forEachIndexed
                 }
 
-                val storageMediaType = if (item.type == MediaType.VIDEO) 
-                    MediaStorageManager.MediaType.VIDEO 
-                else 
+                val storageMediaType = if (item.type == MediaType.VIDEO)
+                    MediaStorageManager.MediaType.VIDEO
+                else
                     MediaStorageManager.MediaType.IMAGE
-                
+
                 // Use a unique ID for each item's download tracking
                 val itemDownloadId = "${message.id}_$index"
-                
+
                 downloadManager.queueDownload(
                     messageId = itemDownloadId,
                     chatId = message.chatId,
@@ -234,29 +233,25 @@ class MediaTransferManager private constructor(
                             if (file != null) {
                                 // Update the specific item in the message
                                 updateMessageMediaItem(message.id, item.url, file.absolutePath)
-                                
-                                // Delete from firebase storage
-                                deleteFromFirebaseStorage(item.url)
-                                
+
+                                // Acknowledge this item so the sender's all-recipients
+                                // cleanup can eventually fire
+                                try {
+                                    MediaAcknowledgmentService.sendAcknowledgment(itemAckKey)
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "ACK failed for $itemAckKey: ${e.message}")
+                                }
+
                                 completedCount++
                             } else {
                                 failedCount++
                                 Log.e(TAG, "Item download failed. Progress: $completedCount failed + $failedCount")
                             }
-                            
+
                             // Check if all items are processed
                             if (completedCount + failedCount == totalCount) {
                                 val finalStatus = if (completedCount > 0) MessageStatus.DOWNLOADED else MessageStatus.DOWNLOAD_FAILED
                                 messageDao.updateMessageStatus(message.id, finalStatus)
-                                
-                                // Send ACK if at least one item downloaded
-                                if (completedCount > 0) {
-                                    try {
-                                        MediaAcknowledgmentService.sendAcknowledgment(message.id)
-                                    } catch (e: Exception) {
-                                        Log.w(TAG, "ACK failed: ${e.message}")
-                                    }
-                                }
                             }
                         }
                     }
@@ -288,58 +283,6 @@ class MediaTransferManager private constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update mediaItem localUri for $messageId", e)
-        }
-    }
-    
-    /**
-     * Delete a file from Firebase Storage using its download URL.
-     */
-    private fun deleteFromFirebaseStorage(downloadUrl: String) {
-        if (downloadUrl.isEmpty() || !downloadUrl.startsWith("http")) {
-            return
-        }
-        
-        scope.launch {
-            try {
-                
-                // Try to get reference directly from URL first
-                val storage = com.google.firebase.storage.FirebaseStorage.getInstance()
-                
-                try {
-                    val storageRef = storage.getReferenceFromUrl(downloadUrl)
-                    storageRef.delete()
-                        .addOnFailureListener { e ->
-                            Log.e(TAG, "Failed to delete from Firebase Storage (direct): ${e.message}")
-                        }
-                    return@launch
-                } catch (e: Exception) {
-                    // Ignore
-                }
-                
-                // Parse the storage path from HTTPS URL
-                // Format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encoded_path}?...
-                val uri = android.net.Uri.parse(downloadUrl)
-                val path = uri.path ?: return@launch
-                
-                // Extract the encoded path after /o/
-                val oIndex = path.indexOf("/o/")
-                if (oIndex != -1) {
-                    val encodedPath = path.substring(oIndex + 3)
-                    
-                    // URL decode the path
-                    val storagePath = java.net.URLDecoder.decode(encodedPath, "UTF-8")
-                    
-                    storage.reference.child(storagePath).delete()
-                        .addOnFailureListener { e ->
-                            Log.e(TAG, "Failed to delete from Firebase Storage: ${e.message}")
-                        }
-                } else {
-                    Log.e(TAG, "Could not parse storage path from URL: $downloadUrl")
-                }
-                
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception deleting from Firebase Storage: ${e.message}", e)
-            }
         }
     }
     
@@ -463,29 +406,40 @@ class MediaTransferManager private constructor(
     /**
      * Get the playback URI for a media message.
      * Returns local file if available, otherwise remote URL.
-     * 
+     *
      * IMPORTANT: For offline-first experience, always prefer local file.
+     * A local file whose size mismatches the message's expected fileSize is a
+     * partial/corrupt download — it is removed so it can be re-downloaded
+     * instead of being handed to the player.
      */
     fun getPlaybackUri(message: LocalMessage): String? {
+        val expectedSize = message.fileSize ?: 0L
+
         // First, check for persisted local file
         val mediaType = messageTypeToStorageType(message.type)
         if (mediaType != null) {
             val localFile = MediaStorageManager.getMediaFile(
                 context, message.chatId, message.id, mediaType
             )
-            if (localFile.exists() && localFile.length() > 0) {
+            if (localFile.exists() && localFile.length() > 0 &&
+                (expectedSize <= 0L || localFile.length() == expectedSize)
+            ) {
                 return localFile.absolutePath
             }
+            // Self-heal: drop the truncated leftover so a re-download isn't blocked
+            if (localFile.exists() && expectedSize > 0L && localFile.length() != expectedSize) {
+                localFile.delete()
+            }
         }
-        
+
         // Fallback to localUri field (may be temp file)
         if (!message.localUri.isNullOrEmpty()) {
             val file = File(message.localUri)
-            if (file.exists()) {
+            if (file.exists() && (expectedSize <= 0L || file.length() == expectedSize)) {
                 return message.localUri
             }
         }
-        
+
         // Last resort: remote URL (requires network)
         return when (message.type) {
             MessageType.IMAGE -> message.imageUrl
@@ -494,19 +448,32 @@ class MediaTransferManager private constructor(
             else -> null
         }
     }
-    
+
     /**
      * Check if media is ready for playback (local file exists).
+     * A partial local file (size mismatch against expected fileSize) is NOT ready —
+     * this keeps the download button visible so the media can be re-downloaded.
      */
     fun isReadyForPlayback(message: LocalMessage): Boolean {
+        val expectedSize = message.fileSize ?: 0L
+        val mediaType = messageTypeToStorageType(message.type)
+        if (mediaType != null && expectedSize > 0L) {
+            val localFile = MediaStorageManager.getMediaFile(
+                context, message.chatId, message.id, mediaType
+            )
+            if (localFile.exists() && localFile.length() > 0 && localFile.length() != expectedSize) {
+                return false
+            }
+        }
+
         val uri = getPlaybackUri(message)
         if (uri.isNullOrEmpty()) return false
-        
+
         // If it's a local file path, verify it exists
         if (!uri.startsWith("http")) {
             return File(uri).exists()
         }
-        
+
         // Remote URLs are technically "ready" but require network
         return true
     }

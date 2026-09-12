@@ -3006,28 +3006,46 @@ class RealtimeMessageRepository(
 
         // 2. Upload to Storage with progress tracking
         val storageRef = storage.reference.child("chat_images/$chatId/$messageId.jpg")
-        
+        val mediaStoragePath = "chat_images/$chatId/$messageId.jpg"
+
         repositoryScope.launch {
-            storageRef.putFile(imageUri)
+            val imageMetadata = com.google.firebase.storage.StorageMetadata.Builder()
+                .setContentType(context.contentResolver.getType(imageUri) ?: "image/jpeg")
+                .build()
+            storageRef.putFile(imageUri, imageMetadata)
                 .addOnProgressListener { taskSnapshot ->
-                    val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount).toFloat()
+                    val transferred = taskSnapshot.bytesTransferred
+                    val total = if (fileSize > 0) fileSize else taskSnapshot.totalByteCount
+                    val progress = if (total > 0) (100f * transferred / total) else 0f
                     MediaProgressManager.updateProgress(
-                        messageId, 
-                        progress, 
+                        messageId,
+                        progress,
                         isUploading = true,
-                        totalBytes = taskSnapshot.totalByteCount,
-                        transferredBytes = taskSnapshot.bytesTransferred
+                        totalBytes = total,
+                        transferredBytes = transferred
                     )
                 }
                 .addOnSuccessListener {
                     storageRef.downloadUrl.addOnSuccessListener { downloadUri ->
                         val downloadUrl = downloadUri.toString()
-                        
+
                         // Mark upload complete
                         MediaProgressManager.complete(messageId)
-                        
+
                         // Save to persistent local storage AND update DB in one go
                         repositoryScope.launch {
+                            // Register for ACK tracking: cloud cleanup fires only after
+                            // every recipient has downloaded (MediaAcknowledgmentService)
+                            runCatching {
+                                com.glyph.glyph_v3.data.media.MediaAcknowledgmentService.registerMediaUpload(
+                                    messageId = messageId,
+                                    storageRef = mediaStoragePath,
+                                    recipientIds = listOf(otherUserId)
+                                )
+                            }.onFailure { e ->
+                                Log.w(TAG, "Media ACK registration failed for $messageId: ${e.message}")
+                            }
+
                             var finalLocalPath = imageUri.toString()
                             try {
                                 val localFile = com.glyph.glyph_v3.data.media.MediaStorageManager.saveMediaFromUri(
@@ -3208,50 +3226,79 @@ class RealtimeMessageRepository(
         // Start progress tracking
         MediaProgressManager.updateProgress(messageId, 0f, isUploading = true, totalBytes = fileSize)
 
-        // Generate thumbnail with correct orientation
-        var thumbnailUrl: String? = null
-        try {
-            val thumbnailResult = com.glyph.glyph_v3.util.VideoThumbnailUtil.generateThumbnailBytes(context, videoUri)
-            if (thumbnailResult != null) {
-                val (thumbnailBytes, rotation) = thumbnailResult
-                
-                // Upload thumbnail to Storage
-                val thumbnailRef = storage.reference.child("chat_video_thumbnails/$chatId/$messageId.jpg")
-                thumbnailRef.putBytes(thumbnailBytes).await()
-                thumbnailUrl = thumbnailRef.downloadUrl.await().toString()
-                
-                // Update local message with thumbnail
-                messageDao.insertMessage(
-                    placeholderMessage.copy(thumbnailUrl = thumbnailUrl)
-                )
+        val videoStoragePath = "chat_videos/$chatId/$messageId.mp4"
+        val thumbnailStoragePath = "chat_video_thumbnails/$chatId/$messageId.jpg"
+
+        // Generate + upload the thumbnail CONCURRENTLY with the video upload: the video
+        // is the long pole, so serializing the thumbnail ahead of it only delays the
+        // start of the real transfer. Both are collected before the message is persisted.
+        val thumbnailDeferred = repositoryScope.async {
+            var url: String? = null
+            try {
+                val thumbnailResult = com.glyph.glyph_v3.util.VideoThumbnailUtil.generateThumbnailBytes(context, videoUri)
+                if (thumbnailResult != null) {
+                    val (thumbnailBytes, _) = thumbnailResult
+
+                    // Upload thumbnail to Storage
+                    val thumbnailRef = storage.reference.child(thumbnailStoragePath)
+                    thumbnailRef.putBytes(thumbnailBytes).await()
+                    url = thumbnailRef.downloadUrl.await().toString()
+
+                    // Update local message with thumbnail
+                    messageDao.insertMessage(
+                        placeholderMessage.copy(thumbnailUrl = url)
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to generate/upload video thumbnail", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to generate/upload video thumbnail", e)
+            url
         }
 
         // Upload video
-        val storageRef = storage.reference.child("chat_videos/$chatId/$messageId.mp4")
-        
-        val finalThumbnailUrl = thumbnailUrl
-        storageRef.putFile(videoUri)
+        val storageRef = storage.reference.child(videoStoragePath)
+        val videoMetadata = com.google.firebase.storage.StorageMetadata.Builder()
+            .setContentType(context.contentResolver.getType(videoUri) ?: "video/mp4")
+            .build()
+        storageRef.putFile(videoUri, videoMetadata)
             .addOnProgressListener { taskSnapshot ->
-                val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount).toFloat()
+                // Use the known file size as denominator — Firebase's totalByteCount
+                // grows during resumable uploads, which makes the % jump around.
+                val transferred = taskSnapshot.bytesTransferred
+                val total = if (fileSize > 0) fileSize else taskSnapshot.totalByteCount
+                val progress = if (total > 0) (100f * transferred / total) else 0f
                 MediaProgressManager.updateProgress(
                     messageId,
                     progress,
                     isUploading = true,
-                    totalBytes = taskSnapshot.totalByteCount,
-                    transferredBytes = taskSnapshot.bytesTransferred
+                    totalBytes = total,
+                    transferredBytes = transferred
                 )
             }
             .addOnSuccessListener {
                 storageRef.downloadUrl.addOnSuccessListener { downloadUri ->
                     val downloadUrl = downloadUri.toString()
-                    
+
                     // Mark upload complete
                     MediaProgressManager.complete(messageId)
-                    
+
                     repositoryScope.launch {
+                        // Thumbnail runs concurrently with the upload; collect its URL
+                        val finalThumbnailUrl = runCatching { thumbnailDeferred.await() }.getOrNull()
+
+                        // Register for ACK tracking: cloud cleanup fires only after
+                        // every recipient has downloaded (MediaAcknowledgmentService)
+                        runCatching {
+                            com.glyph.glyph_v3.data.media.MediaAcknowledgmentService.registerMediaUpload(
+                                messageId = messageId,
+                                storageRef = videoStoragePath,
+                                recipientIds = listOf(otherUserId),
+                                thumbnailRef = finalThumbnailUrl?.let { thumbnailStoragePath }
+                            )
+                        }.onFailure { e ->
+                            Log.w(TAG, "Media ACK registration failed for $messageId: ${e.message}")
+                        }
+
                         // 1. Save to persistent local storage
                         var finalLocalPath = videoUri.toString()
                         try {
@@ -3406,12 +3453,16 @@ class RealtimeMessageRepository(
         otherUsername: String,
         otherUserAvatar: String,
         quality: CompressionQuality,
-        overrides: Map<Uri, CompressionQuality> = emptyMap()
+        overrides: Map<Uri, CompressionQuality> = emptyMap(),
+        caption: String = ""
     ) {
         if (uris.isEmpty()) return
         val userId = currentUserId ?: return
         val timestamp = System.currentTimeMillis()
         val messageId = UUID.randomUUID().toString()
+        // The caption rides on the message text and is displayed below the collage
+        // inside the bubble. "Media" is the placeholder used when there's no caption.
+        val messageText = caption.ifEmpty { "Media" }
 
         getOrCreateLocalChat(chatId, otherUserId, otherUsername, otherUserAvatar)
 
@@ -3473,7 +3524,7 @@ class RealtimeMessageRepository(
             val placeholderMessage = LocalMessage(
                 id = messageId,
                 chatId = chatId,
-                text = "Media",
+                text = messageText,
                 senderId = userId,
                 timestamp = timestamp,
                 status = MessageStatus.SENDING,
@@ -3483,7 +3534,7 @@ class RealtimeMessageRepository(
                 fileSize = placeholderItems.sumOf { it.fileSize }
             )
             messageDao.insertMessage(placeholderMessage)
-            chatDao.updateLastMessage(chatId, "Media", timestamp, userId, MessageStatus.SENDING.name)
+            chatDao.updateLastMessage(chatId, messageText, timestamp, userId, MessageStatus.SENDING.name)
 
             val totalBytes = preparedItems.sumOf { it.metadata.originalSize }.coerceAtLeast(1L)
             MediaProgressManager.updateProgress(messageId, 0f, isUploading = true, totalBytes = totalBytes)
@@ -3501,8 +3552,23 @@ class RealtimeMessageRepository(
                     sourceUri = prepared.finalUri,
                     messageId = messageId,
                     bytesUploadedBefore = uploadedBytes,
-                    totalBytes = totalBytes
+                    totalBytes = totalBytes,
+                    contentType = prepared.mimeType
                 )
+
+                // Register per-item ACK so the sender's all-recipients cleanup can
+                // fire per item. Keys are 0-based "{messageId}_item_{index}" and must
+                // match the keys the receiver acknowledges in MediaDownloadWorker /
+                // MediaTransferManager.startGroupDownload.
+                runCatching {
+                    com.glyph.glyph_v3.data.media.MediaAcknowledgmentService.registerMediaUpload(
+                        messageId = "${messageId}_item_$index",
+                        storageRef = storagePath,
+                        recipientIds = listOf(otherUserId)
+                    )
+                }.onFailure { e ->
+                    Log.w(TAG, "Grouped media ACK registration failed for ${messageId}_item_$index: ${e.message}")
+                }
 
                 uploadedBytes += prepared.metadata.originalSize
                 MediaProgressManager.updateProgress(
@@ -3547,7 +3613,7 @@ class RealtimeMessageRepository(
             val finalJson = Message.mediaItemsToJson(finalMediaItems)
             messageDao.updateMediaGroupMessage(messageId, finalJson, MessageStatus.SENT)
             updateOutgoingMessageStatusMonotonic(messageId, MessageStatus.SENT)
-            updateChatLastMessageStatusMonotonic(chatId, userId, timestamp, "Media", MessageStatus.SENT)
+            updateChatLastMessageStatusMonotonic(chatId, userId, timestamp, messageText, MessageStatus.SENT)
             MediaProgressManager.complete(messageId)
 
             val mediaItemsPayload = finalMediaItems.map { item ->
@@ -3567,7 +3633,7 @@ class RealtimeMessageRepository(
             val messageData = mutableMapOf<String, Any?>(
                 "id" to messageId,
                 "chatId" to chatId,
-                "text" to "Media",
+                "text" to messageText,
                 "senderId" to userId,
                 "timestamp" to ServerValue.TIMESTAMP,
                 "type" to "MEDIA_GROUP",
@@ -3588,7 +3654,7 @@ class RealtimeMessageRepository(
             )
             val firestoreMessageData = hashMapOf<String, Any?>(
                 "id" to messageId,
-                "text" to "Media",
+                "text" to messageText,
                 "senderId" to userId,
                 "timestamp" to timestamp,
                 "serverTimestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
@@ -3600,7 +3666,7 @@ class RealtimeMessageRepository(
             )
             val firestoreChatData = hashMapOf<String, Any?>(
                 "participants" to listOf(userId, otherUserId),
-                "lastMessage" to "Media",
+                "lastMessage" to messageText,
                 "lastMessageTimestamp" to timestamp,
                 "lastMessageSenderId" to userId
             )
@@ -3633,7 +3699,7 @@ class RealtimeMessageRepository(
             Log.e(TAG, "Failed to send grouped media message", e)
             repositoryScope.launch {
                 messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
-                chatDao.updateLastMessage(chatId, "Media", timestamp, userId, MessageStatus.FAILED.name)
+                chatDao.updateLastMessage(chatId, messageText, timestamp, userId, MessageStatus.FAILED.name)
             }
             MediaProgressManager.complete(messageId)
         }
@@ -3644,9 +3710,13 @@ class RealtimeMessageRepository(
         sourceUri: Uri,
         messageId: String,
         bytesUploadedBefore: Long,
-        totalBytes: Long
+        totalBytes: Long,
+        contentType: String? = null
     ): String = suspendCancellableCoroutine { cont ->
-        val task = storageRef.putFile(sourceUri)
+        val metadata = com.google.firebase.storage.StorageMetadata.Builder()
+            .setContentType(contentType ?: "application/octet-stream")
+            .build()
+        val task = storageRef.putFile(sourceUri, metadata)
             .addOnProgressListener { snapshot ->
                 val overallBytes = (bytesUploadedBefore + snapshot.bytesTransferred).coerceAtMost(totalBytes)
                 val progress = if (totalBytes > 0) {
@@ -3763,14 +3833,45 @@ class RealtimeMessageRepository(
 
         // 3. Upload document to Firebase Storage
         val storageRef = storage.reference.child("chat_documents/$chatId/$storageName")
+        val documentStoragePath = "chat_documents/$chatId/$storageName"
         val finalThumbnailUrl = thumbnailUrl
 
-        storageRef.putFile(documentUri)
+        MediaProgressManager.updateProgress(messageId, 0f, isUploading = true, totalBytes = fileSize)
+        val documentMetadata = com.google.firebase.storage.StorageMetadata.Builder()
+            .setContentType(context.contentResolver.getType(documentUri) ?: "application/octet-stream")
+            .build()
+        storageRef.putFile(documentUri, documentMetadata)
+            .addOnProgressListener { taskSnapshot ->
+                val transferred = taskSnapshot.bytesTransferred
+                val total = if (fileSize > 0) fileSize else taskSnapshot.totalByteCount
+                val progress = if (total > 0) (100f * transferred / total) else 0f
+                MediaProgressManager.updateProgress(
+                    messageId,
+                    progress,
+                    isUploading = true,
+                    totalBytes = total,
+                    transferredBytes = transferred
+                )
+            }
             .addOnSuccessListener {
                 storageRef.downloadUrl.addOnSuccessListener { downloadUri ->
                     val downloadUrl = downloadUri.toString()
 
+                    MediaProgressManager.complete(messageId)
+
                     repositoryScope.launch {
+                        // Register for ACK tracking (cloud cleanup after all recipients download)
+                        runCatching {
+                            com.glyph.glyph_v3.data.media.MediaAcknowledgmentService.registerMediaUpload(
+                                messageId = messageId,
+                                storageRef = documentStoragePath,
+                                recipientIds = listOf(otherUserId),
+                                thumbnailRef = finalThumbnailUrl?.let { "chat_document_thumbnails/$chatId/$messageId.jpg" }
+                            )
+                        }.onFailure { e ->
+                            Log.w(TAG, "Document ACK registration failed for $messageId: ${e.message}")
+                        }
+
                         // 4. Update local record with download URL + SENT status
                         val sent = placeholder.copy(
                             imageUrl = downloadUrl,
@@ -3823,6 +3924,7 @@ class RealtimeMessageRepository(
                     }
                 }.addOnFailureListener { e ->
                     Log.e(TAG, "Download URL fetch failed for document $messageId", e)
+                    MediaProgressManager.complete(messageId)
                     repositoryScope.launch {
                         updateOutgoingMessageStatusMonotonic(messageId, MessageStatus.FAILED)
                     }
@@ -3830,6 +3932,7 @@ class RealtimeMessageRepository(
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Storage upload failed for document $messageId", e)
+                MediaProgressManager.complete(messageId)
                 repositoryScope.launch {
                     updateOutgoingMessageStatusMonotonic(messageId, MessageStatus.FAILED)
                 }
@@ -6091,37 +6194,55 @@ class RealtimeMessageRepository(
         chatDao.updateLastMessage(chatId, "Voice Message", timestamp, userId, MessageStatus.SENDING.name)
 
         val storageRef = storage.reference.child("chat_voice/$chatId/$messageId.m4a")
-        
+        val voiceStoragePath = "chat_voice/$chatId/$messageId.m4a"
+
         MediaProgressManager.updateProgress(messageId, 0f, isUploading = true, totalBytes = finalFile.length())
 
         // 3. Upload the persistent file
-        storageRef.putFile(finalUri)
+        val audioMetadata = com.google.firebase.storage.StorageMetadata.Builder()
+            .setContentType(context.contentResolver.getType(finalUri) ?: "audio/mp4")
+            .build()
+        storageRef.putFile(finalUri, audioMetadata)
             .addOnProgressListener { taskSnapshot ->
-                val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount).toFloat()
+                // Known file size denominator — totalByteCount fluctuates during resumable upload
+                val transferred = taskSnapshot.bytesTransferred
+                val total = finalFile.length().takeIf { it > 0 } ?: taskSnapshot.totalByteCount
+                val progress = if (total > 0) (100f * transferred / total) else 0f
                 MediaProgressManager.updateProgress(
                     messageId,
                     progress,
                     isUploading = true,
-                    totalBytes = taskSnapshot.totalByteCount,
-                    transferredBytes = taskSnapshot.bytesTransferred
+                    totalBytes = total,
+                    transferredBytes = transferred
                 )
             }
             .addOnSuccessListener {
                 storageRef.downloadUrl.addOnSuccessListener { downloadUri ->
                     val downloadUrl = downloadUri.toString()
                     MediaProgressManager.complete(messageId)
-                    
+
                     repositoryScope.launch {
+                        // Register for ACK tracking (cloud cleanup after all recipients download)
+                        runCatching {
+                            com.glyph.glyph_v3.data.media.MediaAcknowledgmentService.registerMediaUpload(
+                                messageId = messageId,
+                                storageRef = voiceStoragePath,
+                                recipientIds = listOf(otherUserId)
+                            )
+                        }.onFailure { e ->
+                            Log.w(TAG, "Voice ACK registration failed for $messageId: ${e.message}")
+                        }
+
                         // 4. Update with remote URL, but keep using our local file which is already persistent.
                         // No need to copy/move here anymore.
-                        
+
                         // Update local with URL but wait for RTDB to mark as SENT
                         val sentMessage = placeholderMessage.copy(
                             audioUrl = downloadUrl,
                             status = MessageStatus.SENDING
                         )
                         messageDao.insertMessage(sentMessage)
-                        
+
                         // updateOutgoingMessageStatusMonotonic(messageId, MessageStatus.SENT)
                         // updateChatLastMessageStatusMonotonic(chatId, userId, timestamp, "Voice Message", MessageStatus.SENT)
 

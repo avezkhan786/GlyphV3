@@ -911,6 +911,42 @@ class ChatActivity : AppCompatActivity(),
         }
     }
 
+    // WhatsApp-style caption preview: selected media goes through this screen before
+    // the compression/send flow so the user can type a caption for the message.
+    private var pendingPreviewMedia: List<Pair<Uri, String>>? = null
+    private val mediaSendPreviewLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val items = pendingPreviewMedia
+        pendingPreviewMedia = null
+        if (result.resultCode == RESULT_OK && items != null) {
+            val caption = result.data?.getStringExtra(MediaSendPreviewActivity.RESULT_CAPTION).orEmpty()
+            continueMediaSendAfterPreview(items, caption)
+        }
+    }
+
+    private fun launchMediaSendPreview(mediaItems: List<Pair<Uri, String>>, initialCaption: String = "") {
+        if (mediaItems.isEmpty()) return
+        if (isBlockedForSending()) return
+        pendingPreviewMedia = mediaItems
+        val intent = MediaSendPreviewActivity.newIntent(
+            context = this,
+            uris = mediaItems.map { it.first },
+            mimeTypes = mediaItems.map { it.second },
+            initialCaption = initialCaption,
+            recipientName = otherUsername.ifEmpty { "User" }
+        )
+        mediaSendPreviewLauncher.launch(intent)
+    }
+
+    /** Continues the pre-preview send flow (compression choice → send) with the caption. */
+    private fun continueMediaSendAfterPreview(mediaItems: List<Pair<Uri, String>>, caption: String) {
+        val allVideos = mediaItems.all { (_, mimeType) -> mimeType.startsWith("video") }
+        if (allVideos) {
+            sendMediaWithCompression(mediaItems, CompressionQuality.MEDIUM, emptyMap(), caption)
+        } else {
+            showCompressionBottomSheet(mediaItems, caption)
+        }
+    }
+
     // Camera photo capture
     private val takePictureLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && cameraPhotoUri != null) {
@@ -10062,12 +10098,9 @@ class ChatActivity : AppCompatActivity(),
 
     private fun handleMediaUri(uri: Uri) {
         val mimeType = contentResolver.getType(uri) ?: "image/*"
-        if (mimeType.startsWith("video")) {
-            // Auto-compress videos at MEDIUM quality — no dialog needed.
-            sendMediaWithCompression(listOf(uri to mimeType), CompressionQuality.MEDIUM, emptyMap())
-        } else {
-            showCompressionBottomSheet(listOf(uri to mimeType))
-        }
+        // Route through the WhatsApp-style caption preview first; compression choice
+        // happens after the user taps send there.
+        launchMediaSendPreview(listOf(uri to mimeType))
     }
 
     /**
@@ -10233,30 +10266,26 @@ class ChatActivity : AppCompatActivity(),
 
     private fun handleMultipleMediaUris(uris: List<Uri>, caption: String = "") {
         if (uris.isEmpty()) return
-        
+
         // Build list of URIs with their mime types
         val mediaWithTypes = uris.map { uri ->
             val mimeType = contentResolver.getType(uri) ?: run {
                 // Try to determine type from URI
                 val uriString = uri.toString().lowercase()
                 when {
-                    uriString.contains("image") || uriString.endsWith(".jpg") || 
+                    uriString.contains("image") || uriString.endsWith(".jpg") ||
                     uriString.endsWith(".jpeg") || uriString.endsWith(".png") -> "image/*"
-                    uriString.contains("video") || uriString.endsWith(".mp4") || 
+                    uriString.contains("video") || uriString.endsWith(".mp4") ||
                     uriString.endsWith(".mov") -> "video/*"
                     else -> "image/*"
                 }
             }
             uri to mimeType
         }
-        
-        // If all items are videos, skip the dialog and auto-compress at MEDIUM quality.
-        val allVideos = mediaWithTypes.all { (_, mimeType) -> mimeType.startsWith("video") }
-        if (allVideos) {
-            sendMediaWithCompression(mediaWithTypes, CompressionQuality.MEDIUM, emptyMap(), caption)
-        } else {
-            showCompressionBottomSheet(mediaWithTypes, caption)
-        }
+
+        // Caption preview first (caption pre-filled for shared content); the
+        // all-videos auto-compress / compression-sheet choice happens after send.
+        launchMediaSendPreview(mediaWithTypes, caption)
     }
 
     private fun enqueueSharedDocuments(uris: List<Uri>, initialCaption: String) {
@@ -10480,7 +10509,8 @@ class ChatActivity : AppCompatActivity(),
                     otherUsername = otherUsername.ifEmpty { "Unknown" },
                     otherUserAvatar = otherUserAvatar,
                     quality = quality,
-                    overrides = overrides
+                    overrides = overrides,
+                    caption = caption
                 )
             }
         }
@@ -14078,9 +14108,8 @@ class ChatActivity : AppCompatActivity(),
         return mediaTransferManager.getLocalFilePath(chatId, messageId, mediaType)
     }
     
-    override fun getPlaybackUri(message: Message): String? {
-        // Convert Message to LocalMessage for MediaTransferManager
-        val localMessage = com.glyph.glyph_v3.data.local.entity.LocalMessage(
+    private fun toLocalMessageForPlayback(message: Message): com.glyph.glyph_v3.data.local.entity.LocalMessage {
+        return com.glyph.glyph_v3.data.local.entity.LocalMessage(
             id = message.id,
             chatId = message.chatId,
             text = message.text,
@@ -14100,37 +14129,23 @@ class ChatActivity : AppCompatActivity(),
             contactName = message.contactName,
             contactPhone = message.contactPhone
         )
-        return mediaTransferManager.getPlaybackUri(localMessage)
     }
-    
+
+    override fun getPlaybackUri(message: Message): String? {
+        return mediaTransferManager.getPlaybackUri(toLocalMessageForPlayback(message))
+    }
+
     override fun isReadyForPlayback(message: Message): Boolean {
         // GIFs, Memes and Stickers are always ready via URL
-        if (message.type == MessageType.GIF || message.type == MessageType.MEME || 
+        if (message.type == MessageType.GIF || message.type == MessageType.MEME ||
             message.type == MessageType.STICKER || message.type == MessageType.KLIPY_EMOJI) {
             return true
         }
 
-        // Check if we have a local file for this message
-        val cId = message.chatId
-        val localPath = mediaTransferManager.getLocalFilePath(cId, message.id, message.type)
-        if (!localPath.isNullOrEmpty()) {
-            val file = java.io.File(localPath)
-            return file.exists() && file.length() > 0
-        }
-        
-        // Also check the localUri field
-        if (!message.localUri.isNullOrEmpty()) {
-            val file = java.io.File(message.localUri!!)
-            if (file.exists() && file.length() > 0) return true
-        }
-
-        // For VIDEO: fall back to remote URL so the video can be streamed even if
-        // the local copy was never saved or was deleted.
-        if (message.type == MessageType.VIDEO && !message.videoUrl.isNullOrEmpty()) {
-            return true
-        }
-        
-        return false
+        // Delegates to MediaTransferManager, which prefers the persistent local file
+        // and rejects truncated/partial downloads (size mismatch) so the download
+        // button stays available and the media can be re-downloaded.
+        return mediaTransferManager.isReadyForPlayback(toLocalMessageForPlayback(message))
     }
 
     private fun applyPastelSkyTheme() {

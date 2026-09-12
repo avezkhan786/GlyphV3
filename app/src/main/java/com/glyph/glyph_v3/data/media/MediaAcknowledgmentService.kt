@@ -37,8 +37,9 @@ object MediaAcknowledgmentService {
     private const val STATUS_DOWNLOADED = "downloaded"
     private const val STATUS_ACKNOWLEDGED = "acknowledged"
     
-    // TTL for media files (7 days) - files older than this can be cleaned up
-    private const val MEDIA_TTL_MS = 7 * 24 * 60 * 60 * 1000L
+    // TTL for media files (30 days) - backstop for recipients who never download;
+    // the primary cleanup is all-recipients-acknowledged via checkAndCleanupMedia.
+    private const val MEDIA_TTL_MS = 30L * 24 * 60 * 60 * 1000L
     
     private val rtdb = FirebaseDatabase.getInstance()
     private val storage = FirebaseStorage.getInstance()
@@ -62,23 +63,31 @@ object MediaAcknowledgmentService {
     /**
      * Register a media upload for ACK tracking.
      * Called by sender after successful upload.
+     *
+     * @param storageRef Storage path of the media object (e.g. "chat_videos/{chatId}/{messageId}.mp4")
+     * @param thumbnailRef Optional storage path of an associated thumbnail (videos);
+     *   deleted together with the media once all recipients acknowledge.
      */
     suspend fun registerMediaUpload(
         messageId: String,
         storageRef: String,
-        recipientIds: List<String>
+        recipientIds: List<String>,
+        thumbnailRef: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         val currentUserId = auth.currentUser?.uid ?: return@withContext false
-        
+
         try {
-            val ackData = mapOf(
+            val ackData = mutableMapOf<String, Any?>(
                 "senderId" to currentUserId,
                 "storageRef" to storageRef,
                 "createdAt" to ServerValue.TIMESTAMP,
-                "recipients" to recipientIds.associateWith { 
+                "recipients" to recipientIds.associateWith {
                     mapOf("status" to STATUS_PENDING)
                 }
             )
+            if (!thumbnailRef.isNullOrEmpty()) {
+                ackData["thumbnailRef"] = thumbnailRef
+            }
             
             rtdb.reference
                 .child(NODE_MEDIA_ACKS)
@@ -164,8 +173,9 @@ object MediaAcknowledgmentService {
             
             val senderId = snapshot.child("senderId").getValue(String::class.java)
             val storageRef = snapshot.child("storageRef").getValue(String::class.java)
+            val thumbnailRef = snapshot.child("thumbnailRef").getValue(String::class.java)
             val recipientsSnapshot = snapshot.child("recipients")
-            
+
             // Check if all recipients have acknowledged
             var allAcknowledged = true
             recipientsSnapshot.children.forEach { recipient ->
@@ -174,10 +184,13 @@ object MediaAcknowledgmentService {
                     allAcknowledged = false
                 }
             }
-            
+
             if (allAcknowledged && !storageRef.isNullOrEmpty()) {
                 deleteFromStorage(storageRef)
-                
+                if (!thumbnailRef.isNullOrEmpty()) {
+                    deleteFromStorage(thumbnailRef)
+                }
+
                 // Remove ACK record
                 rtdb.reference
                     .child(NODE_MEDIA_ACKS)

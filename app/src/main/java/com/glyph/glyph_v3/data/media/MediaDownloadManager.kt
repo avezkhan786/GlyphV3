@@ -445,8 +445,15 @@ class MediaDownloadManager private constructor(private val context: Context) {
             outputStream.flush()
             outputStream.close()
             inputStream.close()
-            
-            
+
+            // Reject truncated reads against the advertised content length
+            if (totalBytes > 0 && totalBytesRead != totalBytes) {
+                Log.e(TAG, "HTTP transfer incomplete: expected $totalBytes bytes, got $totalBytesRead")
+                MediaProgressManager.complete(request.messageId)
+                tempFile.delete()
+                return@withContext null
+            }
+
             // Mark progress as complete
             MediaProgressManager.complete(request.messageId)
             
@@ -481,7 +488,15 @@ class MediaDownloadManager private constructor(private val context: Context) {
         } else {
             request.messageId
         }
-        
+
+        // Verify the transfer completed fully before promoting it to the playable file
+        val expected = request.expectedSize
+        if (expected != null && expected > 0 && tempFile.length() != expected) {
+            Log.e(TAG, "Download size mismatch for ${request.messageId}: expected $expected, got ${tempFile.length()}")
+            tempFile.delete()
+            return null
+        }
+
         return MediaStorageManager.saveMediaFromFile(
             context = context,
             chatId = request.chatId,

@@ -122,7 +122,9 @@
             android:paddingEnd="6dp"
             android:paddingBottom="2dp"
             android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:visibility="gone"
+            tools:visibility="gone">
 
             <TextView
                 android:id="@+id/tvTimestamp"
@@ -143,40 +145,6 @@
 
         </FrameLayout>
 
-        <!-- Timestamp + status shown below sticker (outside media overlay, no background) -->
-        <LinearLayout
-            android:id="@+id/layoutTimestampBelow"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="4dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:visibility="gone"
-            tools:visibility="gone">
-
-            <TextView
-                android:id="@+id/tvTimestampBelow"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textSize="10sp"
-                android:textColor="?android:textColorSecondary"
-                android:alpha="0.8"
-                tools:text="10:30 AM" />
-
-            <ImageView
-                android:id="@+id/ivStatusBelow"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_marginStart="4dp"
-                android:alpha="0.8"
-                android:src="@drawable/ic_check" />
-
-        </LinearLayout>
-
         <!-- Caption text (if present) -->
         <TextView
             android:id="@+id/tvCaption"
@@ -184,12 +152,48 @@
             android:layout_height="wrap_content"
             android:paddingHorizontal="12dp"
             android:paddingTop="8dp"
-            android:paddingBottom="4dp"
-            android:textSize="17sp"
-            android:lineSpacingExtra="2dp"
+            android:paddingBottom="0dp"
+            android:layout_marginBottom="-5dp"
+            android:textColor="?attr/glyphBubbleOwnText"
+            android:textSize="15sp"
+            android:includeFontPadding="false"
             android:visibility="gone"
             tools:text="Check out this beautiful view!"
             tools:visibility="visible" />
+
+        <!-- Timestamp + status below the media/caption, matching regular text bubbles -->
+        <LinearLayout
+            android:id="@+id/layoutTimestampBelow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end|center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="6dp"
+            android:visibility="gone"
+            tools:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvTimestampBelow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/glyphBubbleTimestamp"
+                android:alpha="0.7"
+                android:textSize="11sp"
+                android:includeFontPadding="false"
+                tools:text="10:30 AM" />
+
+            <ImageView
+                android:id="@+id/ivStatusBelow"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="4dp"
+                android:alpha="0.7"
+                android:src="@drawable/ic_check"
+                android:contentDescription="Message status" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

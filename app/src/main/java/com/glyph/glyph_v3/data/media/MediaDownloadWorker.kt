@@ -21,10 +21,12 @@ import java.util.concurrent.TimeUnit
 /**
  * Background worker for downloading media files.
  * This runs even when the app is in background or killed.
- * 
+ *
  * Features:
- * - Downloads media to permanent local storage
- * - Deletes from Firebase Storage after successful download
+ * - Downloads media to permanent local storage (atomic: temp file → verify → final path)
+ * - Verifies transferred size against the message's expected fileSize
+ * - Keeps the Firebase Storage copy (source of truth) and sends a download ACK so the
+ *   sender can clean up once ALL recipients have acknowledged
  * - Retries on failure with exponential backoff
  * - Works for both IMAGE and VIDEO types
  */
@@ -107,6 +109,14 @@ class MediaDownloadWorker(
         fun schedulePendingDownloads(context: Context) {
             CoroutineScope(Dispatchers.IO).launch {
                 try {
+                    // Backstop: the sender removes cloud media for ACK records older than
+                    // MEDIA_TTL (recipients who never downloaded). Runs once per app start.
+                    runCatching {
+                        com.glyph.glyph_v3.data.media.MediaAcknowledgmentService.cleanupStaleMedia()
+                    }.onFailure { e ->
+                        Log.w(TAG, "ACK TTL cleanup failed: ${e.message}")
+                    }
+
                     val db = AppDatabase.getDatabase(context)
                     val pendingMessages = db.messageDao().getMessagesWithPendingDownload()
                     
@@ -253,26 +263,31 @@ class MediaDownloadWorker(
         
         if (MediaStorageManager.hasLocalFile(applicationContext, chatId, messageId, storageType)) {
             val existingFile = MediaStorageManager.getMediaFile(applicationContext, chatId, messageId, storageType)
-            if (existingFile.exists() && existingFile.length() > 0L) {
+            if (existingFile.exists() && existingFile.length() > 0L &&
+                (fileSize <= 0L || existingFile.length() == fileSize)) {
                 updateMessageLocalPath(messageDao, messageId, existingFile.absolutePath, storageType)
                 if (!groupMsgId.isNullOrBlank() && itemIdx >= 0) {
                     updateGroupMessageItemLocalPath(messageDao, groupMsgId, itemIdx, existingFile.absolutePath)
                     updateGroupMessageDownloadProgress(messageDao, groupMsgId)
                 }
+                messageDao.updateMessageStatus(messageId, MessageStatus.DOWNLOADED)
+                return@withContext Result.success()
             }
-            messageDao.updateMessageStatus(messageId, MessageStatus.DOWNLOADED)
-            return@withContext Result.success()
+            // Truncated or size-mismatched leftover from an older non-atomic run —
+            // remove it so the download below produces a complete file.
+            Log.w(TAG, "Discarding incomplete local file for $messageId (${existingFile.length()} bytes, expected $fileSize)")
+            existingFile.delete()
         }
         
         // Update status to downloading
         messageDao.updateMessageStatus(messageId, MessageStatus.DOWNLOADING)
         
         try {
-            // Perform download
-            val file = downloadMedia(chatId, messageId, storageType, remoteUrl)
-            
+            // Perform download (atomic: temp file → size verification → final location)
+            val file = downloadMedia(chatId, messageId, storageType, remoteUrl, fileSize)
+
             if (file != null && file.exists()) {
-                
+
                 // Update local path in database
                 updateMessageLocalPath(messageDao, messageId, file.absolutePath, storageType)
 
@@ -281,11 +296,11 @@ class MediaDownloadWorker(
                     updateGroupMessageItemLocalPath(messageDao, groupMsgId, itemIdx, file.absolutePath)
                     updateGroupMessageDownloadProgress(messageDao, groupMsgId)
                 }
-                
+
                 // Update status
                 messageDao.updateMessageStatus(messageId, MessageStatus.DOWNLOADED)
 
-                // Refresh chat notification to attach local media (important if remote is later deleted)
+                // Refresh chat notification to attach local media
                 try {
                     com.glyph.glyph_v3.data.service.ChatNotificationUpdater.refreshChatNotification(
                         context = applicationContext,
@@ -295,26 +310,21 @@ class MediaDownloadWorker(
                     Log.w(TAG, "Notification refresh failed: ${e.message}")
                 }
 
-                val owningMessage = if (!groupMsgId.isNullOrBlank()) {
-                    messageDao.getMessageById(groupMsgId)
+                // The remote copy stays in Firebase Storage as the source of truth so
+                // other recipients/devices/reinstalls can still download it. It is
+                // removed by the SENDER once every registered recipient acknowledges
+                // (MediaAcknowledgmentService). Acknowledge our copy now; never fatal.
+                val ackKey = if (!groupMsgId.isNullOrBlank() && itemIdx >= 0) {
+                    "${groupMsgId}_item_$itemIdx"
                 } else {
-                    messageDao.getMessageById(messageId)
+                    messageId
                 }
-                val shouldKeepRemoteForForwarding = owningMessage?.isForwarded == true
+                try {
+                    com.glyph.glyph_v3.data.media.MediaAcknowledgmentService.sendAcknowledgment(ackKey)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Media ACK send failed for $ackKey: ${e.message}")
+                }
 
-                if (!shouldKeepRemoteForForwarding) {
-                    // Delete from Firebase Storage now that we have local copy (intentional)
-                    deleteFromFirebaseStorage(remoteUrl)
-                }
-
-                // For videos, also delete the thumbnail unless this is forwarded media.
-                if (mediaType == MessageType.VIDEO && !shouldKeepRemoteForForwarding) {
-                    val message = messageDao.getMessageById(messageId)
-                    if (message?.thumbnailUrl != null && message.thumbnailUrl.isNotEmpty()) {
-                        deleteFromFirebaseStorage(message.thumbnailUrl)
-                    }
-                }
-                
                 return@withContext Result.success()
             } else {
                 Log.e(TAG, "Download returned null file")
@@ -339,84 +349,119 @@ class MediaDownloadWorker(
         chatId: String,
         messageId: String,
         mediaType: MediaStorageManager.MediaType,
-        remoteUrl: String
+        remoteUrl: String,
+        expectedSize: Long
     ): java.io.File? {
+        val tempFile = java.io.File(
+            MediaStorageManager.getTempDirectory(applicationContext),
+            "$messageId.download"
+        )
         return try {
+            if (tempFile.exists()) tempFile.delete()
+
             // Determine if this is an HTTPS URL or gs:// URL
-            if (remoteUrl.startsWith("https://")) {
-                downloadViaHttp(chatId, messageId, mediaType, remoteUrl)
-                    ?: downloadViaStorageRef(chatId, messageId, mediaType, remoteUrl)
+            val downloaded = if (remoteUrl.startsWith("https://")) {
+                downloadViaHttp(remoteUrl, tempFile) || downloadViaStorageRef(remoteUrl, tempFile)
             } else {
-                downloadViaStorageRef(chatId, messageId, mediaType, remoteUrl)
+                downloadViaStorageRef(remoteUrl, tempFile)
+            }
+
+            if (!downloaded || !tempFile.exists() || tempFile.length() == 0L) {
+                tempFile.delete()
+                return null
+            }
+
+            // Verify the transfer completed fully before it becomes the playable file
+            if (expectedSize > 0L && tempFile.length() != expectedSize) {
+                Log.e(TAG, "Downloaded size mismatch for $messageId: expected $expectedSize, got ${tempFile.length()}")
+                tempFile.delete()
+                return null
+            }
+
+            // Atomic finalize: temp → final location
+            val targetFile = MediaStorageManager.getMediaFile(applicationContext, chatId, messageId, mediaType)
+            targetFile.parentFile?.mkdirs()
+            if (targetFile.exists()) targetFile.delete()
+            if (tempFile.renameTo(targetFile)) {
+                targetFile
+            } else {
+                tempFile.copyTo(targetFile, overwrite = true)
+                tempFile.delete()
+                targetFile
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error downloading media", e)
+            tempFile.delete()
             null
         }
     }
-    
+
     private suspend fun downloadViaHttp(
-        chatId: String,
-        messageId: String,
-        mediaType: MediaStorageManager.MediaType,
-        httpsUrl: String
-    ): java.io.File? = withContext(Dispatchers.IO) {
+        httpsUrl: String,
+        tempFile: java.io.File
+    ): Boolean = withContext(Dispatchers.IO) {
+        var connection: java.net.HttpURLConnection? = null
         try {
-            
-            val targetFile = MediaStorageManager.getMediaFile(applicationContext, chatId, messageId, mediaType)
-            targetFile.parentFile?.mkdirs()
-            
             val url = java.net.URL(httpsUrl)
-            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection = url.openConnection() as java.net.HttpURLConnection
             connection.connectTimeout = 30000
             connection.readTimeout = 60000
             connection.connect()
-            
+
             if (connection.responseCode != java.net.HttpURLConnection.HTTP_OK) {
                 Log.e(TAG, "HTTP error: ${connection.responseCode}")
-                return@withContext null
+                return@withContext false
             }
-            
+
+            val contentLength = connection.contentLengthLong
+
             connection.inputStream.use { input ->
-                java.io.FileOutputStream(targetFile).use { output ->
+                java.io.FileOutputStream(tempFile).use { output ->
                     input.copyTo(output, bufferSize = 8192)
                 }
             }
-            
-            targetFile
+
+            // Reject truncated reads against the advertised content length
+            if (contentLength > 0 && tempFile.length() != contentLength) {
+                Log.e(TAG, "HTTP transfer incomplete: expected $contentLength bytes, got ${tempFile.length()}")
+                tempFile.delete()
+                return@withContext false
+            }
+
+            true
         } catch (e: Exception) {
             Log.e(TAG, "HTTP download error", e)
-            null
+            tempFile.delete()
+            false
+        } finally {
+            connection?.disconnect()
         }
     }
-    
+
     private suspend fun downloadViaStorageRef(
-        chatId: String,
-        messageId: String,
-        mediaType: MediaStorageManager.MediaType,
-        remoteUrl: String
-    ): java.io.File? = withContext(Dispatchers.IO) {
+        remoteUrl: String,
+        tempFile: java.io.File
+    ): Boolean = withContext(Dispatchers.IO) {
         try {
-            
+
             val storage = com.google.firebase.storage.FirebaseStorage.getInstance()
             val storageRef = storage.getReferenceFromUrl(remoteUrl)
-            
-            val targetFile = MediaStorageManager.getMediaFile(applicationContext, chatId, messageId, mediaType)
-            targetFile.parentFile?.mkdirs()
-            
-            kotlinx.coroutines.suspendCancellableCoroutine<java.io.File?> { continuation ->
-                storageRef.getFile(targetFile)
+
+            kotlinx.coroutines.suspendCancellableCoroutine<Boolean> { continuation ->
+                storageRef.getFile(tempFile)
                     .addOnSuccessListener {
-                        continuation.resume(targetFile, null)
+                        continuation.resume(true, null)
                     }
                     .addOnFailureListener { e ->
                         Log.e(TAG, "Storage download failed", e)
-                        continuation.resume(null, null)
+                        tempFile.delete()
+                        continuation.resume(false, null)
                     }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Storage ref download error", e)
-            null
+            tempFile.delete()
+            false
         }
     }
     
@@ -506,40 +551,4 @@ class MediaDownloadWorker(
         return isUsableLocalUri(candidate)
     }
 
-    private fun deleteFromFirebaseStorage(downloadUrl: String) {
-        try {
-
-            val storage = com.google.firebase.storage.FirebaseStorage.getInstance()
-
-            // Try direct reference first
-            try {
-                val storageRef = storage.getReferenceFromUrl(downloadUrl)
-                storageRef.delete()
-                    .addOnFailureListener { e ->
-                        Log.e(TAG, "Failed to delete from Firebase Storage (direct): ${e.message}")
-                    }
-                return
-            } catch (e: Exception) {
-                // Ignore
-            }
-
-            // Parse the storage path from HTTPS URL
-            val uri = android.net.Uri.parse(downloadUrl)
-            val path = uri.path ?: return
-
-            val oIndex = path.indexOf("/o/")
-            if (oIndex != -1) {
-                val encodedPath = path.substring(oIndex + 3)
-                val storagePath = java.net.URLDecoder.decode(encodedPath, "UTF-8")
-
-                storage.reference.child(storagePath).delete()
-                    .addOnFailureListener { e ->
-                        Log.e(TAG, "Failed to delete from Firebase Storage: ${e.message}")
-                    }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Exception deleting from Firebase Storage: ${e.message}")
-        }
-    }
-    
 }

@@ -101,6 +101,44 @@
 
         </FrameLayout>
 
+        <!-- Caption below the collage (user captions only) — styled like text-bubble text -->
+        <TextView
+            android:id="@+id/tvCaption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/glyphBubbleOtherText"
+            android:textSize="15sp"
+            android:includeFontPadding="false"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="0dp"
+            android:layout_marginBottom="-5dp"
+            android:visibility="gone" />
+
+        <!-- Timestamp below the caption, matching regular text bubbles -->
+        <LinearLayout
+            android:id="@+id/layoutTimestampBelow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="start|center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="6dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvTimestampBelow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/glyphBubbleTimestamp"
+                android:alpha="0.7"
+                android:textSize="11sp"
+                android:includeFontPadding="false" />
+
+        </LinearLayout>
+
     </LinearLayout>
 
     <ImageButton

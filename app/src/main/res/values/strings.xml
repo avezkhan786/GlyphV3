@@ -159,4 +159,9 @@
     <string name="share_recipients_placeholder">Select a contact</string>
     <string name="share_send_fab_desc">Send shared content</string>
     <string name="share_preview_close">Remove preview</string>
+    <string name="media_preview_title_default">Send media</string>
+    <plurals name="media_preview_item_count">
+        <item quantity="one">%d item selected</item>
+        <item quantity="other">%d items selected</item>
+    </plurals>
 </resources>

@@ -78,8 +78,9 @@
                 android:textSize="10sp"
                 android:visibility="visible" />
 
-            <!-- Timestamp and status overlay (bottom right) -->
+            <!-- Timestamp and status overlay (bottom right, hidden while a caption is shown) -->
             <LinearLayout
+                android:id="@+id/layoutTimestamp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|end"
@@ -113,6 +114,54 @@
             </LinearLayout>
 
         </FrameLayout>
+
+        <!-- Caption below the collage (user captions only) — styled like text-bubble text -->
+        <TextView
+            android:id="@+id/tvCaption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/glyphBubbleOwnText"
+            android:textSize="15sp"
+            android:includeFontPadding="false"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="0dp"
+            android:layout_marginBottom="-5dp"
+            android:visibility="gone" />
+
+        <!-- Timestamp + status below the caption, matching regular text bubbles -->
+        <LinearLayout
+            android:id="@+id/layoutTimestampBelow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end|center_vertical"
+            android:paddingStart="12dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="6dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvTimestampBelow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="?attr/glyphBubbleTimestamp"
+                android:alpha="0.7"
+                android:textSize="11sp"
+                android:includeFontPadding="false" />
+
+            <ImageView
+                android:id="@+id/ivStatusBelow"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="4dp"
+                android:src="@drawable/ic_check"
+                android:contentDescription="Message status"
+                app:tint="?attr/glyphBubbleOwnText"
+                android:alpha="0.7" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

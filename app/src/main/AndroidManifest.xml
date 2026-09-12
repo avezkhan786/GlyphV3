@@ -248,6 +248,11 @@
             android:theme="@style/Theme.GlyphV3"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.chat.MediaSendPreviewActivity"
+            android:theme="@style/Theme.GlyphV3"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -125,26 +125,11 @@
             android:paddingBottom="2dp"
             android:textColor="@android:color/white"
             android:textSize="10sp"
+            android:visibility="gone"
+            tools:visibility="gone"
             tools:text="10:30 AM" />
 
         </FrameLayout>
-
-        <!-- Timestamp shown below sticker (outside media overlay, no background) -->
-        <TextView
-            android:id="@+id/tvTimestampBelow"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="4dp"
-            android:textSize="10sp"
-            android:textColor="?android:textColorSecondary"
-            android:alpha="0.8"
-            android:visibility="gone"
-            tools:text="10:30 AM"
-            tools:visibility="gone" />
 
         <!-- Caption text (if present) -->
         <TextView
@@ -153,11 +138,30 @@
             android:layout_height="wrap_content"
             android:paddingHorizontal="12dp"
             android:paddingTop="8dp"
-            android:paddingBottom="4dp"
-            android:textSize="17sp"
-            android:lineSpacingExtra="2dp"
+            android:paddingBottom="0dp"
+            android:layout_marginBottom="-5dp"
+            android:textColor="?attr/glyphBubbleOtherText"
+            android:textSize="15sp"
+            android:includeFontPadding="false"
             android:visibility="gone"
             tools:text="Check out this beautiful view!"
+            tools:visibility="visible" />
+
+        <!-- Timestamp below the media/caption, matching regular text bubbles -->
+        <TextView
+            android:id="@+id/tvTimestampBelow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start"
+            android:paddingStart="12dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="6dp"
+            android:textColor="?attr/glyphBubbleTimestamp"
+            android:alpha="0.7"
+            android:textSize="11sp"
+            android:includeFontPadding="false"
+            android:visibility="gone"
+            tools:text="10:30 AM"
             tools:visibility="visible" />
 
     </LinearLayout>

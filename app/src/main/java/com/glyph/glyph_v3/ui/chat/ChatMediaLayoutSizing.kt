@@ -6,8 +6,12 @@ import kotlin.math.roundToInt
 internal object ChatMediaLayoutSizing {
     private const val MEDIA_SIZE_SCALE = 0.85f
     private const val STICKER_WIDTH_DP = 180f * MEDIA_SIZE_SCALE
-    private const val PORTRAIT_WIDTH_DP = 260f * MEDIA_SIZE_SCALE
-    private const val LANDSCAPE_WIDTH_DP = 320f * MEDIA_SIZE_SCALE
+    // Portrait (tall) media reads as too narrow at 260dp — width drives the perceived
+    // size of 9:16 photos/videos, so prefer ~305dp (still viewport-capped below).
+    private const val PORTRAIT_WIDTH_DP = 305f * MEDIA_SIZE_SCALE
+    private const val LANDSCAPE_WIDTH_DP = 345f * MEDIA_SIZE_SCALE
+    // Collages (MEDIA_GROUP) get their own, slightly larger width than landscape media.
+    private const val GROUP_MEDIA_WIDTH_DP = 370f * MEDIA_SIZE_SCALE
     private const val VIDEO_NOTE_WIDTH_DP = 240f
     private const val DOCUMENT_WIDTH_DP = 220f
     private const val MEDIA_GROUP_GRID_GAP_PX = 4
@@ -90,6 +94,27 @@ internal object ChatMediaLayoutSizing {
         )
     }
 
+    /**
+     * Preferred width for a MEDIA_GROUP collage bubble. Slightly larger than a single
+     * landscape media bubble; still capped to the available row width.
+     */
+    fun cappedGroupMediaWidthPx(
+        density: Float,
+        viewportWidthPx: Int,
+        rootHorizontalPaddingPx: Int = defaultRootHorizontalPaddingPx(density),
+        forwardSideSpacePx: Int = defaultForwardSideSpacePx(density),
+        bubbleHorizontalPaddingPx: Int = defaultBubbleHorizontalPaddingPx(density)
+    ): Int {
+        return cappedMediaWidthPx(
+            preferredWidthPx = dpToPx(GROUP_MEDIA_WIDTH_DP, density),
+            density = density,
+            viewportWidthPx = viewportWidthPx,
+            rootHorizontalPaddingPx = rootHorizontalPaddingPx,
+            forwardSideSpacePx = forwardSideSpacePx,
+            bubbleHorizontalPaddingPx = bubbleHorizontalPaddingPx
+        )
+    }
+
     fun mediaGroupTilePreloadSizePx(
         density: Float,
         viewportWidthPx: Int,
@@ -97,7 +122,7 @@ internal object ChatMediaLayoutSizing {
         forwardSideSpacePx: Int = defaultForwardSideSpacePx(density),
         bubbleHorizontalPaddingPx: Int = defaultBubbleHorizontalPaddingPx(density)
     ): Int {
-        val groupWidth = cappedLandscapeMediaWidthPx(
+        val groupWidth = cappedGroupMediaWidthPx(
             density = density,
             viewportWidthPx = viewportWidthPx,
             rootHorizontalPaddingPx = rootHorizontalPaddingPx,

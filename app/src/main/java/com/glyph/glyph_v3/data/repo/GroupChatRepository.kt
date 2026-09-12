@@ -22,6 +22,8 @@ import com.google.firebase.storage.FirebaseStorage
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
@@ -466,6 +468,10 @@ class GroupChatRepository(
      * to every other participant. On any Firestore failure the local placeholder is
      * marked [MessageStatus.FAILED]; on success it is marked [MessageStatus.SENT].
      *
+     * When [ackStorageRef] is provided, the upload is registered with
+     * [com.glyph.glyph_v3.data.media.MediaAcknowledgmentService] so the sender's cloud
+     * copy is deleted only after every participant has downloaded it.
+     *
      * @return `true` on success, `false` on Firestore failure (caller should not fan out).
      */
     private suspend fun finalizeGroupMediaSend(
@@ -475,7 +481,9 @@ class GroupChatRepository(
         timestamp: Long,
         lastMessagePreview: String,
         firestoreMessageData: Map<String, Any>,
-        rtdbPayload: Map<String, Any>
+        rtdbPayload: Map<String, Any>,
+        ackStorageRef: String? = null,
+        ackThumbnailRef: String? = null
     ): Boolean {
         val snap = firestore.collection("chats").document(chatId).get().await()
         require(snap.getBoolean("isGroup") == true) { "Not a group chat" }
@@ -505,6 +513,19 @@ class GroupChatRepository(
             return false
         }
 
+        if (!ackStorageRef.isNullOrEmpty()) {
+            runCatching {
+                com.glyph.glyph_v3.data.media.MediaAcknowledgmentService.registerMediaUpload(
+                    messageId = messageId,
+                    storageRef = ackStorageRef,
+                    recipientIds = participants.filter { it != senderUid },
+                    thumbnailRef = ackThumbnailRef
+                )
+            }.onFailure { e ->
+                Log.w(TAG, "Group media ACK registration failed for $messageId: ${e.message}")
+            }
+        }
+
         fanOutRtdb(
             chatId = chatId,
             messageId = messageId,
@@ -518,21 +539,26 @@ class GroupChatRepository(
     /**
      * Apply [com.glyph.glyph_v3.data.repo.MediaProgressManager] updates while awaiting
      * a Firebase Storage [com.google.firebase.storage.UploadTask].
+     *
+     * @param expectedTotalBytes known size of the file being uploaded. Firebase's
+     *   snapshot.totalByteCount grows during resumable uploads, making the % jump
+     *   around — prefer the known size as the denominator.
      */
     private suspend fun awaitStorageUploadWithProgress(
         task: com.google.firebase.storage.UploadTask,
-        messageId: String
+        messageId: String,
+        expectedTotalBytes: Long = 0L
     ): Unit {
         task.addOnProgressListener { snapshot ->
-            val progress = if (snapshot.totalByteCount > 0) {
-                (100.0 * snapshot.bytesTransferred / snapshot.totalByteCount).toFloat()
-            } else 0f
+            val transferred = snapshot.bytesTransferred
+            val total = if (expectedTotalBytes > 0) expectedTotalBytes else snapshot.totalByteCount
+            val progress = if (total > 0) (100f * transferred / total) else 0f
             com.glyph.glyph_v3.data.repo.MediaProgressManager.updateProgress(
                 messageId,
                 progress,
                 isUploading = true,
-                totalBytes = snapshot.totalByteCount,
-                transferredBytes = snapshot.bytesTransferred
+                totalBytes = total,
+                transferredBytes = transferred
             )
         }
         task.await()
@@ -615,9 +641,13 @@ class GroupChatRepository(
             messageId, 0f, isUploading = true, totalBytes = fileSize
         )
 
-        val storageRef = storage.reference.child("chat_images/$chatId/$messageId.jpg")
+        val imageStoragePath = "chat_images/$chatId/$messageId.jpg"
+        val storageRef = storage.reference.child(imageStoragePath)
+        val imageMetadata = com.google.firebase.storage.StorageMetadata.Builder()
+            .setContentType(context.contentResolver.getType(imageUri) ?: "image/jpeg")
+            .build()
         val downloadUrl: String = try {
-            awaitStorageUploadWithProgress(storageRef.putFile(imageUri), messageId)
+            awaitStorageUploadWithProgress(storageRef.putFile(imageUri, imageMetadata), messageId, fileSize)
             storageRef.downloadUrl.await().toString()
         } catch (e: Exception) {
             Log.e(TAG, "Group image upload failed for $messageId", e)
@@ -696,7 +726,8 @@ class GroupChatRepository(
             timestamp = timestamp,
             lastMessagePreview = previewText,
             firestoreMessageData = firestoreMessageData,
-            rtdbPayload = rtdbPayload
+            rtdbPayload = rtdbPayload,
+            ackStorageRef = imageStoragePath
         )
     }
 
@@ -762,31 +793,44 @@ class GroupChatRepository(
             messageId, 0f, isUploading = true, totalBytes = fileSize
         )
 
-        // Generate + upload thumbnail (non-fatal).
-        var thumbnailUrl: String? = null
-        try {
-            val thumbResult = com.glyph.glyph_v3.util.VideoThumbnailUtil.generateThumbnailBytes(context, videoUri)
-            if (thumbResult != null) {
-                val (thumbBytes, _) = thumbResult
-                val thumbRef = storage.reference.child("chat_video_thumbnails/$chatId/$messageId.jpg")
-                thumbRef.putBytes(thumbBytes).await()
-                thumbnailUrl = thumbRef.downloadUrl.await().toString()
-                messageDao.insertMessage(placeholder.copy(thumbnailUrl = thumbnailUrl))
+        val videoStoragePath = "chat_videos/$chatId/$messageId.mp4"
+        val thumbnailStoragePath = "chat_video_thumbnails/$chatId/$messageId.jpg"
+
+        coroutineScope {
+        // Generate + upload the thumbnail CONCURRENTLY with the video upload: the video
+        // is the long pole, so serializing the thumbnail ahead of it only delays the
+        // start of the real transfer. Both are collected before the message is persisted.
+        val thumbnailDeferred = async {
+            var url: String? = null
+            try {
+                val thumbResult = com.glyph.glyph_v3.util.VideoThumbnailUtil.generateThumbnailBytes(context, videoUri)
+                if (thumbResult != null) {
+                    val (thumbBytes, _) = thumbResult
+                    val thumbRef = storage.reference.child(thumbnailStoragePath)
+                    thumbRef.putBytes(thumbBytes).await()
+                    url = thumbRef.downloadUrl.await().toString()
+                    messageDao.insertMessage(placeholder.copy(thumbnailUrl = url))
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Group video thumbnail upload failed for $messageId", e)
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Group video thumbnail upload failed for $messageId", e)
+            url
         }
 
-        val storageRef = storage.reference.child("chat_videos/$chatId/$messageId.mp4")
+        val storageRef = storage.reference.child(videoStoragePath)
+        val videoMetadata = com.google.firebase.storage.StorageMetadata.Builder()
+            .setContentType(context.contentResolver.getType(videoUri) ?: "video/mp4")
+            .build()
         val downloadUrl: String = try {
-            awaitStorageUploadWithProgress(storageRef.putFile(videoUri), messageId)
+            awaitStorageUploadWithProgress(storageRef.putFile(videoUri, videoMetadata), messageId, fileSize)
             storageRef.downloadUrl.await().toString()
         } catch (e: Exception) {
             Log.e(TAG, "Group video upload failed for $messageId", e)
             com.glyph.glyph_v3.data.repo.MediaProgressManager.complete(messageId)
             messageDao.updateMessageStatus(messageId, MessageStatus.FAILED)
             chatDao.updateLastMessage(chatId, previewText, timestamp, senderUid, MessageStatus.FAILED.name)
-            return
+            thumbnailDeferred.cancel()
+            return@coroutineScope
         }
         com.glyph.glyph_v3.data.repo.MediaProgressManager.complete(messageId)
 
@@ -803,6 +847,9 @@ class GroupChatRepository(
         } catch (e: Exception) {
             Log.w(TAG, "Group video: persistent copy failed for $messageId", e)
         }
+
+        // The thumbnail runs concurrently with the upload; collect its URL
+        val thumbnailUrl = runCatching { thumbnailDeferred.await() }.getOrNull()
 
         messageDao.insertMessage(
             placeholder.copy(
@@ -864,8 +911,11 @@ class GroupChatRepository(
             timestamp = timestamp,
             lastMessagePreview = previewText,
             firestoreMessageData = firestoreMessageData,
-            rtdbPayload = rtdbPayload
+            rtdbPayload = rtdbPayload,
+            ackStorageRef = videoStoragePath,
+            ackThumbnailRef = thumbnailUrl?.let { thumbnailStoragePath }
         )
+        }
     }
 
     suspend fun sendGroupVoiceMessage(
@@ -918,9 +968,13 @@ class GroupChatRepository(
             messageId, 0f, isUploading = true, totalBytes = finalFile.length()
         )
 
-        val storageRef = storage.reference.child("chat_voice/$chatId/$messageId.m4a")
+        val voiceStoragePath = "chat_voice/$chatId/$messageId.m4a"
+        val storageRef = storage.reference.child(voiceStoragePath)
+        val audioMetadata = com.google.firebase.storage.StorageMetadata.Builder()
+            .setContentType(context.contentResolver.getType(finalUri) ?: "audio/mp4")
+            .build()
         val downloadUrl: String = try {
-            awaitStorageUploadWithProgress(storageRef.putFile(finalUri), messageId)
+            awaitStorageUploadWithProgress(storageRef.putFile(finalUri, audioMetadata), messageId, finalFile.length())
             storageRef.downloadUrl.await().toString()
         } catch (e: Exception) {
             Log.e(TAG, "Group voice upload failed for $messageId", e)
@@ -966,7 +1020,8 @@ class GroupChatRepository(
             timestamp = timestamp,
             lastMessagePreview = previewText,
             firestoreMessageData = firestoreMessageData,
-            rtdbPayload = rtdbPayload
+            rtdbPayload = rtdbPayload,
+            ackStorageRef = voiceStoragePath
         )
     }
 
@@ -1045,9 +1100,13 @@ class GroupChatRepository(
             Log.w(TAG, "Group document thumbnail failed for $messageId", e)
         }
 
-        val storageRef = storage.reference.child("chat_documents/$chatId/$storageName")
+        val documentStoragePath = "chat_documents/$chatId/$storageName"
+        val storageRef = storage.reference.child(documentStoragePath)
+        val documentMetadata = com.google.firebase.storage.StorageMetadata.Builder()
+            .setContentType(context.contentResolver.getType(documentUri) ?: "application/octet-stream")
+            .build()
         val downloadUrl: String = try {
-            awaitStorageUploadWithProgress(storageRef.putFile(documentUri), messageId)
+            awaitStorageUploadWithProgress(storageRef.putFile(documentUri, documentMetadata), messageId, fileSize)
             storageRef.downloadUrl.await().toString()
         } catch (e: Exception) {
             Log.e(TAG, "Group document upload failed for $messageId", e)
@@ -1101,7 +1160,9 @@ class GroupChatRepository(
             timestamp = timestamp,
             lastMessagePreview = previewText,
             firestoreMessageData = firestoreMessageData,
-            rtdbPayload = rtdbPayload
+            rtdbPayload = rtdbPayload,
+            ackStorageRef = documentStoragePath,
+            ackThumbnailRef = thumbnailUrl?.let { "chat_document_thumbnails/$chatId/$messageId.jpg" }
         )
     }
 
@@ -1790,12 +1851,24 @@ class GroupChatRepository(
             val finalMediaItems = mutableListOf<com.glyph.glyph_v3.data.models.MediaItem>()
             var uploadedBytes = 0L
 
+            // Participants for per-item ACK registration (one read, reused per item).
+            // Keys are 0-based "{messageId}_item_{index}" and must match the keys the
+            // receiver acknowledges in MediaDownloadWorker / MediaTransferManager.
+            val ackItemRecipients = runCatching {
+                (firestore.collection("chats").document(chatId).get().await()
+                    .get("participants") as? List<*>)?.mapNotNull { it as? String }.orEmpty()
+                    .filter { it != senderUid }
+            }.getOrDefault(emptyList())
+
             for ((index, prepared) in preparedItems.withIndex()) {
                 val extension = if (prepared.mediaType == com.glyph.glyph_v3.data.models.MediaType.VIDEO) "mp4" else "jpg"
                 val storagePath = "chat_media/$chatId/$messageId/item_${index + 1}.$extension"
                 val storageRef = storage.reference.child(storagePath)
 
-                val uploadTask = storageRef.putFile(prepared.finalUri)
+                val uploadMetadata = com.google.firebase.storage.StorageMetadata.Builder()
+                    .setContentType(prepared.mimeType)
+                    .build()
+                val uploadTask = storageRef.putFile(prepared.finalUri, uploadMetadata)
                 uploadTask.addOnProgressListener { snapshot ->
                     val overallBytes = (uploadedBytes + snapshot.bytesTransferred).coerceAtMost(totalBytes)
                     val progress = if (totalBytes > 0) {
@@ -1811,6 +1884,20 @@ class GroupChatRepository(
                 }
                 uploadTask.await()
                 val downloadUrl = storageRef.downloadUrl.await().toString()
+
+                // Register this item's ACK so the sender's all-recipients cleanup can
+                // fire per item (receiver acknowledges "{messageId}_item_{index}")
+                if (ackItemRecipients.isNotEmpty()) {
+                    runCatching {
+                        com.glyph.glyph_v3.data.media.MediaAcknowledgmentService.registerMediaUpload(
+                            messageId = "${messageId}_item_$index",
+                            storageRef = storagePath,
+                            recipientIds = ackItemRecipients
+                        )
+                    }.onFailure { e ->
+                        Log.w(TAG, "Group item ACK registration failed for ${messageId}_item_$index: ${e.message}")
+                    }
+                }
 
                 uploadedBytes += prepared.metadata.originalSize
 
