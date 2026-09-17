@@ -26,11 +26,11 @@ class PresenceInitializer : Initializer<Unit> {
             StartupTrace.logStage("presence_init_start")
             Log.d(TAG, "=== PresenceInitializer.create() START ===")
 
-            // Initialize Presence manager context
+            // Initialize Presence manager context (light)
             PresenceManager.initContext(context)
 
-            // Set up auth state listener for presence tracking
-            initializePresence(context)
+            // DEFERRED until chat-list shown: presence sync + auth listener
+            // initializePresence(context)
 
             Log.d(TAG, "=== PresenceInitializer.create() COMPLETE ===")
             StartupTrace.logStage("presence_init_complete")

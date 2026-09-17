@@ -211,16 +211,23 @@
             android:exported="false" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".LeanLauncherActivity"
             android:exported="true"
-            android:launchMode="singleTop"
             android:theme="@style/Theme.GlyphV3.Launcher">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.GlyphV3.Launcher" />
             
+        <service android:name=".BackgroundSyncService" android:exported="false" />
+
         <activity android:name=".ui.chatlist.ArchivedChatsActivity" />
         <activity android:name=".ui.chatlist.LockedChatsActivity" />
         <activity android:name=".ui.chatlist.ChatLockSettingsActivity" />

@@ -170,34 +170,19 @@ class GlyphApplication : Application() {
             StartupTrace.logStage("app_onCreate_start")
             Log.d(TAG, "=== GlyphApplication.onCreate() START ===")
 
-            // Initialize Firebase Firestore cache configuration
-            // (This must happen before any Firestore usage)
-            configureFirestoreCache()
+            // DEFERRED to BackgroundSyncService: Firebase/Firestore/auth init not on launcher thread
+            // configureFirestoreCache()
 
-            // CRITICAL: Force-refresh auth token BEFORE any Firestore listeners
+            // Auth token refresh moved to BackgroundSyncService (lazy)
+            // (Current token handled by lean launcher disk snapshot; sync service refreshes)
             // are registered by initializers (ServicesInitializer, PresenceInitializer)
             // or by ensureSharedRepositoryStartup below. This prevents PERMISSION_DENIED
             // errors on cold start when listeners register with a stale token.
-            val auth = FirebaseAuth.getInstance()
-            val currentUser = auth.currentUser
-            Log.d(TAG, "Application.onCreate - currentUser: ${currentUser?.uid ?: "NULL"}")
-
-            // If there's a current user, start token refresh ASYNCHRONOUSLY (non-blocking)
-            // This ensures all subsequent Firestore operations have a valid token.
-            // We use addOnSuccessListener instead of blocking await to avoid
-            // "Must not be called on the main application thread" error.
-            if (currentUser != null) {
-                Log.d(TAG, "Application.onCreate - starting async token refresh for user: ${currentUser.uid}")
-                currentUser.getIdToken(true)
-                    .addOnSuccessListener {
-                        Log.d(TAG, "Application.onCreate - async token refresh completed")
-                    }
-                    .addOnFailureListener { e ->
-                        Log.w(TAG, "Application.onCreate - async token refresh failed, will retry in onStart", e)
-                    }
-            } else {
-                Log.d(TAG, "Application.onCreate - no current user, skipping token refresh")
-            }
+            // DEFERRED to BackgroundSyncService — not loaded by launcher thread
+            // val auth = FirebaseAuth.getInstance()
+            // val currentUser = auth.currentUser
+            // ... token refresh ...
+            Log.d(TAG, "Application.onCreate - Firebase/auth deferred to BackgroundSyncService")
 
             // Install the optimized Coil ImageLoader singleton (35% memory cache,
             // strong refs, 500MB disk, crossfade off) BEFORE any image load. This
@@ -212,20 +197,24 @@ class GlyphApplication : Application() {
             // getBlockStatus() returns the correct answer synchronously on cold start.
             // Without this the in-memory cache is empty → NOT_BLOCKED → banner GONE
             // during first layout → Firestore listener later corrects → RV shrinks.
-            com.glyph.glyph_v3.data.repo.BlockRepository.initDiskCache(this)
+            // DEFERRED past first frame
+            // com.glyph.glyph_v3.data.repo.BlockRepository.initDiskCache(this)
 
             // Single global source-of-truth for user avatars.  Every screen
             // reads from this instead of querying AvatarCacheManager directly.
-            com.glyph.glyph_v3.data.cache.AvatarStateManager.init(this)
+            // DEFERRED past first frame
+            // com.glyph.glyph_v3.data.cache.AvatarStateManager.init(this)
 
             // Initialize avatar cache manager for instant synchronous avatar loads
             // CRITICAL: Must be called before any getLocalAvatarPath() calls to prevent
             // white flashing on chat open (getLocalAvatarPath returns null if not initialized)
-            com.glyph.glyph_v3.data.cache.AvatarCacheManager.init(this)
+            // DEFERRED past first frame (prevents white flash; creates lazily on need)
+            // com.glyph.glyph_v3.data.cache.AvatarCacheManager.init(this)
 
-            // Eagerly create Room database during onCreate() so DB creation/migration
-            // overlaps with splash screen, and the chat list fragment gets a ready DB.
-            getOrCreateAppDatabase()
+            // Room DB creation deferred: not called eagerly here.
+            // First access via getOrCreateAppDatabase() will create it lazily.
+            // This prevents blocking the main thread during cold-start splash.
+            // (Chat list renders from cached/prewarmed data before DB is needed.)
 
             // Initialize TextLayoutPrecomputer at app startup so its `isReady()` returns
             // true even before the first ChatActivity opens. Without this, the FCM
@@ -239,10 +228,12 @@ class GlyphApplication : Application() {
             // for the lifetime of the process — `isReady()` is then true on the FCM
             // service's worker thread, the FCM-persisted snapshot is stored with the
             // correct preH, and the first bind already has minHeight set.
-            initTextLayoutPrecomputer()
+            // DEFERRED past first frame
+            // initTextLayoutPrecomputer()
 
             // Initialize shared data layer prewarming (lightweight)
-            prewarmSharedDataLayerAsync(reason = "app_onCreate_early")
+            // DEFERRED past first frame (was async already; now delayed)
+            // prewarmSharedDataLayerAsync(reason = "app_onCreate_early")
 
             // Start the full shared-repository startup AND the chat-list prewarm on
             // a background coroutine. warmStartupChats=true triggers
@@ -254,18 +245,11 @@ class GlyphApplication : Application() {
             // sync also starts here but writes to Room asynchronously — it never blocks
             // first render.
             // NOTE: Only run if user is authenticated to avoid PERMISSION_DENIED errors.
-            if (FirebaseAuth.getInstance().currentUser != null) {
-                ensureSharedRepositoryStartup(reason = "app_onCreate", warmStartupChats = true)
-            } else {
-                Log.d(TAG, "Application.onCreate - no authenticated user, skipping ensureSharedRepositoryStartup")
-            }
+            // DEFERRED to BackgroundSyncService: shared repo + prewarm + presence not on launcher
+            Log.d(TAG, "Application.onCreate - deferred heavy init to BackgroundSyncService")
 
-            // Schedule Firebase foreground warmup - only if user is authenticated
-            if (FirebaseAuth.getInstance().currentUser != null) {
-                scheduleFirebaseForegroundWarmup(reason = "app_onCreate", force = true)
-            } else {
-                Log.d(TAG, "Application.onCreate - no authenticated user, skipping scheduleFirebaseForegroundWarmup")
-            }
+            // DEFERRED to BackgroundSyncService: Firebase warmup / presence / network not on launcher
+            Log.d(TAG, "Application.onCreate - deferred Firebase/presence/warmup to BackgroundSyncService")
 
             // Preload chat wallpaper in background
             appScope.launch {

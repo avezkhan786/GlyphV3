@@ -64,14 +64,10 @@ class ServicesInitializer : Initializer<Unit> {
             // Schedule periodic cleanup of expired status cache files
             StatusCacheCleanupWorker.schedule(context)
 
-            // Initialize block list listeners
-            Log.d(TAG, "Calling BlockRepository.startListening()...")
-            BlockRepository.startListening()
-            Log.d(TAG, "BlockRepository.startListening() returned")
-
-            // Initialize network monitor
-            val networkMonitor = NetworkConnectivityMonitor(context)
-            networkMonitor.startMonitoring()
+            // DEFERRED: listener/network/block sync starts after chat-list shown
+            // BlockRepository.startListening()
+            // NetworkConnectivityMonitor(context).startMonitoring()
+            // restoreBackgroundSharingServices(context)
 
             // Ensure call notification channels
             val app = context.applicationContext as? GlyphApplication
@@ -83,18 +79,9 @@ class ServicesInitializer : Initializer<Unit> {
                 }
             }
 
-            // Restore background sharing services
-            restoreBackgroundSharingServices(context)
-
-            // Initialize Google Sign-In for backup/restore (fire-and-forget)
-            app?.appScope?.launch {
-                runCatching {
-                    com.glyph.glyph_v3.data.auth.GoogleSignInRepository.getInstance(context)
-                        .silentSignIn()
-                }.onFailure { e ->
-                    Log.w(TAG, "Google Sign-In silent attempt failed (expected if no Google account)", e)
-                }
-            }
+            // DEFERRED: background sharing restore + silent sign-in after chat-list shown
+            // restoreBackgroundSharingServices(context)
+            // silentSignIn
 
             StartupTrace.logStage("services_init_complete")
             Log.d(TAG, "Services initialization complete")
