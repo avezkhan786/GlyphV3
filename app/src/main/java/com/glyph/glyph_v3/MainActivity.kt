@@ -71,11 +71,30 @@ class MainActivity : AppCompatActivity() {
     // native GlyphBottomNavigationView and the Compose top bar / search bar / chat
     // rows all paint on a single frame instead of appearing staggered.
     @Volatile private var chatListFirstFrameReady = false
+    // Guards against launching the sign-in flow more than once (releaseFirstFrameGate
+    // can fire deferredHeavyStartup → ensureAuthenticated from two paths).
+    @Volatile private var isRoutingToSignIn = false
     private var firstFrameGateInstalled = false
     private var firstFrameGateReleased = false
     private val firstFrameHandler = Handler(Looper.getMainLooper())
     private val firstFrameTimeout = Runnable {
-        if (!chatListFirstFrameReady) chatListFirstFrameReady = true // safety release; never hang
+        // Safety release: if the chat-list signal never arrives (e.g. empty list on
+        // a fresh install), release anyway. The app must never hang, and deferred
+        // init must still run exactly once — via releaseFirstFrameGate().
+        releaseFirstFrameGate("timeout")
+    }
+
+    /**
+     * Single release path for the cold-start first-draw gate. Idempotent: the
+     * [chatListFirstFrameReady] guard guarantees [deferredHeavyStartup] runs at
+     * most once per activity instance, whether released by the chat-list signal
+     * (onChatListFirstFrameReady) or by the 500ms safety timeout.
+     */
+    private fun releaseFirstFrameGate(source: String) {
+        if (chatListFirstFrameReady) return
+        chatListFirstFrameReady = true
+        Log.d("MainActivity", "First-frame gate released via $source")
+        deferredHeavyStartup()
     }
 
     // SplashScreen keep-on-screen gate. Flipped to true by ensureAuthenticated()
@@ -282,9 +301,8 @@ class MainActivity : AppCompatActivity() {
      * flag on its next invocation and self-removes.
      */
     fun onChatListFirstFrameReady() {
-        if (chatListFirstFrameReady) return
-        chatListFirstFrameReady = true
-        deferredHeavyStartup() // defer all non-UI background work until chat list is shown
+        // Called by ChatListComposeFragment once the chat rows are laid out.
+        releaseFirstFrameGate("chat_list_signal")
     }
 
     /**
@@ -313,10 +331,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun deferredHeavyStartup() {
-        if (firstFrameGateReleased || isFinishing || isDestroyed) {
-            // If gate already released (rotation/restart), still run deferred init once
-            // via a guard so it doesn't execute repeatedly on every restore.
-        }
+        // Runs at most once per activity instance (guarded by releaseFirstFrameGate's
+        // chatListFirstFrameReady flag). All work below is idempotent per-process.
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 // Lean launcher: auth + resolver deferred to after chat list shown
@@ -324,6 +340,11 @@ class MainActivity : AppCompatActivity() {
                 if (!isFinishing && !isDestroyed) {
                     ensureAuthenticated()
                     ContactDisplayNameResolver.init(this@MainActivity)
+                    // Deferred Firebase warm-up (moved out of FirebaseInitializer):
+                    // goOnline + keepSynced + force token refresh, once, after the
+                    // chat list's first frame.
+                    (applicationContext as GlyphApplication)
+                        .warmFirebaseConnections("deferred_heavy_startup")
                 }
             }
 
@@ -777,24 +798,56 @@ class MainActivity : AppCompatActivity() {
         // FirebaseAuth.getInstance().currentUser is an in-memory read (~ms). The
         // system-managed splash transitions on the next vsync after this line.
         authReadFromDisk = true
-        if (auth.currentUser == null) {
-            auth.signInAnonymously()
-                .addOnSuccessListener { result ->
-                }
-                .addOnFailureListener { e ->
-                    Log.e("MainActivity", "Anonymous auth failed", e)
-                }
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            // No session → send the user to the sign-in flow.
+            //
+            // Anonymous sign-in is NOT a usable fallback for this project: it is
+            // disabled in the Firebase console, so signInAnonymously() fails with
+            // "This operation is restricted to administrators only". Continuing
+            // without a user leaves the UI looking functional while every
+            // Firestore/RTDB call is rejected with PERMISSION_DENIED.
+            //
+            // Previously the deleted SplashActivity performed this routing; after
+            // MainActivity became the launcher nothing launched WelcomeActivity on
+            // a session-less cold start, so a fresh install (or a cleared session)
+            // had no way to sign in.
+            Log.w("MainActivity", "No Firebase session — routing to sign-in")
+            routeToSignIn()
         } else {
             // CRITICAL: Refresh token on app start/resume to ensure Firestore
             // listeners have a valid token. This prevents PERMISSION_DENIED
             // errors when the app is launched directly to MainActivity (bypassing
             // SplashActivity) or when returning from background with a stale token.
-            auth.currentUser?.getIdToken(true)
+            currentUser.getIdToken(true)
                 ?.addOnSuccessListener { }
                 ?.addOnFailureListener { e ->
                     Log.w("MainActivity", "Token refresh failed on ensureAuthenticated", e)
                 }
         }
+    }
+
+    /**
+     * Routes a session-less launch to [com.glyph.glyph_v3.ui.auth.WelcomeActivity]
+     * (the "Get Started" → phone-number → OTP sign-in flow), clearing the task so
+     * back-navigation cannot return to the unauthenticated shell.
+     */
+    private fun routeToSignIn() {
+        if (isFinishing || isDestroyed || isRoutingToSignIn) return
+        isRoutingToSignIn = true
+        // Drop cached watch targets from the dead session — mirrors
+        // AccountSettingsActivity.performLogout(), where stale listeners are the
+        // documented cause of PERMISSION_DENIED after a later sign-in.
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                FirebaseFirestore.getInstance().clearPersistence()
+            }
+        }
+        val intent = Intent(this, com.glyph.glyph_v3.ui.auth.WelcomeActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
     }
 
     override fun onResume() {

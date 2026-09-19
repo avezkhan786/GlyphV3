@@ -138,7 +138,7 @@ class MediaDownloadWorker(
                                 Gson().fromJson<List<MediaItem>>(msg.mediaItems, listType) ?: emptyList()
                             }.getOrDefault(emptyList())
                             items.forEachIndexed { index, item ->
-                                if (item.url.isBlank() || hasExistingLocalUriCandidate(item.localUri)) return@forEachIndexed
+                                if (item.url.orEmpty().isBlank() || hasExistingLocalUriCandidate(item.localUri)) return@forEachIndexed
                                 val itemType = if (item.type == com.glyph.glyph_v3.data.models.MediaType.VIDEO) {
                                     MessageType.VIDEO
                                 } else {

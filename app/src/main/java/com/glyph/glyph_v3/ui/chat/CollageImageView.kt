@@ -23,6 +23,7 @@ import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.glyph.glyph_v3.data.cache.MessagePreviewCacheManager
 import com.glyph.glyph_v3.data.models.MediaItem
+import com.glyph.glyph_v3.data.models.MediaType
 import com.glyph.glyph_v3.data.models.MessageType
 import com.google.android.material.imageview.ShapeableImageView
 import com.google.android.material.shape.ShapeAppearanceModel
@@ -272,10 +273,12 @@ class CollageImageView @JvmOverloads constructor(
                 val fullResKey = getFullResKey(item)
                 val previewFallback = item.thumbnailUrl?.takeIf { it.isNotBlank() }
                     ?: item.displayUrl.takeIf { it.isNotBlank() }
-                    ?: item.url.takeIf { it.isNotBlank() }
+                    ?: item.url.orEmpty().takeIf { it.isNotBlank() }
 
                 append('|')
-                append(item.type.name)
+                // Defensive: parsed items are sanitized (see MediaItem.sanitizedMediaItems),
+                // but never let a null enum reach Enum.name().
+                append((item.type ?: MediaType.IMAGE).name)
                 append(':')
                 append(fullResKey)
                 append(':')
@@ -610,19 +613,19 @@ class CollageImageView @JvmOverloads constructor(
     private fun getFullResKey(item: MediaItem): String {
         return resolveExistingLocalUri(item)
             ?: item.displayUrl.takeIf { it.isNotBlank() }
-            ?: item.url.takeIf { it.isNotBlank() }
+            ?: item.url.orEmpty().takeIf { it.isNotBlank() }
             ?: ""
     }
 
     private fun getFullResSource(item: MediaItem): Any? {
         return resolveExistingLocalUri(item)
             ?: item.displayUrl.takeIf { it.isNotBlank() }
-            ?: item.url.takeIf { it.isNotBlank() }
+            ?: item.url.orEmpty().takeIf { it.isNotBlank() }
     }
 
     private fun getFallbackSource(item: MediaItem, primary: Any?): Any? {
         val fallback = item.displayUrl.takeIf { it.isNotBlank() }
-            ?: item.url.takeIf { it.isNotBlank() }
+            ?: item.url.orEmpty().takeIf { it.isNotBlank() }
         return if (fallback != primary) fallback else null
     }
 
@@ -658,7 +661,7 @@ class CollageImageView @JvmOverloads constructor(
 
         val fallback = item.thumbnailUrl?.takeIf { it.isNotBlank() }
             ?: item.displayUrl.takeIf { it.isNotBlank() }
-            ?: item.url.takeIf { it.isNotBlank() }
+            ?: item.url.orEmpty().takeIf { it.isNotBlank() }
         val messageId = boundMessageId ?: return fallback
         return nonBlankModel(MessagePreviewCacheManager.resolveMediaGroupPreviewModel(messageId, index, fallback))
     }

@@ -154,7 +154,9 @@ data class Message(
         } else {
             try {
                 val type = object : TypeToken<List<MediaItem>>() {}.type
-                (Gson().fromJson<List<MediaItem>>(mediaItems, type) ?: emptyList()).map { item ->
+                // sanitizedMediaItems(): Gson skips the constructor, so url/type can be
+                // null despite their non-null declarations (see MediaItem.kt).
+                (Gson().fromJson<List<MediaItem>>(mediaItems, type) ?: emptyList()).sanitizedMediaItems().map { item ->
                     val safeLocalUri = item.localUri?.takeIf(::isUsableMediaLocalUri)
                     if (safeLocalUri == item.localUri) item else item.copy(localUri = safeLocalUri)
                 }

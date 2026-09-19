@@ -163,7 +163,11 @@ class ChatListComposeFragment : Fragment() {
     ): View {
         val app = requireContext().applicationContext as GlyphApplication
         repository = app.repository
-        groupRepository = app.getOrCreateGroupChatRepository()
+        // NOTE: groupRepository is intentionally NOT resolved here. Constructing it
+        // synchronously on the main thread contended with the background prewarm's
+        // getOrCreateRealtimeRepository() monitor (252ms of first-frame main-thread
+        // block, measured via perfetto). It is fetched on Dispatchers.IO in
+        // ensureRepositoryReadyAndStart() before startChatListData() runs.
 
         DraftMessageStore.init(requireContext().applicationContext)
 
@@ -321,7 +325,12 @@ class ChatListComposeFragment : Fragment() {
                         undoProgress = uiState.undoProgress,
                         onUndoDelete = { viewModel.undoPendingDelete() },
                         blockedUserIds = blockedUserIds,
-                        useRecyclerView = true
+                        useRecyclerView = true,
+                        // Release MainActivity's cold-start first-draw gate once the chat
+                        // rows are actually laid out (also triggers deferredHeavyStartup).
+                        onFirstFrameReady = {
+                            (activity as? MainActivity)?.onChatListFirstFrameReady()
+                        }
                     )
                 }
             }
@@ -389,7 +398,7 @@ class ChatListComposeFragment : Fragment() {
     }
 
     private fun ensureRepositoryReadyAndStart() {
-        if (repository != null) {
+        if (repository != null && groupRepository != null) {
             startChatListData()
             return
         }
@@ -397,10 +406,17 @@ class ChatListComposeFragment : Fragment() {
         repositoryInitJob?.cancel()
         repositoryInitJob = viewLifecycleOwner.lifecycleScope.launch {
             val app = requireContext().applicationContext as GlyphApplication
-            val readyRepository = withContext(Dispatchers.IO) {
+            // Both repositories are resolved off the main thread. The realtime
+            // repository constructs (and may open) Room; doing either on the main
+            // thread blocks the first frame behind the background prewarm's lock.
+            val readyRepository = repository ?: withContext(Dispatchers.IO) {
                 app.getOrCreateRealtimeRepository()
             }
+            val readyGroupRepository = groupRepository ?: withContext(Dispatchers.IO) {
+                app.getOrCreateGroupChatRepository()
+            }
             repository = readyRepository
+            groupRepository = readyGroupRepository
             viewModel.attachRepository(readyRepository)
             startChatListData()
         }

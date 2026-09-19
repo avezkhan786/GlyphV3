@@ -40,6 +40,12 @@ class StatusFragment : Fragment() {
     private var viewers by mutableStateOf<List<ViewerInfo>>(emptyList())
     private var pagerCallback: ViewPager2.OnPageChangeCallback? = null
 
+    // EXPERIMENT: the page's ComposeView is created in onCreateView, but its content
+    // is composed on the first onResume() (i.e. when this page becomes the visible
+    // one) instead of while ViewPager2 lays it out off-screen during cold start.
+    private var statusComposeView: androidx.compose.ui.platform.ComposeView? = null
+    private var statusContentInitialized = false
+
     private val viewerBackCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             when {
@@ -124,9 +130,34 @@ class StatusFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        // EXPERIMENT: keep returning a real ComposeView immediately (the pager must
+        // always have a valid page view), but do NOT compose its content here.
+        //
+        // ViewPager2 instantiates this page while laying out page 0 (observed in the
+        // first-frame trace), which used to run this fragment's entire first
+        // composition (~8.8ms) on the cold-start critical path, before the chat list
+        // had painted — work the user cannot see.
+        //
+        // Content is composed on the first onResume(). ViewPager2's
+        // FragmentMaxLifecycleEnforcer keeps off-screen pages at STARTED and only
+        // moves the current page to RESUMED, so onResume fires exactly when this page
+        // becomes the visible one — no polling, timers or delays involved. The
+        // content lambda below is unchanged.
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
-            setContent {
+            statusComposeView = this
+        }
+    }
+
+    /**
+     * Composes the Status content the first time this page becomes visible.
+     * Idempotent; re-armed when the view is recreated (rotation / re-attach).
+     */
+    private fun initializeStatusContentIfNeeded() {
+        if (statusContentInitialized) return
+        val composeView = statusComposeView ?: return
+        statusContentInitialized = true
+        composeView.setContent {
                 GlyphThemeProvider {
                     val uiState by viewModel.uiState.collectAsState()
                     val privacyState by viewModel.privacyState.collectAsState()
@@ -408,7 +439,6 @@ class StatusFragment : Fragment() {
                     }
                 }
             }
-        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -428,11 +458,20 @@ class StatusFragment : Fragment() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // First visible moment for this page → compose its content (once per view).
+        initializeStatusContentIfNeeded()
+    }
+
     override fun onDestroyView() {
         activity?.findViewById<ViewPager2>(R.id.main_view_pager)?.let { pager ->
             pagerCallback?.let(pager::unregisterOnPageChangeCallback)
         }
         pagerCallback = null
+        // EXPERIMENT: reset so a recreated view composes its content again.
+        statusComposeView = null
+        statusContentInitialized = false
         super.onDestroyView()
         // Restore bottom nav when fragment is removed
         setFullScreen(false)

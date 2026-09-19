@@ -55,6 +55,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.tasks.await
 import coil.ImageLoader
 import coil.Coil
@@ -102,6 +103,7 @@ class GlyphApplication : Application() {
     private val sharedDataLayerPrewarmInFlight = AtomicBoolean(false)
     private val sharedRepositoryStartupInFlight = AtomicBoolean(false)
     private val sharedRepositoryStartupComplete = AtomicBoolean(false)
+    private val firebaseWarmupDone = AtomicBoolean(false)
 
     // MEMORY LEAK FIX: Single application-scoped CoroutineScope replaces all
     // ad-hoc CoroutineScope(Dispatchers.X).launch {} call sites. Those created
@@ -341,6 +343,50 @@ class GlyphApplication : Application() {
 
     fun ensureSharedRepositoryStartup(reason: String, warmStartupChats: Boolean = false) {
         completeSharedRepositoryStartupAsync(reason = reason, warmStartupChats = warmStartupChats)
+    }
+
+    /**
+     * Deferred Firebase connection warm-up — runs once per process, after the
+     * chat list's first frame.
+     *
+     * This used to live in FirebaseInitializer.create() on the cold-start
+     * critical path. Nothing on the first frame needs it: PresenceManager
+     * already opens the RTDB WebSocket pre-first-frame (auth listener + onResume
+     * priming), and [com.glyph.glyph_v3.MainActivity] re-authenticates in
+     * ensureAuthenticated(). Moved here so the TLS/WebSocket handshake,
+     * keepSynced registrations and token refresh no longer compete with
+     * first-frame layout for CPU.
+     *
+     * goOnline()/keepSynced(true) are idempotent; the AtomicBoolean guard makes
+     * the whole warm-up exactly-once per process. Main-thread dispatch matches
+     * the original call context (Initializer.create runs on main); the work is
+     * enqueue-only and returns immediately.
+     */
+    fun warmFirebaseConnections(reason: String) {
+        if (!firebaseWarmupDone.compareAndSet(false, true)) return
+        StartupTrace.logStage("firebase_warmup_start", "reason=$reason")
+        appScope.launch {
+            try {
+                withContext(Dispatchers.Main.immediate) {
+                    val rtdb = FirebaseDatabase.getInstance()
+                    rtdb.goOnline()
+                    // Pre-warm presence path caches so first reads don't wait for server
+                    rtdb.getReference("presence").keepSynced(true)
+                    rtdb.getReference("walkieTalkieSessions").keepSynced(true)
+                    Log.d(TAG, "Deferred RTDB goOnline + keepSynced done (reason=$reason)")
+                    FirebaseAuth.getInstance().currentUser?.getIdToken(true)
+                        ?.addOnSuccessListener {
+                            Log.d(TAG, "Deferred auth token force-refreshed (reason=$reason)")
+                        }
+                        ?.addOnFailureListener { e ->
+                            Log.w(TAG, "Deferred token refresh failed (will retry on demand)", e)
+                        }
+                }
+                StartupTrace.logStage("firebase_warmup_complete", "reason=$reason")
+            } catch (e: Exception) {
+                Log.w(TAG, "Deferred Firebase warmup failed", e)
+            }
+        }
     }
 
     private fun prewarmSharedDataLayerAsync(reason: String) {

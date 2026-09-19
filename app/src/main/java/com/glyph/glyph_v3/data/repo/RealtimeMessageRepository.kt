@@ -17,6 +17,7 @@ import com.glyph.glyph_v3.data.models.MediaItem
 import com.glyph.glyph_v3.data.models.MediaType
 import com.glyph.glyph_v3.data.models.Message
 import com.glyph.glyph_v3.data.models.MessageStatus
+import com.glyph.glyph_v3.data.models.sanitizedMediaItems
 import com.glyph.glyph_v3.data.models.MessageType
 import com.glyph.glyph_v3.data.models.SelectedMediaItem
 import com.glyph.glyph_v3.data.repo.MediaProgressManager
@@ -2440,7 +2441,7 @@ class RealtimeMessageRepository(
             MessageType.AUDIO -> !audioUrl.isNullOrBlank()
             MessageType.MEDIA_GROUP -> {
                 val remoteItems = parseMediaItemsFromJson(remoteMediaItemsJson)
-                remoteItems.isNotEmpty() && remoteItems.all { it.url.isNotBlank() }
+                remoteItems.isNotEmpty() && remoteItems.all { it.url.orEmpty().isNotBlank() }
             }
             MessageType.TEXT,
             MessageType.CONTACT,
@@ -2704,7 +2705,9 @@ class RealtimeMessageRepository(
         if (json.isNullOrBlank()) return emptyList()
         return runCatching {
             val type = object : com.google.gson.reflect.TypeToken<List<MediaItem>>() {}.type
-            Gson().fromJson<List<MediaItem>>(json, type) ?: emptyList()
+            // sanitizedMediaItems(): Gson bypasses the constructor, so url/type may be
+            // null despite their non-null declarations (see MediaItem.kt).
+            (Gson().fromJson<List<MediaItem>>(json, type) ?: emptyList()).sanitizedMediaItems()
         }.getOrDefault(emptyList())
     }
 
@@ -2716,7 +2719,7 @@ class RealtimeMessageRepository(
 
     private fun mediaItemsRealtimePayload(json: String?): List<Map<String, Any>> {
         return parseMediaItemsOrEmpty(json).mapNotNull { item ->
-            if (item.url.isBlank()) return@mapNotNull null
+            if (item.url.orEmpty().isBlank()) return@mapNotNull null
             buildMap<String, Any> {
                 put("url", item.url)
                 put("type", item.type.name)
@@ -6018,7 +6021,7 @@ class RealtimeMessageRepository(
         if (message.type == MessageType.MEDIA_GROUP && !message.mediaItems.isNullOrBlank()) {
             val items = parseMediaItemsOrEmpty(message.mediaItems)
             items.forEachIndexed { index, item ->
-                val remoteUrl = item.url.takeIf { it.isNotBlank() } ?: return@forEachIndexed
+                val remoteUrl = item.url.orEmpty().takeIf { it.isNotBlank() } ?: return@forEachIndexed
                 if (resolveForwardableLocalUri(item.localUri) != null) return@forEachIndexed
 
                 val mediaType = if (item.type == MediaType.VIDEO) MessageType.VIDEO else MessageType.IMAGE

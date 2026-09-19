@@ -302,7 +302,14 @@ object MessagePreviewCacheManager {
         ensureInitialized(appContext)
         message.mediaItemsList.take(4).forEachIndexed { index, item ->
             val sourceUrl = item.thumbnailUrl?.takeIf { it.isNotBlank() }
-                ?: item.url.takeIf { it.isNotBlank() }
+                // orEmpty(): MediaItem.url is declared non-null, but the list is
+                // Gson-parsed (constructors bypassed), so a JSON entry without a
+                // "url" key leaves the field null at runtime. Calling
+                // takeIf/isNotBlank on it threw a NullPointerException on the
+                // preview-warm worker in release builds (R8 inlines isNotBlank
+                // into isBlank, so the frame read StringsKt.isBlank). Missing URL
+                // now behaves like a blank one: the item is skipped.
+                ?: item.url.orEmpty().takeIf { it.isNotBlank() }
                 ?: return@forEachIndexed
             val cacheKey = "group:${message.id}:$index"
             if (!inFlightKeys.add(cacheKey)) return@forEachIndexed
@@ -327,7 +334,14 @@ object MessagePreviewCacheManager {
     private suspend fun warmMediaGroupPreviewBlocking(context: Context, message: Message) {
         message.mediaItemsList.take(4).forEachIndexed { index, item ->
             val sourceUrl = item.thumbnailUrl?.takeIf { it.isNotBlank() }
-                ?: item.url.takeIf { it.isNotBlank() }
+                // orEmpty(): MediaItem.url is declared non-null, but the list is
+                // Gson-parsed (constructors bypassed), so a JSON entry without a
+                // "url" key leaves the field null at runtime. Calling
+                // takeIf/isNotBlank on it threw a NullPointerException on the
+                // preview-warm worker in release builds (R8 inlines isNotBlank
+                // into isBlank, so the frame read StringsKt.isBlank). Missing URL
+                // now behaves like a blank one: the item is skipped.
+                ?: item.url.orEmpty().takeIf { it.isNotBlank() }
                 ?: return@forEachIndexed
 
             runCatching {

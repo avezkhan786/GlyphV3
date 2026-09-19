@@ -108,6 +108,7 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.layout.ContentScale
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.LinearLayout
 import android.widget.TextView
 import kotlinx.coroutines.delay
@@ -395,7 +396,12 @@ fun ChatListScreen(
     undoProgress: Float = 0f,
     onUndoDelete: () -> Unit = {},
     blockedUserIds: Set<String> = emptySet(),
-    useRecyclerView: Boolean = false
+    useRecyclerView: Boolean = false,
+    // Cold-start first-frame signal: invoked once the list content has actually
+    // been laid out (first child measured with non-zero size). MainActivity uses
+    // this to release its first-draw gate and start deferred init. Optional —
+    // when null (or the list stays empty) the 500ms safety timeout applies.
+    onFirstFrameReady: (() -> Unit)? = null
 ) {
     // FontFamily for BBH Bartle. Add the font file(s) under `app/src/main/res/font/`:
     // e.g. res/font/bbh_bartle_regular.ttf and reference as R.font.bbh_bartle_regular
@@ -1180,6 +1186,26 @@ fun ChatListScreen(
                                 // visible throughout the entire stretch cycle.
                                 setPadding(0, revealOffsetPx.roundToInt(), 0, recyclerViewTotalBottomPaddingPx)
                                 clipToPadding = false
+                                // Cold-start first-frame signal (one-shot): fires when the
+                                // first row has been measured with a non-zero height, i.e.
+                                // the chat-list content is laid out and the next draw will
+                                // show it. If the list never gets a child (empty account),
+                                // MainActivity's 500ms safety timeout releases the gate.
+                                if (onFirstFrameReady != null) {
+                                    val firstFrameListener = object : ViewTreeObserver.OnGlobalLayoutListener {
+                                        private var done = false
+                                        override fun onGlobalLayout() {
+                                            if (done) return
+                                            val firstChild = getChildAt(0)
+                                            if (firstChild != null && firstChild.height > 0) {
+                                                done = true
+                                                viewTreeObserver.removeOnGlobalLayoutListener(this)
+                                                onFirstFrameReady.invoke()
+                                            }
+                                        }
+                                    }
+                                    viewTreeObserver.addOnGlobalLayoutListener(firstFrameListener)
+                                }
                                 // Mirror Compose's LocalListScrolling for infinite animations.
                                 scrollSuspensionCoordinator.attach(this)
                                 // Mirror chatListState.firstVisibleItemIndex/ScrollOffset for

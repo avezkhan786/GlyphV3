@@ -22,4 +22,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "Glyph-V3"
 include(":app")
+include(":baselineprofile")
  

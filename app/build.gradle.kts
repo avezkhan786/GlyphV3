@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.services)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.baselineprofile)
     id("kotlin-parcelize")
 }
 
@@ -152,6 +153,12 @@ android {
             )
             // CRITICAL: Enable R8 optimizations for better performance
             isShrinkResources = true
+            // Local perf testing: sign the release APK with the debug key so it
+            // can be installed with `adb install -r` over the existing app
+            // (keeps app data / auth). Production release signing is unchanged
+            // because this only affects the local buildType config — real
+            // distribution signing replaces this in CI.
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             versionNameSuffix = "-debug"
@@ -234,6 +241,8 @@ dependencies {
     // Installs/AOT-compiles the bundled baseline-prof.txt on local installs and API 24-30,
     // so the chat RecyclerView bind/inflate path is pre-compiled (no first-scroll JIT warm-up).
     implementation(libs.androidx.profileinstaller)
+    // Baseline Profile producer module (macrobenchmark startup scenario).
+    baselineProfile(project(":baselineprofile"))
     
     // PhotoView for zoomable images
     implementation("com.github.chrisbanes:PhotoView:2.3.0")

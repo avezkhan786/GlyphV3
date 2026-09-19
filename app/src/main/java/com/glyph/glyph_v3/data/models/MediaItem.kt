@@ -32,7 +32,16 @@ data class MediaItem(
                     return candidate
                 }
             }
-            return url
+            // orEmpty(): this property is declared non-null, but items deserialized
+            // by Gson (Message.mediaItems / mediaItemsList, MediaDownloadWorker,
+            // MediaTransferManager, RealtimeMessageRepository) never run the
+            // constructor, so a JSON payload without a "url" key leaves the field
+            // null and this getter used to return that null — crashing callers that
+            // trust the declared type (observed: CollageImageView.getFullResKey →
+            // NPE "Object.getClass() on a null object reference" when opening a
+            // group chat with a collage message). Empty string behaves exactly like
+            // a blank URL at every call site.
+            return url.orEmpty()
         }
     
     /**
@@ -40,6 +49,30 @@ data class MediaItem(
      */
     val isVideo: Boolean
         get() = type == MediaType.VIDEO
+}
+
+/**
+ * Gson deserialization bypasses the constructor, so a mediaItems JSON payload that
+ * omits `"url"` or `"type"` leaves those non-null-declared fields null at runtime.
+ * Call this right after every `Gson().fromJson<List<MediaItem>>` so all downstream
+ * consumers see the contract the type system promises.
+ *
+ * Crashes this fixes (both seen in release, opening a group chat with a collage):
+ *  - CollageImageView.getFullResKey   → NPE "Object.getClass() on a null object" (null url)
+ *  - CollageImageView.buildItemsSignature → NPE "Enum.name() on a null object" (null type)
+ */
+fun List<MediaItem>.sanitizedMediaItems(): List<MediaItem> = map { it.sanitizedMediaItem() }
+
+/** @see sanitizedMediaItems */
+fun MediaItem.sanitizedMediaItem(): MediaItem {
+    val safeUrl = url.orEmpty()
+    val resolvedType: MediaType = type ?: MediaType.IMAGE
+    return if (safeUrl == url && resolvedType == type) {
+        this
+    } else {
+        // Safe: every other non-null field is a primitive (Gson defaults those to 0).
+        copy(url = safeUrl, type = resolvedType)
+    }
 }
 
 enum class MediaType {

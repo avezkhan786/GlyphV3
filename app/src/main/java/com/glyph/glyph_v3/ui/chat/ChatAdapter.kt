@@ -876,7 +876,7 @@ class ChatAdapter(
 
     private fun hasRenderableMediaSource(item: MediaItem): Boolean {
         if (hasExistingLocalUri(item.localUri)) return true
-        if (item.url.isNotBlank()) return true
+        if (item.url.orEmpty().isNotBlank()) return true
         if (!item.thumbnailUrl.isNullOrBlank()) return true
         return false
     }
@@ -6261,7 +6261,7 @@ class ChatAdapter(
         private fun updateProgressUi(msg: Message, mediaItems: List<MediaItem>) {
             val progress = MediaProgressManager.getProgress(msg.id)
             val isUploading = progress != null && progress.isUploading && !progress.isComplete
-            val hasRemoteItems = mediaItems.isNotEmpty() && mediaItems.all { it.url.isNotBlank() }
+            val hasRemoteItems = mediaItems.isNotEmpty() && mediaItems.all { it.url.orEmpty().isNotBlank() }
             val isSentState = when (msg.status) {
                 MessageStatus.SENT,
                 MessageStatus.DELIVERED,
@@ -6482,7 +6482,7 @@ class ChatAdapter(
         private fun updateProgressUi(msg: Message, mediaItems: List<MediaItem>) {
             val progress = MediaProgressManager.getProgress(msg.id)
             val isUploading = progress != null && progress.isUploading && !progress.isComplete
-            val hasRemoteItems = mediaItems.isNotEmpty() && mediaItems.all { it.url.isNotBlank() }
+            val hasRemoteItems = mediaItems.isNotEmpty() && mediaItems.all { it.url.orEmpty().isNotBlank() }
             val isSentState = when (rememberStrongestOutgoingStatus(msg)) {
                 MessageStatus.SENT,
                 MessageStatus.DELIVERED,
